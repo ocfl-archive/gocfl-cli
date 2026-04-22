@@ -189,6 +189,8 @@ there's a need for a special extension to support this.
   * [x] 0006-flat-omit-prefix-storage-layout
   * [x] 0007-n-tuple-omit-prefix-storage-layout
   * [ ] 0008-schema-registry
+  * [x] 0009-digest-algorithms
+  * [ ] 0010-differential-n-tuple-omit-prefix-storage-layout.md
   * [x] [0011-direct-clean-path-layout](docs/NNNN-direct-clean-path-layout.md)
 * Local Extensions
   * [x] [NNNN-pairtree-storage-layout](https://pythonhosted.org/Pairtree/pairtree.pairtree_client.PairtreeStorageClient-class.html)
