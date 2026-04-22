@@ -9,9 +9,9 @@ import (
 	"github.com/je4/utils/v2/pkg/checksum"
 	configutil "github.com/je4/utils/v2/pkg/config"
 	"github.com/je4/utils/v2/pkg/stashconfig"
+	"github.com/ocfl-archive/gocfl-extensions/pkg/subsystem/migration"
+	"github.com/ocfl-archive/gocfl-extensions/pkg/subsystem/thumbnail"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/util"
-	"github.com/ocfl-archive/gocfl/v3/pkg/subsystem/migration"
-	"github.com/ocfl-archive/gocfl/v3/pkg/subsystem/thumbnail"
 	"github.com/ocfl-archive/indexer/v3/pkg/indexer"
 )
 

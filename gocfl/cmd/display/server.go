@@ -25,7 +25,7 @@ import (
 	"github.com/je4/filesystem/v3/pkg/writefs"
 	dcert "github.com/je4/utils/v2/pkg/cert"
 	"github.com/je4/utils/v2/pkg/checksum"
-	"github.com/ocfl-archive/gocfl/v3/pkg/extension"
+	"github.com/ocfl-archive/gocfl-extensions/pkg/extension"
 	extensiontypes "github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension"
 	extension2 "github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension/extensionimpl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/functions"

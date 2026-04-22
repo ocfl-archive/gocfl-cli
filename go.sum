@@ -166,8 +166,10 @@ github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 h1:zYyBkD/k9seD2A7fsi6
 github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646/go.mod h1:jpp1/29i3P1S/RLdc7JQKbRpFeM1dOBd8T9ki5s+AY8=
 github.com/ocfl-archive/error v1.0.5 h1:nPidx9HBSiViSDZHfVY8nIabBeOSO5vLFOcUMgt7yLo=
 github.com/ocfl-archive/error v1.0.5/go.mod h1:vOwIAdG34QlD9ExXUXu8QSywUKIIMN31ykQ2U0LvOMs=
-github.com/ocfl-archive/gocfl/v3 v3.0.0-20260422153705-637e0aea229f h1:lBYjHiEWqxpLBSVodUgc8pMb6DTF9LYH6xVgDFQRotU=
-github.com/ocfl-archive/gocfl/v3 v3.0.0-20260422153705-637e0aea229f/go.mod h1:c6/KpzGKsWANBfjPEF4tVjcyiavTdMYkY+BLAeC0iy4=
+github.com/ocfl-archive/gocfl-extensions v0.0.0-20260422160844-35dfd21cfb92 h1:h1+XjFM2e0gIxm1mVk6lqSsPqJ8sR0WT5XakgsoG/Bc=
+github.com/ocfl-archive/gocfl-extensions v0.0.0-20260422160844-35dfd21cfb92/go.mod h1:VuneKb93sOrgQgm74bb7WRczpDXnOsroNeT8C61d93I=
+github.com/ocfl-archive/gocfl/v3 v3.0.0-20260422160744-cdc2da7e6cc5 h1:DXZUfe7INCUEYB5kx+Ard+KQZArGVELsGiu2lGMFkpM=
+github.com/ocfl-archive/gocfl/v3 v3.0.0-20260422160744-cdc2da7e6cc5/go.mod h1:c6/KpzGKsWANBfjPEF4tVjcyiavTdMYkY+BLAeC0iy4=
 github.com/ocfl-archive/indexer/v3 v3.0.42 h1:866UmMlUq9a+nNI5BD7WCbWJCSvZbtuZYTiYLWYp84E=
 github.com/ocfl-archive/indexer/v3 v3.0.42/go.mod h1:gLVOsu6ZPeEyHCrbRF64hGYjrov0dBCg5oKiwYUxKUA=
 github.com/op/go-logging v0.0.0-20160315200505-970db520ece7 h1:lDH9UUVJtmYCjyT0CI4q8xvlXPxeZ0gYCVvWbmPlp88=
@@ -361,8 +363,6 @@ gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c h1:Hei/4ADfdWqJk1ZMxUNpqntN
 gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c/go.mod h1:JHkPIbrfpd72SG/EVd6muEfDQjcINNoR0C8j2r3qZ4Q=
 gopkg.in/gographics/imagick.v3 v3.7.3 h1:Hy2MbJKLJ/9T3ZuV1zwBOy09O9prf2MCCVpM7bcZdpY=
 gopkg.in/gographics/imagick.v3 v3.7.3/go.mod h1:7I4S9VWdwr88yzYi7g+ZL4H8oZuH9cmSQI7GsZCcYFM=
-gopkg.in/yaml.v2 v2.4.0 h1:D8xgwECY7CYvx+Y2n4sBz93Jn9JRvxdiyyo8CTfuKaY=
-gopkg.in/yaml.v2 v2.4.0/go.mod h1:RDklbk79AGWmwhnvt/jBztapEOGDOx6ZbXqjP6csGnQ=
 gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
 gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
