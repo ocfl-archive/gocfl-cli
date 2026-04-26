@@ -15,7 +15,7 @@ require (
 	github.com/je4/utils/v2 v2.0.68
 	github.com/ocfl-archive/error v1.0.5
 	github.com/ocfl-archive/gocfl-extensions v0.0.0-20260422161719-881c5367067f
-	github.com/ocfl-archive/gocfl/v3 v3.0.0-20260423075800-110e1c3006c8
+	github.com/ocfl-archive/gocfl/v3 v3.0.0-20260426164840-93e1e29a21be
 	github.com/ocfl-archive/indexer/v3 v3.0.42
 	github.com/rs/zerolog v1.35.1
 	github.com/shirou/gopsutil/v4 v4.26.3
@@ -108,6 +108,7 @@ require (
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/smallstep/certinfo v1.16.0 // indirect
+	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/tamerh/xml-stream-parser v1.5.0 // indirect
