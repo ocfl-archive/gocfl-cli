@@ -11,11 +11,11 @@ require (
 	github.com/dustin/go-humanize v1.0.1
 	github.com/gin-contrib/multitemplate v1.1.2
 	github.com/gin-gonic/gin v1.12.0
-	github.com/je4/filesystem/v3 v3.0.48
+	github.com/je4/filesystem/v3 v3.0.52
 	github.com/je4/utils/v2 v2.0.68
 	github.com/ocfl-archive/error v1.0.5
 	github.com/ocfl-archive/gocfl-extensions v0.0.0-20260422161719-881c5367067f
-	github.com/ocfl-archive/gocfl/v3 v3.0.0-20260422160744-cdc2da7e6cc5
+	github.com/ocfl-archive/gocfl/v3 v3.0.0-20260423075800-110e1c3006c8
 	github.com/ocfl-archive/indexer/v3 v3.0.42
 	github.com/rs/zerolog v1.35.1
 	github.com/shirou/gopsutil/v4 v4.26.3
@@ -47,6 +47,7 @@ require (
 	github.com/ebitengine/purego v0.10.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.13 // indirect
 	github.com/gin-contrib/sse v1.1.1 // indirect
+	github.com/go-git/go-billy/v5 v5.8.0 // indirect
 	github.com/go-ini/ini v1.67.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
