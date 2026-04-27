@@ -216,6 +216,11 @@ func doCreate(cmd *cobra.Command, args []string) {
 		}
 	}()
 
+	if err := RegisterComplexExtensions(fss, sourceFS, addr, localCache, conf.Indexer, &conf.Migration, conf.Thumbnail, logger); err != nil {
+		logger.Error().Err(err).Msg("cannot register complex extensions")
+		return
+	}
+
 	area := conf.DefaultArea
 	if area == "" {
 		area = "content"
@@ -235,11 +240,6 @@ func doCreate(cmd *cobra.Command, args []string) {
 		if err != nil {
 			logger.Fatal().Err(err).Msgf("cannot get filesystem for '%s'", args[i])
 		}
-	}
-
-	if err := RegisterComplexExtensions(fss, sourceFS, addr, localCache, conf.Indexer, &conf.Migration, conf.Thumbnail, logger); err != nil {
-		logger.Error().Err(err).Msg("cannot register complex extensions")
-		return
 	}
 
 	extensionParams, err := getExtensionParams(cmd)

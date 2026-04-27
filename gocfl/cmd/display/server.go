@@ -27,7 +27,7 @@ import (
 	"github.com/je4/utils/v2/pkg/checksum"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension"
 	extensiontypes "github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension"
-	extension2 "github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension/extensionimpl"
+	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension/extensionimpl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/functions"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/inventory"
 	objecttypes "github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
@@ -54,11 +54,11 @@ type Server struct {
 	templateFS       fs.FS
 	obfuscate        bool
 	httpObjectFS     http.FileSystem
-	extensionFactory *extension2.Factory
+	extensionFactory *extensionimpl.Factory
 	objectFS         fs.FS
 }
 
-func NewServer(storageRoot storageroot.StorageRoot, extensionFactory *extension2.Factory, service, addr string, urlExt *url.URL, dataFS fs.FS, templateFS fs.FS, log ocfllogger.OCFLLogger, accessLog io.Writer) (*Server, error) {
+func NewServer(storageRoot storageroot.StorageRoot, extensionFactory *extensionimpl.Factory, service, addr string, urlExt *url.URL, dataFS fs.FS, templateFS fs.FS, log ocfllogger.OCFLLogger, accessLog io.Writer) (*Server, error) {
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
 		return nil, emperror.Wrapf(err, "cannot split address %s", addr)

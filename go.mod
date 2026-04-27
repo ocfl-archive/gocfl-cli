@@ -14,8 +14,8 @@ require (
 	github.com/je4/filesystem/v3 v3.0.52
 	github.com/je4/utils/v2 v2.0.68
 	github.com/ocfl-archive/error v1.0.5
-	github.com/ocfl-archive/gocfl-extensions v0.0.0-20260422161719-881c5367067f
-	github.com/ocfl-archive/gocfl/v3 v3.0.0-20260426164840-93e1e29a21be
+	github.com/ocfl-archive/gocfl-extensions v0.0.0-20260427155441-9d985d351561
+	github.com/ocfl-archive/gocfl/v3 v3.0.0-20260427155243-ad12235b6212
 	github.com/ocfl-archive/indexer/v3 v3.0.42
 	github.com/rs/zerolog v1.35.1
 	github.com/shirou/gopsutil/v4 v4.26.3
@@ -78,7 +78,7 @@ require (
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
-	github.com/mattn/go-isatty v0.0.21 // indirect
+	github.com/mattn/go-isatty v0.0.22 // indirect
 	github.com/minio/crc64nvme v1.1.1 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/minio/minio-go/v7 v7.0.100 // indirect
@@ -125,7 +125,7 @@ require (
 	go.opentelemetry.io/otel v1.43.0 // indirect
 	go.opentelemetry.io/otel/metric v1.43.0 // indirect
 	go.opentelemetry.io/otel/trace v1.43.0 // indirect
-	go.step.sm/crypto v0.77.2 // indirect
+	go.step.sm/crypto v0.77.7 // indirect
 	go.ub.unibas.ch/cloud/genericproto/v2 v2.0.4 // indirect
 	go.ub.unibas.ch/cloud/minikvstore v1.0.2 // indirect
 	go.ub.unibas.ch/cloud/miniresolverclient v1.0.2 // indirect
