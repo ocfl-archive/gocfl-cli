@@ -14,8 +14,8 @@ require (
 	github.com/je4/filesystem/v3 v3.0.52
 	github.com/je4/utils/v2 v2.0.68
 	github.com/ocfl-archive/error v1.0.5
-	github.com/ocfl-archive/gocfl-extensions v0.0.0-20260427155441-9d985d351561
-	github.com/ocfl-archive/gocfl/v3 v3.0.0-20260427155243-ad12235b6212
+	github.com/ocfl-archive/gocfl-extensions v0.0.0-20260428133441-e76ea7896eba
+	github.com/ocfl-archive/gocfl/v3 v3.0.0-20260428133324-75e1385e700c
 	github.com/ocfl-archive/indexer/v3 v3.0.42
 	github.com/rs/zerolog v1.35.1
 	github.com/shirou/gopsutil/v4 v4.26.3

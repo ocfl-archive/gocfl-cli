@@ -168,10 +168,10 @@ github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 h1:zYyBkD/k9seD2A7fsi6
 github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646/go.mod h1:jpp1/29i3P1S/RLdc7JQKbRpFeM1dOBd8T9ki5s+AY8=
 github.com/ocfl-archive/error v1.0.5 h1:nPidx9HBSiViSDZHfVY8nIabBeOSO5vLFOcUMgt7yLo=
 github.com/ocfl-archive/error v1.0.5/go.mod h1:vOwIAdG34QlD9ExXUXu8QSywUKIIMN31ykQ2U0LvOMs=
-github.com/ocfl-archive/gocfl-extensions v0.0.0-20260427155441-9d985d351561 h1:gpd3AMGupL9TSPECEZabt8szl/NtRn7IkbqnHwjDhpk=
-github.com/ocfl-archive/gocfl-extensions v0.0.0-20260427155441-9d985d351561/go.mod h1:Pgxe+t+6XH33Fe6Y53AfLhbuiIsAMRAVkCDj35gmnmU=
-github.com/ocfl-archive/gocfl/v3 v3.0.0-20260427155243-ad12235b6212 h1:2lEA5rcTLBqwmmpH7OZzbm+68HtuYUoezIaOlaOuTvQ=
-github.com/ocfl-archive/gocfl/v3 v3.0.0-20260427155243-ad12235b6212/go.mod h1:1r2MyO7o59TB4qI0AQjCE8BXKfd5Y1EGovnJYBiAn0w=
+github.com/ocfl-archive/gocfl-extensions v0.0.0-20260428133441-e76ea7896eba h1:5aFKJRpc/Pw3cnQooarjtozjdJcjD5UjHRVH+rSlB/U=
+github.com/ocfl-archive/gocfl-extensions v0.0.0-20260428133441-e76ea7896eba/go.mod h1:l9oedSangXMw1vaX39nZ/8POIJb6NxlkQuiBwlHn6Fs=
+github.com/ocfl-archive/gocfl/v3 v3.0.0-20260428133324-75e1385e700c h1:szoDs33g5w1Q2vtuJfztjHGf54s63NOAPaWfLtUPVNE=
+github.com/ocfl-archive/gocfl/v3 v3.0.0-20260428133324-75e1385e700c/go.mod h1:1r2MyO7o59TB4qI0AQjCE8BXKfd5Y1EGovnJYBiAn0w=
 github.com/ocfl-archive/indexer/v3 v3.0.42 h1:866UmMlUq9a+nNI5BD7WCbWJCSvZbtuZYTiYLWYp84E=
 github.com/ocfl-archive/indexer/v3 v3.0.42/go.mod h1:gLVOsu6ZPeEyHCrbRF64hGYjrov0dBCg5oKiwYUxKUA=
 github.com/op/go-logging v0.0.0-20160315200505-970db520ece7 h1:lDH9UUVJtmYCjyT0CI4q8xvlXPxeZ0gYCVvWbmPlp88=
