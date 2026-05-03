@@ -11,11 +11,11 @@ require (
 	github.com/dustin/go-humanize v1.0.1
 	github.com/gin-contrib/multitemplate v1.1.2
 	github.com/gin-gonic/gin v1.12.0
-	github.com/je4/filesystem/v3 v3.0.53
+	github.com/je4/filesystem/v3 v3.0.54
 	github.com/je4/utils/v2 v2.0.68
 	github.com/ocfl-archive/error v1.0.5
-	github.com/ocfl-archive/gocfl-extensions v0.0.0-20260503121901-9f78e953dee0
-	github.com/ocfl-archive/gocfl/v3 v3.0.0-20260503121431-aa27eb934c8b
+	github.com/ocfl-archive/gocfl-extensions v0.0.0-20260503122245-7ba5a9d4a223
+	github.com/ocfl-archive/gocfl/v3 v3.0.0-20260503122146-50d63229122a
 	github.com/ocfl-archive/indexer/v3 v3.0.44
 	github.com/rs/zerolog v1.35.1
 	github.com/shirou/gopsutil/v4 v4.26.3
