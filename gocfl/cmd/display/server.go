@@ -25,7 +25,11 @@ import (
 	"github.com/je4/filesystem/v3/pkg/writefs"
 	dcert "github.com/je4/utils/v2/pkg/cert"
 	"github.com/je4/utils/v2/pkg/checksum"
-	"github.com/ocfl-archive/gocfl-extensions/pkg/extension"
+	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_filesystem"
+	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_indexer"
+	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_metafile"
+	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_migration"
+	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_thumbnail"
 	extensiontypes "github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension/extensionimpl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/functions"
@@ -369,8 +373,8 @@ func (s *Server) detail(c *gin.Context) {
 		Fixity          map[checksum.DigestAlgorithm]string `json:"fixity"`
 		Indexer         *indexer.ResultV2                   `json:"indexer"`
 		IndexerJSON     string
-		Migration       *extension.MigrationResult
-		Thumbnail       *extension.ThumbnailResult
+		Migration       *ext_NNNN_migration.MigrationResult
+		Thumbnail       *ext_NNNN_thumbnail.ThumbnailResult
 	}
 
 	status := &detailStatus{
@@ -381,10 +385,10 @@ func (s *Server) detail(c *gin.Context) {
 		Fixity:          file.Checksums,
 	}
 
-	extFilesystemAny, _ := file.Extension[extension.FilesystemName]
-	var extFilesystem map[string][]*extension.FileSystemLine
+	extFilesystemAny, _ := file.Extension[ext_NNNN_filesystem.FilesystemName]
+	var extFilesystem map[string][]*ext_NNNN_filesystem.FileSystemLine
 	if extFilesystemAny != nil {
-		extFilesystem, _ = extFilesystemAny.(map[string][]*extension.FileSystemLine)
+		extFilesystem, _ = extFilesystemAny.(map[string][]*ext_NNNN_filesystem.FileSystemLine)
 	}
 
 	for ver, names := range file.VersionName {
@@ -415,7 +419,7 @@ func (s *Server) detail(c *gin.Context) {
 		}
 	}
 
-	extIndexerAny, _ := file.Extension[extension.IndexerName]
+	extIndexerAny, _ := file.Extension[ext_NNNN_indexer.IndexerName]
 	var extIndexer *indexer.ResultV2
 	if extIndexerAny != nil {
 		extIndexer, _ = extIndexerAny.(*indexer.ResultV2)
@@ -432,21 +436,21 @@ func (s *Server) detail(c *gin.Context) {
 		status.IndexerJSON = string(iData)
 	}
 
-	extMigrationAny, _ := file.Extension[extension.MigrationName]
-	var extMigration *extension.MigrationResult
+	extMigrationAny, _ := file.Extension[ext_NNNN_migration.MigrationName]
+	var extMigration *ext_NNNN_migration.MigrationResult
 	if extMigrationAny != nil {
-		extMigration, _ = extMigrationAny.(*extension.MigrationResult)
+		extMigration, _ = extMigrationAny.(*ext_NNNN_migration.MigrationResult)
 	}
 	if extMigration != nil {
 		status.Migration = extMigration
 	}
 
-	extThumbnailAny, _ := file.Extension[extension.ThumbnailName]
+	extThumbnailAny, _ := file.Extension[ext_NNNN_thumbnail.ThumbnailName]
 	if extThumbnailAny != nil {
-		if extThumbnail, ok := extThumbnailAny.(extension.ThumbnailResult); ok {
+		if extThumbnail, ok := extThumbnailAny.(ext_NNNN_thumbnail.ThumbnailResult); ok {
 			status.Thumbnail = &extThumbnail
 		} else {
-			if extThumbnail, ok := extThumbnailAny.(*extension.ThumbnailResult); ok {
+			if extThumbnail, ok := extThumbnailAny.(*ext_NNNN_thumbnail.ThumbnailResult); ok {
 				status.Thumbnail = extThumbnail
 			}
 		}
@@ -562,12 +566,12 @@ func (s *Server) manifest(c *gin.Context) {
 	var filenames = []string{}
 
 	for checksum, file := range s.metadata.Files {
-		extMigrationAny, _ := file.Extension[extension.MigrationName]
-		var extMigration *extension.MigrationResult
+		extMigrationAny, _ := file.Extension[ext_NNNN_migration.MigrationName]
+		var extMigration *ext_NNNN_migration.MigrationResult
 		if extMigrationAny != nil {
-			extMigration = extMigrationAny.(*extension.MigrationResult)
+			extMigration = extMigrationAny.(*ext_NNNN_migration.MigrationResult)
 		}
-		extIndexerAny, _ := file.Extension[extension.IndexerName]
+		extIndexerAny, _ := file.Extension[ext_NNNN_indexer.IndexerName]
 		var extIndexer *indexer.ResultV2
 		if extIndexerAny != nil {
 			extIndexer, _ = extIndexerAny.(*indexer.ResultV2)
@@ -668,20 +672,20 @@ func (s *Server) version(c *gin.Context) {
 	var filenames = []string{}
 
 	for checksum, file := range s.metadata.Files {
-		extMigrationAny, _ := file.Extension[extension.MigrationName]
-		var extMigration *extension.MigrationResult
+		extMigrationAny, _ := file.Extension[ext_NNNN_migration.MigrationName]
+		var extMigration *ext_NNNN_migration.MigrationResult
 		if extMigrationAny != nil {
-			extMigration = extMigrationAny.(*extension.MigrationResult)
+			extMigration = extMigrationAny.(*ext_NNNN_migration.MigrationResult)
 		}
-		extIndexerAny, _ := file.Extension[extension.IndexerName]
+		extIndexerAny, _ := file.Extension[ext_NNNN_indexer.IndexerName]
 		var extIndexer *indexer.ResultV2
 		if extIndexerAny != nil {
 			extIndexer, _ = extIndexerAny.(*indexer.ResultV2)
 		}
-		extFilesystemAny, _ := file.Extension[extension.FilesystemName]
-		var extFilesystem map[string][]*extension.FileSystemLine
+		extFilesystemAny, _ := file.Extension[ext_NNNN_filesystem.FilesystemName]
+		var extFilesystem map[string][]*ext_NNNN_filesystem.FileSystemLine
 		if extFilesystemAny != nil {
-			extFilesystem, _ = extFilesystemAny.(map[string][]*extension.FileSystemLine)
+			extFilesystem, _ = extFilesystemAny.(map[string][]*ext_NNNN_filesystem.FileSystemLine)
 		}
 		extFilesystemVersion, _ := extFilesystem[iop.Version]
 		if vNames, ok := file.VersionName[iop.Version]; ok {
@@ -828,8 +832,8 @@ func (s *Server) displayObject(c *gin.Context) {
 	var pronoms = make(map[string]int)
 	for _, v := range s.metadata.Files {
 		numFiles += len(v.InternalName)
-		_fs, _ := v.Extension[extension.FilesystemName]
-		_idx, _ := v.Extension[extension.IndexerName]
+		_fs, _ := v.Extension[ext_NNNN_filesystem.FilesystemName]
+		_idx, _ := v.Extension[ext_NNNN_indexer.IndexerName]
 		var fs map[string]any
 		var idx *indexer.ResultV2
 		var ok bool
@@ -1024,8 +1028,8 @@ func (s *Server) report(c *gin.Context) {
 	var videoSecs uint
 	for _, v := range s.metadata.Files {
 		numFiles += len(v.InternalName)
-		_fs, _ := v.Extension[extension.FilesystemName]
-		_idx, _ := v.Extension[extension.IndexerName]
+		_fs, _ := v.Extension[ext_NNNN_filesystem.FilesystemName]
+		_idx, _ := v.Extension[ext_NNNN_indexer.IndexerName]
 		var fs map[string]any
 		var idx *indexer.ResultV2
 		var ok bool
@@ -1085,10 +1089,10 @@ func (s *Server) report(c *gin.Context) {
 		objectpath = fsStringer.String()
 	}
 
-	cfg, err := extManager.GetConfigName(extension.MetaFileName)
+	cfg, err := extManager.GetConfigName(ext_NNNN_metafile.MetaFileName)
 	if err != nil {
-		cfg = &extension.MetaFileConfig{
-			ExtensionConfig: &extensiontypes.ExtensionConfig{ExtensionName: extension.MetaFileName},
+		cfg = &ext_NNNN_metafile.MetaFileConfig{
+			ExtensionConfig: &extensiontypes.ExtensionConfig{ExtensionName: ext_NNNN_metafile.MetaFileName},
 			StorageType:     "area",
 			StorageName:     "metadata",
 			MetaName:        "info.json",
@@ -1096,7 +1100,7 @@ func (s *Server) report(c *gin.Context) {
 		}
 	}
 
-	metafileCfg, ok := cfg.(*extension.MetaFileConfig)
+	metafileCfg, ok := cfg.(*ext_NNNN_metafile.MetaFileConfig)
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": errors.Errorf("invalid config format %v", cfg)})
 		return
@@ -1104,7 +1108,7 @@ func (s *Server) report(c *gin.Context) {
 
 	var infoBytes []byte
 	if metafileCfg.StorageType == "extension" {
-		fsys, err := fs.Sub(s.objectFS, path.Join("extensions", extension.MetaFileName))
+		fsys, err := fs.Sub(s.objectFS, path.Join("extensions", ext_NNNN_metafile.MetaFileName))
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -1227,7 +1231,7 @@ func (s *Server) report(c *gin.Context) {
 	}
 	var filesNoData int64
 	for _, file := range s.metadata.Files {
-		if file.Extension[extension.IndexerName] == nil && file.Extension[extension.FilesystemName] == nil {
+		if file.Extension[ext_NNNN_indexer.IndexerName] == nil && file.Extension[ext_NNNN_filesystem.FilesystemName] == nil {
 			filesNoData++
 		}
 	}

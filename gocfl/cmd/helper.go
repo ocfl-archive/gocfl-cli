@@ -23,7 +23,9 @@ import (
 	"github.com/ocfl-archive/gocfl-cli/config"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
 	defaultextensions_storageroot "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/storageroot"
-	ocflextension "github.com/ocfl-archive/gocfl-extensions/pkg/extension"
+	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_indexer"
+	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_migration"
+	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_thumbnail"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/subsystem/migration"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/subsystem/thumbnail"
 	"github.com/ocfl-archive/gocfl/v3/pkg/appendfs"
@@ -204,27 +206,27 @@ func RegisterComplexExtensions(
 	}
 	thumb.SetSourceFS(sourceFS)
 	extension.RegisterExtension(
-		ocflextension.IndexerName,
+		ext_NNNN_indexer.IndexerName,
 		func() (extension.Extension, error) {
-			ext, err := ocflextension.NewIndexer(indexerAddr, fss, indexerConf, indexerLocalCache, logger)
+			ext, err := ext_NNNN_indexer.NewIndexer(indexerAddr, fss, indexerConf, indexerLocalCache, logger)
 			if err != nil {
 				return nil, err
 			}
 			return ext, nil
 		},
-		ocflextension.GetIndexerParams)
+		ext_NNNN_indexer.GetIndexerParams, &ext_NNNN_indexer.IndexerDoc)
 	extension.RegisterExtension(
-		ocflextension.MigrationName,
+		ext_NNNN_migration.MigrationName,
 		func() (extension.Extension, error) {
-			return ocflextension.NewMigration(mig), nil
+			return ext_NNNN_migration.NewMigration(mig), nil
 		},
-		nil)
+		nil, &ext_NNNN_migration.MigrationDoc)
 	extension.RegisterExtension(
-		ocflextension.ThumbnailName,
+		ext_NNNN_thumbnail.ThumbnailName,
 		func() (extension.Extension, error) {
-			return ocflextension.NewThumbnail(thumb), nil
+			return ext_NNNN_thumbnail.NewThumbnail(thumb), nil
 		},
-		nil)
+		nil, &ext_NNNN_thumbnail.ThumbnailDoc)
 
 	return nil
 }
