@@ -21,13 +21,6 @@ import (
 	"github.com/je4/utils/v2/pkg/checksum"
 	"github.com/je4/utils/v2/pkg/keepass2kms"
 	"github.com/ocfl-archive/gocfl-cli/config"
-	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
-	defaultextensions_storageroot "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/storageroot"
-	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_indexer"
-	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_migration"
-	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_thumbnail"
-	"github.com/ocfl-archive/gocfl-extensions/pkg/subsystem/migration"
-	"github.com/ocfl-archive/gocfl-extensions/pkg/subsystem/thumbnail"
 	"github.com/ocfl-archive/gocfl/v3/pkg/appendfs"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension/extensionimpl"
@@ -40,7 +33,6 @@ import (
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/validation"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/version"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfllogger"
-	ironmaiden "github.com/ocfl-archive/indexer/v3/pkg/indexer"
 	"github.com/shirou/gopsutil/v4/disk"
 	"github.com/spf13/cobra"
 	"github.com/tink-crypto/tink-go/v2/core/registry"
@@ -180,92 +172,6 @@ func path2vfs(pathStr string) (string, error) {
 		pathStr = "vfs://root" + pathStr
 	}
 	return pathStr, nil
-}
-
-func RegisterComplexExtensions(
-	fss map[string]fs.FS,
-	sourceFS fs.FS,
-	indexerAddr string,
-	indexerLocalCache bool,
-	indexerConf *ironmaiden.IndexerConfig,
-	migrationConf *migration.ConfigMigration,
-	thumbnailConf *thumbnail.ConfigThumbnail,
-	logger ocfllogger.OCFLLogger,
-) error {
-
-	mig, err := migration.GetMigrations(migrationConf)
-	if err != nil {
-		return errors.Wrap(err, "cannot get migrations")
-	}
-	mig.SetSourceFS(sourceFS)
-
-	thumb, err := thumbnail.GetThumbnails(thumbnailConf)
-	if err != nil {
-		logger.Error().Err(err).Msg("cannot get thumbnails")
-		return errors.Wrap(err, "cannot get thumbnails")
-	}
-	thumb.SetSourceFS(sourceFS)
-	extension.RegisterExtension(
-		ext_NNNN_indexer.IndexerName,
-		func() (extension.Extension, error) {
-			ext, err := ext_NNNN_indexer.NewIndexer(indexerAddr, fss, indexerConf, indexerLocalCache, logger)
-			if err != nil {
-				return nil, err
-			}
-			return ext, nil
-		},
-		ext_NNNN_indexer.GetIndexerParams, &ext_NNNN_indexer.IndexerDoc)
-	extension.RegisterExtension(
-		ext_NNNN_migration.MigrationName,
-		func() (extension.Extension, error) {
-			return ext_NNNN_migration.NewMigration(mig), nil
-		},
-		nil, &ext_NNNN_migration.MigrationDoc)
-	extension.RegisterExtension(
-		ext_NNNN_thumbnail.ThumbnailName,
-		func() (extension.Extension, error) {
-			return ext_NNNN_thumbnail.NewThumbnail(thumb), nil
-		},
-		nil, &ext_NNNN_thumbnail.ThumbnailDoc)
-
-	return nil
-}
-
-func InitDefaultExtensions(
-	ver version.OCFLVersion,
-	extensionFactory *extensionimpl.Factory,
-	storageRootExtensionsFolder,
-	objectExtensionsFolder string,
-	logger ocfllogger.OCFLLogger,
-) (storageRootExtensions storageroot.ExtensionManager, objectExtensions object.ExtensionManager, err error) {
-	var dStorageRootExtDirFS, dObjectExtDirFS fs.FS
-	if storageRootExtensionsFolder == "" {
-		dStorageRootExtDirFS = defaultextensions_storageroot.DefaultStorageRootExtensionFS
-	} else {
-		dStorageRootExtDirFS, err = osfsrw.NewFS(storageRootExtensionsFolder, true, logger.Logger())
-		if err != nil {
-			return nil, nil, errors.Wrapf(err, "cannot create filesystem for storage root extensions folder %v", storageRootExtensionsFolder)
-		}
-	}
-	if objectExtensionsFolder == "" {
-		dObjectExtDirFS = defaultextensions_object.DefaultObjectExtensionFS
-	} else {
-		dObjectExtDirFS, err = osfsrw.NewFS(objectExtensionsFolder, true, logger.Logger())
-		if err != nil {
-			return nil, nil, errors.Wrapf(err, "cannot create filesystem for object extensions folder %v", objectExtensionsFolder)
-		}
-	}
-	_storageRootExtensions, err := extensionFactory.LoadExtensionManager(dStorageRootExtDirFS)
-	if err != nil {
-		err = errors.Wrapf(err, "cannot load extension folder %v", dStorageRootExtDirFS)
-		return
-	}
-	_objectExtensions, err := extensionFactory.LoadExtensionManager(dObjectExtDirFS)
-	if err != nil {
-		err = errors.Wrapf(err, "cannot load extension folder %v", dObjectExtDirFS)
-		return
-	}
-	return _storageRootExtensions.(storageroot.ExtensionManager), _objectExtensions.(object.ExtensionManager), nil
 }
 
 // todo: use filesystem VFS

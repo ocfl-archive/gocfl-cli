@@ -12,7 +12,7 @@ import (
 	"github.com/ocfl-archive/gocfl-cli/config"
 	"github.com/ocfl-archive/gocfl-cli/info"
 	"github.com/ocfl-archive/gocfl-cli/internal"
-	"github.com/ocfl-archive/gocfl-extensions/pkg/subsystem/thumbnail"
+	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_thumbnail"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/util"
 	version2 "github.com/ocfl-archive/gocfl/v3/pkg/ocfl/version"
@@ -224,7 +224,7 @@ func initConfig() {
 	}
 
 	if conf.Autoconfig {
-		thumbMiniConfig, err := thumbnail.Autoconfig(conf.Thumbnail, map[string]string{}, new(zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr})))
+		thumbMiniConfig, err := ext_NNNN_thumbnail.Autoconfig(conf.Thumbnail, map[string]string{}, new(zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr})))
 		if err != nil {
 			log.Fatal().Err(err).Msg("cannot autoconfig thumbnail")
 		}

@@ -14,7 +14,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/je4/utils/v2/pkg/config"
 	"github.com/ocfl-archive/gocfl-cli/internal"
-	"github.com/ocfl-archive/gocfl-extensions/pkg/subsystem/thumbnail"
+	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_thumbnail"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/util"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/version"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfllogger"
@@ -213,7 +213,7 @@ func doInitConfig(cmd *cobra.Command, args []string) {
 		conf.Add.ObjectExtensionFolder = filepath.ToSlash(filepath.Join(extensionFolder, "object"))
 		newMiniConfig["add.objectextensions"] = conf.Add.ObjectExtensionFolder
 	}
-	thumbConf, thumbMiniconfig, err := thumbnail.InitConfig(conf.Thumbnail, scriptFolder, logger.Logger())
+	thumbConf, thumbMiniconfig, err := ext_NNNN_thumbnail.InitConfig(conf.Thumbnail, scriptFolder, logger.Logger())
 	if err != nil {
 		logger.Fatal().Err(err).Msg("cannot init thumbnail")
 	}

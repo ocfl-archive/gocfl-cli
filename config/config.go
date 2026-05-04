@@ -9,8 +9,8 @@ import (
 	"github.com/je4/utils/v2/pkg/checksum"
 	configutil "github.com/je4/utils/v2/pkg/config"
 	"github.com/je4/utils/v2/pkg/stashconfig"
-	"github.com/ocfl-archive/gocfl-extensions/pkg/subsystem/migration"
-	"github.com/ocfl-archive/gocfl-extensions/pkg/subsystem/thumbnail"
+	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_migration"
+	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_thumbnail"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/util"
 	"github.com/ocfl-archive/indexer/v3/pkg/indexer"
 )
@@ -114,36 +114,36 @@ type InitConfigConfig struct {
 }
 
 type GOCFLConfig struct {
-	ErrorTemplate string                       `toml:"errortemplate"`
-	ErrorConfig   string                       `toml:"errorconfig"`
-	AccessLog     string                       `toml:"accesslog"`
-	Autoconfig    bool                         `toml:"autoconfig"`
-	Extension     map[string]map[string]string `toml:"extension"`
-	Indexer       *indexer.IndexerConfig       `toml:"indexer"`
-	Thumbnail     *thumbnail.ConfigThumbnail   `toml:"thumbnail"`
-	Migration     migration.ConfigMigration    `toml:"migration"`
-	AES           AESConfig                    `toml:"aes"`
-	Init          InitConfig                   `toml:"init"`
-	Add           AddConfig                    `toml:"add"`
-	Update        UpdateConfig                 `toml:"update"`
-	Display       DisplayConfig                `toml:"display"`
-	Extract       ExtractConfig                `toml:"extract"`
-	ExtractMeta   ExtractMetaConfig            `toml:"extractmeta"`
-	Stat          StatConfig                   `toml:"stat"`
-	Test          TestConfig                   `toml:"test"`
-	Validate      ValidateConfig               `toml:"validate"`
-	InitConfig    InitConfigConfig             `toml:"initconfig"`
-	S3            S3Config                     `toml:"s3"`
-	DefaultArea   string                       `toml:"defaultarea"`
-	VFS           vfsrw.Config                 `toml:"vfs"`
-	Log           stashconfig.Config           `toml:"log"`
+	ErrorTemplate string                              `toml:"errortemplate"`
+	ErrorConfig   string                              `toml:"errorconfig"`
+	AccessLog     string                              `toml:"accesslog"`
+	Autoconfig    bool                                `toml:"autoconfig"`
+	Extension     map[string]map[string]string        `toml:"extension"`
+	Indexer       *indexer.IndexerConfig              `toml:"indexer"`
+	Thumbnail     *ext_NNNN_thumbnail.ConfigThumbnail `toml:"thumbnail"`
+	Migration     ext_NNNN_migration.ConfigMigration  `toml:"migration"`
+	AES           AESConfig                           `toml:"aes"`
+	Init          InitConfig                          `toml:"init"`
+	Add           AddConfig                           `toml:"add"`
+	Update        UpdateConfig                        `toml:"update"`
+	Display       DisplayConfig                       `toml:"display"`
+	Extract       ExtractConfig                       `toml:"extract"`
+	ExtractMeta   ExtractMetaConfig                   `toml:"extractmeta"`
+	Stat          StatConfig                          `toml:"stat"`
+	Test          TestConfig                          `toml:"test"`
+	Validate      ValidateConfig                      `toml:"validate"`
+	InitConfig    InitConfigConfig                    `toml:"initconfig"`
+	S3            S3Config                            `toml:"s3"`
+	DefaultArea   string                              `toml:"defaultarea"`
+	VFS           vfsrw.Config                        `toml:"vfs"`
+	Log           stashconfig.Config                  `toml:"log"`
 }
 
 func LoadGOCFLConfig(filename string) (*GOCFLConfig, error) {
 	var err error
 	var conf = &GOCFLConfig{
 		Indexer:   indexer.GetDefaultConfig(),
-		Thumbnail: &thumbnail.ConfigThumbnail{},
+		Thumbnail: &ext_NNNN_thumbnail.ConfigThumbnail{},
 	}
 	if _, err := toml.Decode(defaultConfig, conf); err != nil {
 		return nil, errors.Wrap(err, "error decoding GOCFL default configuration")
