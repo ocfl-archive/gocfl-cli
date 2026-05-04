@@ -14,7 +14,7 @@ require (
 	github.com/je4/filesystem/v3 v3.0.54
 	github.com/je4/utils/v2 v2.0.68
 	github.com/ocfl-archive/error v1.0.5
-	github.com/ocfl-archive/gocfl-extensions v0.0.0-20260503122245-7ba5a9d4a223
+	github.com/ocfl-archive/gocfl-extensions v0.0.0-20260504102505-3f37fb6ba79f
 	github.com/ocfl-archive/gocfl/v3 v3.0.0-20260503122146-50d63229122a
 	github.com/ocfl-archive/indexer/v3 v3.0.44
 	github.com/rs/zerolog v1.35.1
@@ -72,7 +72,7 @@ require (
 	github.com/je4/goffmpeg v0.0.0-20220114092308-33ab9986404d // indirect
 	github.com/je4/trustutil/v2 v2.0.31 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/klauspost/compress v1.18.5 // indirect
+	github.com/klauspost/compress v1.18.6 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/klauspost/crc32 v1.3.0 // indirect
 	github.com/kr/fs v0.1.0 // indirect
