@@ -272,7 +272,7 @@ func doAdd(cmd *cobra.Command, args []string) {
 		logger.Fatal().Err(err).Msg("cannot get extension params")
 	}
 
-	extensionFactory, err := extensionimpl.NewFactory(extensionParams, defaultextensions_object.DefaultObjectExtensionFS, logger)
+	extensionFactory, err := extensionimpl.NewFactory(extensionParams, logger)
 	if err != nil {
 		doNotClose = true
 		logger.Fatal().Err(err).Msg("cannot create extension factory")

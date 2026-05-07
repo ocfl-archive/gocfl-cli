@@ -14,7 +14,6 @@ import (
 	"emperror.dev/errors"
 	"github.com/je4/filesystem/v3/pkg/vfsrw"
 	"github.com/je4/filesystem/v3/pkg/writefs"
-	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
 	"github.com/ocfl-archive/gocfl-cli/internal"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension/extensionimpl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/functions"
@@ -149,7 +148,7 @@ func doTest(cmd *cobra.Command, args []string) {
 				return errors.Wrapf(err, "cannot open ocfl filesystem '%s'", fixturePath)
 			}
 
-			extensionFactory, err := extensionimpl.NewFactory(extensionParams, defaultextensions_object.DefaultObjectExtensionFS, logger)
+			extensionFactory, err := extensionimpl.NewFactory(extensionParams, logger)
 			if err != nil {
 				return errors.Wrapf(err, "cannot create extension factory '%s'", fixturePath)
 			}
