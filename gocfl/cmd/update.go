@@ -224,7 +224,7 @@ func doUpdate(cmd *cobra.Command, args []string) {
 	if !writefs.HasContent(destFS) {
 
 	}
-	storageRoot, err := LoadStorageRoot(ctx, destFS, extensionFactory, (logger))
+	storageRoot, err := LoadStorageRoot(ctx, destFS, extensionFactory, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storage root")
 		doNotClose = true
