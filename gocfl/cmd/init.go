@@ -150,7 +150,7 @@ func doInit(cmd *cobra.Command, args []string) {
 		logger.Error().Err(err).Msg("cannot create extension factory")
 		return
 	}
-	storageRootExtensionManager, err := LoadExtensionManager[storageroot.ExtensionManager](
+	storageRootExtensionManager, err := LoadExtensionManager(
 		storageRootExtensionFactory,
 		firstOrSecond(conf.Init.StorageRootExtensionFolder == "", (fs.FS)(defaultextensions_storageroot.DefaultStorageRootExtensionFS), os.DirFS(conf.Init.StorageRootExtensionFolder)),
 	)

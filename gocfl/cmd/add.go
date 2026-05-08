@@ -302,7 +302,7 @@ func doAdd(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	objectExtensionManager, err := LoadExtensionManager[object.ExtensionManager](
+	objectExtensionManager, err := LoadExtensionManager(
 		objectExtFactory,
 		firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)),
 	)

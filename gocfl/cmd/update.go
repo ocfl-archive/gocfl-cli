@@ -224,7 +224,7 @@ func doUpdate(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	storageRootExtensionManager, err := LoadExtensionManager[storageroot.ExtensionManager](
+	storageRootExtensionManager, err := LoadExtensionManager(
 		storageRootExtensionFactory,
 		firstOrSecond(conf.Init.StorageRootExtensionFolder == "", (fs.FS)(defaultextensions_storageroot.DefaultStorageRootExtensionFS), os.DirFS(conf.Init.StorageRootExtensionFolder)),
 	)
@@ -244,7 +244,7 @@ func doUpdate(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	objectExtensionManager, err := LoadExtensionManager[object.ExtensionManager](
+	objectExtensionManager, err := LoadExtensionManager(
 		objectExtensionFactory,
 		firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)),
 	)

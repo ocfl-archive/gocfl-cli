@@ -174,7 +174,7 @@ func doDisplay(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	objectExtensionManager, err := LoadExtensionManager[object.ExtensionManager](
+	objectExtensionManager, err := LoadExtensionManager(
 		objectExtensionFactory,
 		firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)),
 	)
