@@ -14,8 +14,8 @@ require (
 	github.com/je4/filesystem/v3 v3.0.55
 	github.com/je4/utils/v2 v2.0.68
 	github.com/ocfl-archive/error v1.0.5
-	github.com/ocfl-archive/gocfl-extensions v0.0.0-20260507164147-4872168cf89f
-	github.com/ocfl-archive/gocfl/v3 v3.0.0-20260507164017-6607de0148a2
+	github.com/ocfl-archive/gocfl-extensions v0.0.0-20260508164636-44ff5308ec95
+	github.com/ocfl-archive/gocfl/v3 v3.0.0-20260508164509-991701303e32
 	github.com/ocfl-archive/indexer/v3 v3.0.44
 	github.com/rs/zerolog v1.35.1
 	github.com/shirou/gopsutil/v4 v4.26.4
@@ -126,19 +126,19 @@ require (
 	go.opentelemetry.io/otel v1.43.0 // indirect
 	go.opentelemetry.io/otel/metric v1.43.0 // indirect
 	go.opentelemetry.io/otel/trace v1.43.0 // indirect
-	go.step.sm/crypto v0.77.9 // indirect
+	go.step.sm/crypto v0.78.0 // indirect
 	go.ub.unibas.ch/cloud/genericproto/v2 v2.0.4 // indirect
 	go.ub.unibas.ch/cloud/minikvstore v1.0.2 // indirect
 	go.ub.unibas.ch/cloud/miniresolverclient v1.0.2 // indirect
 	go.ub.unibas.ch/cloud/minivaultclient v1.0.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/arch v0.26.0 // indirect
+	golang.org/x/arch v0.27.0 // indirect
 	golang.org/x/crypto v0.50.0 // indirect
 	golang.org/x/image v0.39.0 // indirect
 	golang.org/x/net v0.53.0 // indirect
-	golang.org/x/sys v0.43.0 // indirect
-	golang.org/x/text v0.36.0 // indirect
+	golang.org/x/sys v0.44.0 // indirect
+	golang.org/x/text v0.37.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260504160031-60b97b32f348 // indirect
 	google.golang.org/grpc v1.81.0 // indirect
