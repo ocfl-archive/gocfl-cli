@@ -17,6 +17,7 @@ import (
 	"github.com/ocfl-archive/gocfl-cli/internal"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension/extensionimpl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/functions"
+	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/validation"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/version"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfllogger"
@@ -128,6 +129,11 @@ func doTest(cmd *cobra.Command, args []string) {
 		logger.Error().Err(err).Msg("cannot get extension params")
 		return
 	}
+	objectExtensionFactory, err := extensionimpl.NewFactory[object.ExtensionManager](extensionParams, logger)
+	if err != nil {
+		logger.Error().Err(err).Msg("cannot create extension factory")
+		return
+	}
 
 	dirs, err := fs.ReadDir(vfs, fixturePath)
 	if err != nil {
@@ -148,12 +154,7 @@ func doTest(cmd *cobra.Command, args []string) {
 				return errors.Wrapf(err, "cannot open ocfl filesystem '%s'", fixturePath)
 			}
 
-			extensionFactory, err := extensionimpl.NewFactory(extensionParams, logger)
-			if err != nil {
-				return errors.Wrapf(err, "cannot create extension factory '%s'", fixturePath)
-			}
-
-			obj, err := functions.LoadObject(ctx, objFsys, extensionFactory, logger)
+			obj, err := functions.LoadObject(ctx, objFsys, objectExtensionFactory, logger)
 			if err != nil {
 				return errors.Wrapf(err, "cannot load object '%v'", objFsys)
 			}

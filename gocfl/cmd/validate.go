@@ -9,8 +9,12 @@ import (
 	"os"
 
 	"github.com/je4/filesystem/v3/pkg/writefs"
+	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
+	defaultextensions_storageroot "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/storageroot"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension/extensionimpl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/functions"
+	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
+	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/util"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/version"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfllogger"
@@ -103,11 +107,45 @@ func doValidate(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	extensionFactory, err := extensionimpl.NewFactory(extensionParams, logger)
+	storageRootExtensionFactory, err := extensionimpl.NewFactory[storageroot.ExtensionManager](extensionParams, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot create extension factory")
 		return
 	}
+
+	storageRootExtensionManager, err := LoadExtensionManager[storageroot.ExtensionManager](
+		storageRootExtensionFactory,
+		firstOrSecond(conf.Init.StorageRootExtensionFolder == "", (fs.FS)(defaultextensions_storageroot.DefaultStorageRootExtensionFS), os.DirFS(conf.Init.StorageRootExtensionFolder)),
+	)
+	if err != nil {
+		logger.Error().Err(err).Msg("cannot load storage root extension")
+		return
+	}
+	defer func() {
+		if err := storageRootExtensionManager.Terminate(); err != nil {
+			logger.Error().Err(err).Msg("cannot terminate storage root extension manager")
+		}
+	}()
+
+	objectExtensionFactory, err := extensionimpl.NewFactory[object.ExtensionManager](extensionParams, logger)
+	if err != nil {
+		logger.Error().Err(err).Msg("cannot create extension factory")
+		return
+	}
+
+	objectExtensionManager, err := LoadExtensionManager[object.ExtensionManager](
+		objectExtensionFactory,
+		firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)),
+	)
+	if err != nil {
+		logger.Error().Err(err).Msg("cannot load storage root extension")
+		return
+	}
+	defer func() {
+		if err := objectExtensionManager.Terminate(); err != nil {
+			logger.Error().Err(err).Msg("cannot terminate storage root extension manager")
+		}
+	}()
 
 	fsFactory, err := initializeFSFactory(nil, nil, nil, true, true, logger)
 	if err != nil {
@@ -126,7 +164,7 @@ func doValidate(cmd *cobra.Command, args []string) {
 		}
 	}()
 
-	sr, err := LoadStorageRootRO(ctx, destFS, extensionFactory, logger)
+	sr, err := LoadStorageRootRO(ctx, destFS, storageRootExtensionFactory, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storageroot")
 		return
@@ -155,7 +193,7 @@ func doValidate(cmd *cobra.Command, args []string) {
 			logger.Error().Err(err).Msgf("cannot open filesystem for '%s'", objectPath)
 			return
 		}
-		obj, err := functions.LoadObject(ctx, objFsys, extensionFactory, logger)
+		obj, err := functions.LoadObject(ctx, objFsys, objectExtensionFactory, logger)
 		if err != nil {
 			logger.Error().Err(err).Msgf("cannot open object for '%s'", objectPath)
 			return

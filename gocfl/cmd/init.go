@@ -145,13 +145,13 @@ func doInit(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	extensionFactory, err := extensionimpl.NewFactory(extensionParams, logger)
+	storageRootExtensionFactory, err := extensionimpl.NewFactory[storageroot.ExtensionManager](extensionParams, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot create extension factory")
 		return
 	}
 	storageRootExtensionManager, err := LoadExtensionManager[storageroot.ExtensionManager](
-		extensionFactory,
+		storageRootExtensionFactory,
 		firstOrSecond(conf.Init.StorageRootExtensionFolder == "", (fs.FS)(defaultextensions_storageroot.DefaultStorageRootExtensionFS), os.DirFS(conf.Init.StorageRootExtensionFolder)),
 	)
 	if err != nil {
@@ -168,7 +168,7 @@ func doInit(cmd *cobra.Command, args []string) {
 		ctx,
 		destFS,
 		version.OCFLVersion(conf.Init.OCFLVersion),
-		extensionFactory, storageRootExtensionManager,
+		storageRootExtensionFactory, storageRootExtensionManager,
 		conf.Init.Digest,
 		(logger),
 	); err != nil {

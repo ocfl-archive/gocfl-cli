@@ -13,9 +13,12 @@ import (
 	"time"
 
 	"github.com/je4/filesystem/v3/pkg/writefs"
+	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
 	"github.com/ocfl-archive/gocfl-cli/data/displaydata"
 	"github.com/ocfl-archive/gocfl-cli/gocfl/cmd/display"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension/extensionimpl"
+	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
+	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/util"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/version"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfllogger"
@@ -153,17 +156,37 @@ func doDisplay(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	extensionFactory, err := extensionimpl.NewFactory(extensionParams, logger)
+	storageRootExtensionFactory, err := extensionimpl.NewFactory[storageroot.ExtensionManager](extensionParams, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot create extension factory")
 		return
 	}
 
-	storageRoot, err := LoadStorageRootRO(ctx, destFS, extensionFactory, logger)
+	storageRoot, err := LoadStorageRootRO(ctx, destFS, storageRootExtensionFactory, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storage root")
 		return
 	}
+
+	objectExtensionFactory, err := extensionimpl.NewFactory[object.ExtensionManager](extensionParams, logger)
+	if err != nil {
+		logger.Error().Err(err).Msg("cannot create extension factory")
+		return
+	}
+
+	objectExtensionManager, err := LoadExtensionManager[object.ExtensionManager](
+		objectExtensionFactory,
+		firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)),
+	)
+	if err != nil {
+		logger.Error().Err(err).Msg("cannot load storage root extension")
+		return
+	}
+	defer func() {
+		if err := objectExtensionManager.Terminate(); err != nil {
+			logger.Error().Err(err).Msg("cannot terminate storage root extension manager")
+		}
+	}()
 
 	urlC, _ := url.Parse(conf.Display.AddrExt)
 	var templateFS fs.FS
@@ -176,7 +199,7 @@ func doDisplay(cmd *cobra.Command, args []string) {
 	} else {
 		templateFS = os.DirFS(conf.Display.Templates)
 	}
-	srv, err := display.NewServer(storageRoot, extensionFactory, "gocfl", conf.Display.Addr, urlC, displaydata.WebRoot, templateFS, logger, io.Discard)
+	srv, err := display.NewServer(storageRoot, objectExtensionFactory, "gocfl", conf.Display.Addr, urlC, displaydata.WebRoot, templateFS, logger, io.Discard)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot create server")
 		return

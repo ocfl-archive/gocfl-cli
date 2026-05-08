@@ -249,14 +249,14 @@ func doCreate(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	extensionFactory, err := extensionimpl.NewFactory(extensionParams, logger)
+	storageRootExtensionFactory, err := extensionimpl.NewFactory[storageroot.ExtensionManager](extensionParams, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot create extension factory")
 		return
 	}
 
 	storageRootExtensionManager, err := LoadExtensionManager[storageroot.ExtensionManager](
-		extensionFactory,
+		storageRootExtensionFactory,
 		firstOrSecond(conf.Init.StorageRootExtensionFolder == "", (fs.FS)(defaultextensions_storageroot.DefaultStorageRootExtensionFS), os.DirFS(conf.Init.StorageRootExtensionFolder)),
 	)
 	if err != nil {
@@ -269,17 +269,23 @@ func doCreate(cmd *cobra.Command, args []string) {
 		}
 	}()
 
+	objectExtensionFactory, err := extensionimpl.NewFactory[object.ExtensionManager](extensionParams, logger)
+	if err != nil {
+		logger.Error().Err(err).Msg("cannot create extension factory")
+		return
+	}
+
 	objectExtensionManager, err := LoadExtensionManager[object.ExtensionManager](
-		extensionFactory,
+		objectExtensionFactory,
 		firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)),
 	)
 	if err != nil {
-		logger.Error().Err(err).Msg("cannot load object extension")
+		logger.Error().Err(err).Msg("cannot load storage root extension")
 		return
 	}
 	defer func() {
 		if err := objectExtensionManager.Terminate(); err != nil {
-			logger.Error().Err(err).Msg("cannot terminate object extension manager")
+			logger.Error().Err(err).Msg("cannot terminate storage root extension manager")
 		}
 	}()
 
@@ -287,7 +293,7 @@ func doCreate(cmd *cobra.Command, args []string) {
 		ctx,
 		destFS,
 		version.OCFLVersion(conf.Init.OCFLVersion),
-		extensionFactory,
+		storageRootExtensionFactory,
 		storageRootExtensionManager,
 		conf.Init.Digest,
 		logger,
@@ -303,7 +309,7 @@ func doCreate(cmd *cobra.Command, args []string) {
 		ctx,
 		storageRoot,
 		fixityAlgs,
-		extensionFactory,
+		objectExtensionFactory,
 		objectExtensionManager,
 		conf.Add.Deduplicate,
 		flagObjectID,

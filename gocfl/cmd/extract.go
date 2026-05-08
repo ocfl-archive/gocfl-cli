@@ -11,10 +11,13 @@ import (
 
 	"emperror.dev/errors"
 	"github.com/je4/filesystem/v3/pkg/writefs"
+	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/appendfs"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension/extensionimpl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/functions"
 	inventorytypes "github.com/ocfl-archive/gocfl/v3/pkg/ocfl/inventory"
+	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
+	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/util"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/version"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfllogger"
@@ -158,13 +161,32 @@ func doExtract(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	extensionFactory, err := extensionimpl.NewFactory(extensionParams, logger)
+	storageRootExtensionFactory, err := extensionimpl.NewFactory[storageroot.ExtensionManager](extensionParams, logger)
+	if err != nil {
+		logger.Error().Err(err).Msg("cannot create extension factory")
+		return
+	}
+	objectExtensionFactory, err := extensionimpl.NewFactory[object.ExtensionManager](extensionParams, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot create extension factory")
 		return
 	}
 
-	sr, err := LoadStorageRootRO(ctx, ocflFS, extensionFactory, logger)
+	objectExtensionManager, err := LoadExtensionManager[object.ExtensionManager](
+		objectExtensionFactory,
+		firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)),
+	)
+	if err != nil {
+		logger.Error().Err(err).Msg("cannot load storage root extension")
+		return
+	}
+	defer func() {
+		if err := objectExtensionManager.Terminate(); err != nil {
+			logger.Error().Err(err).Msg("cannot terminate storage root extension manager")
+		}
+	}()
+
+	sr, err := LoadStorageRootRO(ctx, ocflFS, storageRootExtensionFactory, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storage root")
 		return
@@ -194,7 +216,17 @@ func doExtract(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	if err := functions.Extract(context.Background(), sr.GetReadFS(), destAppendFS, conf.Extract.ObjectPath, inventorytypes.NewVersionNumber().WithString(conf.Extract.Version), conf.Extract.Manifest, conf.Extract.Area, extensionFactory, logger); err != nil {
+	if err := functions.Extract(
+		context.Background(),
+		sr.GetReadFS(),
+		destAppendFS,
+		conf.Extract.ObjectPath,
+		inventorytypes.NewVersionNumber().WithString(conf.Extract.Version),
+		conf.Extract.Manifest,
+		conf.Extract.Area,
+		objectExtensionFactory,
+		logger,
+	); err != nil {
 		fmt.Printf("cannot extract storage root: %v\n", err)
 		logger.Error().Err(err).Msg("cannot extract storage root")
 		return

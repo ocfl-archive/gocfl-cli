@@ -45,22 +45,13 @@ func firstOrSecond[T any](first bool, a T, b T) T {
 	return b
 }
 
-type ExtensionManager interface {
-	extension.ManagerCore
-}
-
-func LoadExtensionManager[T ExtensionManager](fact extension.Factory, fsys fs.FS) (T, error) {
+func LoadExtensionManager[T extension.ManagerCore[T]](fact extension.Factory[T], fsys fs.FS) (T, error) {
 	m, err := fact.LoadExtensionManager(fsys)
 	if err != nil {
 		var result T
-		return result, errors.Wrapf(err, "loading extension manager")
+		return result, errors.Wrapf(err, "loading extension manager [%T]", result)
 	}
-	tVal, ok := m.(T)
-	if !ok {
-		var result T
-		return result, errors.Errorf("failed to cast extension manager to expected type %T", result)
-	}
-	return tVal, nil
+	return m, nil
 }
 
 type AddFS interface {
@@ -269,7 +260,7 @@ func showStatus(logger ocfllogger.OCFLLogger) error {
 	return nil
 }
 
-func LoadObjectByID(sr storageroot.StorageRoot, extensionFactory *extensionimpl.Factory, id string, logger ocfllogger.OCFLLogger) (object.Object, error) {
+func LoadObjectByID(sr storageroot.StorageRoot, extensionFactory *extensionimpl.Factory[object.ExtensionManager], id string, logger ocfllogger.OCFLLogger) (object.Object, error) {
 	folder, err := sr.IdToFolder(id)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot load object %s", id)
@@ -293,7 +284,7 @@ func addObjectByPath(
 	ctx context.Context,
 	sr storageroot.StorageRoot,
 	fixity []checksum.DigestAlgorithm,
-	extensionFactory *extensionimpl.Factory,
+	extensionFactory *extensionimpl.Factory[object.ExtensionManager],
 	extensionManager object.ExtensionManager,
 	checkDuplicates bool,
 	id, userName, userAddress, message string,
@@ -366,8 +357,8 @@ func addObjectByPath(
 	return o.GetInventory().IsModified(), nil
 }
 
-func CreateStorageRoot(ctx context.Context, objectWriteFS appendfs.FS, ver version.OCFLVersion, extensionFactory *extensionimpl.Factory, extensionManager storageroot.ExtensionManager, digest checksum.DigestAlgorithm, logger ocfllogger.OCFLLogger) (storageroot.StorageRoot, error) {
-	fact := factoryimpl.NewFactory(ver, extensionFactory, logger)
+func CreateStorageRoot(ctx context.Context, objectWriteFS appendfs.FS, ver version.OCFLVersion, extensionFactory *extensionimpl.Factory[storageroot.ExtensionManager], extensionManager storageroot.ExtensionManager, digest checksum.DigestAlgorithm, logger ocfllogger.OCFLLogger) (storageroot.StorageRoot, error) {
+	fact := factoryimpl.NewFactoryStorageRoot(ver, extensionFactory, logger)
 	storageRoot := fact.NewStorageRoot(ctx).WithReadFS(objectWriteFS).WithWriteFS(objectWriteFS).WithExtensionManager(extensionManager).WithDigestAlgorithm(digest)
 
 	init := storageRoot.GetInitializer()
@@ -383,7 +374,7 @@ func loadStorageRootInternal(
 	ctx context.Context,
 	readFS fs.FS,
 	writeFS appendfs.FS,
-	extensionFactory *extensionimpl.Factory,
+	extensionFactory *extensionimpl.Factory[storageroot.ExtensionManager],
 	logger ocfllogger.OCFLLogger,
 ) (storageroot.StorageRoot, error) {
 	ver, err := util.GetVersion(readFS, ".", "ocfl_")
@@ -402,7 +393,7 @@ func loadStorageRootInternal(
 	}
 
 	logger.WithVersion(ver)
-	fact := factoryimpl.NewFactory(ver, extensionFactory, logger)
+	fact := factoryimpl.NewFactoryStorageRoot(ver, extensionFactory, logger)
 
 	storageRoot := fact.NewStorageRoot(ctx).WithReadFS(readFS)
 	if writeFS != nil {
@@ -421,7 +412,7 @@ func loadStorageRootInternal(
 func LoadStorageRoot(
 	ctx context.Context,
 	storageRootFS appendfs.FS,
-	extensionFactory *extensionimpl.Factory,
+	extensionFactory *extensionimpl.Factory[storageroot.ExtensionManager],
 	logger ocfllogger.OCFLLogger,
 ) (storageroot.StorageRoot, error) {
 	return loadStorageRootInternal(ctx, storageRootFS, storageRootFS, extensionFactory, logger)
@@ -430,7 +421,7 @@ func LoadStorageRoot(
 func LoadStorageRootRO(
 	ctx context.Context,
 	storageRootFS fs.FS,
-	extensionFactory *extensionimpl.Factory,
+	extensionFactory *extensionimpl.Factory[storageroot.ExtensionManager],
 	logger ocfllogger.OCFLLogger,
 ) (storageroot.StorageRoot, error) {
 	return loadStorageRootInternal(ctx, storageRootFS, nil, extensionFactory, logger)

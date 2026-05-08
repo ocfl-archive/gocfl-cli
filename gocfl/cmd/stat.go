@@ -15,6 +15,7 @@ import (
 	"github.com/ocfl-archive/gocfl/v3/pkg/appendfs"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension/extensionimpl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
+	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/util"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/version"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfllogger"
@@ -165,7 +166,7 @@ func doStat(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	extensionFactory, err := extensionimpl.NewFactory(extensionParams, logger)
+	storageRootExtensionFactory, err := extensionimpl.NewFactory[storageroot.ExtensionManager](extensionParams, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot create extension factory")
 		return
@@ -174,7 +175,7 @@ func doStat(cmd *cobra.Command, args []string) {
 	if !writefs.HasContent(destFS) {
 
 	}
-	storageRoot, err := LoadStorageRoot(ctx, destFS, extensionFactory, (logger))
+	storageRoot, err := LoadStorageRoot(ctx, destFS, storageRootExtensionFactory, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storage root")
 		return

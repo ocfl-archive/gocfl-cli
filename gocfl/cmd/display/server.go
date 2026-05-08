@@ -58,11 +58,11 @@ type Server struct {
 	templateFS       fs.FS
 	obfuscate        bool
 	httpObjectFS     http.FileSystem
-	extensionFactory *extensionimpl.Factory
+	extensionFactory *extensionimpl.Factory[objecttypes.ExtensionManager]
 	objectFS         fs.FS
 }
 
-func NewServer(storageRoot storageroot.StorageRoot, extensionFactory *extensionimpl.Factory, service, addr string, urlExt *url.URL, dataFS fs.FS, templateFS fs.FS, log ocfllogger.OCFLLogger, accessLog io.Writer) (*Server, error) {
+func NewServer(storageRoot storageroot.StorageRoot, extensionFactory *extensionimpl.Factory[objecttypes.ExtensionManager], service, addr string, urlExt *url.URL, dataFS fs.FS, templateFS fs.FS, log ocfllogger.OCFLLogger, accessLog io.Writer) (*Server, error) {
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
 		return nil, emperror.Wrapf(err, "cannot split address %s", addr)

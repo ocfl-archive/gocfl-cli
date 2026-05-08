@@ -22,6 +22,7 @@ import (
 	"github.com/ocfl-archive/gocfl/v3/pkg/appendfs"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension/extensionimpl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
+	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/util"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/version"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfllogger"
@@ -272,15 +273,22 @@ func doAdd(cmd *cobra.Command, args []string) {
 		logger.Fatal().Err(err).Msg("cannot get extension params")
 	}
 
-	extensionFactory, err := extensionimpl.NewFactory(extensionParams, logger)
+	storageRootExtFactory, err := extensionimpl.NewFactory[storageroot.ExtensionManager](extensionParams, logger)
 	if err != nil {
 		doNotClose = true
 		logger.Fatal().Err(err).Msg("cannot create extension factory")
 	}
 
+	objectExtFactory, err := extensionimpl.NewFactory[object.ExtensionManager](extensionParams, logger)
+	if err != nil {
+		doNotClose = true
+		logger.Fatal().Err(err).Msg("cannot create extension factory")
+	}
+	//////////////////////////////////////
+
 	logger.Debug().Msgf("initializing ExtensionFactory")
 
-	storageRoot, err := LoadStorageRoot(ctx, destFS, extensionFactory, logger)
+	storageRoot, err := LoadStorageRoot(ctx, destFS, storageRootExtFactory, logger)
 	if err != nil {
 		doNotClose = true
 		logger.Fatal().Err(err).Msg("cannot open storage root")
@@ -295,7 +303,7 @@ func doAdd(cmd *cobra.Command, args []string) {
 	}
 
 	objectExtensionManager, err := LoadExtensionManager[object.ExtensionManager](
-		extensionFactory,
+		objectExtFactory,
 		firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)),
 	)
 	if err != nil {
@@ -322,7 +330,7 @@ func doAdd(cmd *cobra.Command, args []string) {
 		ctx,
 		storageRoot,
 		fixityAlgs,
-		extensionFactory,
+		objectExtFactory,
 		objectExtensionManager,
 		conf.Add.Deduplicate,
 		flagObjectID,
