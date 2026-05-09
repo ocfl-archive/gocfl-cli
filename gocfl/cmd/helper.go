@@ -12,12 +12,12 @@ import (
 	"time"
 
 	"emperror.dev/errors"
-	"github.com/je4/filesystem/v3/pkg/osfsrw"
-	"github.com/je4/filesystem/v3/pkg/s3fsrw"
-	"github.com/je4/filesystem/v3/pkg/vfsrw"
-	"github.com/je4/filesystem/v3/pkg/writefs"
-	"github.com/je4/filesystem/v3/pkg/zipfs"
-	"github.com/je4/filesystem/v3/pkg/zipfsrw"
+	"github.com/je4/filesystem/v4/pkg/osfsrw"
+	"github.com/je4/filesystem/v4/pkg/s3fsrw"
+	"github.com/je4/filesystem/v4/pkg/vfsrw"
+	"github.com/je4/filesystem/v4/pkg/writefs"
+	"github.com/je4/filesystem/v4/pkg/zipfs"
+	"github.com/je4/filesystem/v4/pkg/zipfsrw"
 	"github.com/je4/utils/v2/pkg/checksum"
 	"github.com/je4/utils/v2/pkg/keepass2kms"
 	"github.com/ocfl-archive/gocfl-cli/config"
@@ -73,9 +73,13 @@ func getLocalFSConfig() map[string]*vfsrw.VFS {
 				Name:     strings.ToLower(partition.Mountpoint[:1]),
 				Type:     "os",
 				ReadOnly: false,
+				ZipAsFolder: &vfsrw.ZipAsFolder{
+					Enabled:   true,
+					CacheSize: 2,
+					Compress:  false,
+				},
 				OS: &vfsrw.OS{
-					BaseDir:          partition.Mountpoint + "/",
-					ZipAsFolderCache: 1,
+					BaseDir: partition.Mountpoint + "/",
 				},
 			}
 		}
@@ -84,9 +88,13 @@ func getLocalFSConfig() map[string]*vfsrw.VFS {
 			Name:     "root",
 			Type:     "os",
 			ReadOnly: false,
+			ZipAsFolder: &vfsrw.ZipAsFolder{
+				Enabled:   true,
+				CacheSize: 2,
+				Compress:  false,
+			},
 			OS: &vfsrw.OS{
-				BaseDir:          "/",
-				ZipAsFolderCache: 1,
+				BaseDir: "/",
 			},
 		}
 
@@ -166,7 +174,7 @@ func path2vfs(pathStr string) (string, error) {
 }
 
 // todo: use filesystem VFS
-func initializeFSFactory(zipDigests []checksum.DigestAlgorithm, aesConfig *config.AESConfig, s3Config *config.S3Config, noCompression, readOnly bool, logger ocfllogger.OCFLLogger) (*writefs.Factory, error) {
+func initializeFSFactory(zipDigests []checksum.DigestAlgorithm, aesConfig *config.AESConfig, s3Config *config.S3Config, vfsConfig vfsrw.Config, noCompression, readOnly bool, logger ocfllogger.OCFLLogger) (*writefs.Factory, error) {
 	if zipDigests == nil {
 		zipDigests = []checksum.DigestAlgorithm{checksum.DigestSHA512}
 	}
@@ -175,6 +183,14 @@ func initializeFSFactory(zipDigests []checksum.DigestAlgorithm, aesConfig *confi
 	}
 	if s3Config == nil {
 		s3Config = &config.S3Config{}
+	}
+
+	vfs, err := vfsrw.NewFS(vfsConfig, logger.Logger())
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot create VFS")
+	}
+	if err := vfsrw.AddLocal(vfs); err != nil {
+		return nil, errors.Wrap(err, "cannot add local VFS")
 	}
 
 	fsFactory, err := writefs.NewFactory()
@@ -198,6 +214,7 @@ func initializeFSFactory(zipDigests []checksum.DigestAlgorithm, aesConfig *confi
 				return nil, errors.Wrap(err, "cannot create keepass2kms client")
 			}
 			registry.RegisterKMSClient(client)
+			// todo: check for existence of key
 
 			if err := fsFactory.Register(zipfsrw.NewCreateFSEncryptedChecksumFunc(noCompression, zipDigests, string(aesConfig.KeepassEntry), logger.Logger()), "\\.zip$", writefs.HighFS); err != nil {
 				return nil, errors.Wrap(err, "cannot register FSEncryptedChecksum")

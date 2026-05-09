@@ -10,7 +10,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/je4/filesystem/v3/pkg/writefs"
+	"github.com/je4/filesystem/v4/pkg/writefs"
 	"github.com/je4/utils/v2/pkg/checksum"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
 	defaultextensions_storageroot "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/storageroot"
@@ -155,7 +155,7 @@ func doCreate(cmd *cobra.Command, args []string) {
 
 	//var fss = map[string]fs.FS{"internal": internal.InternalFS}
 
-	fsFactory, err := initializeFSFactory([]checksum.DigestAlgorithm{conf.Init.Digest}, &conf.AES, &conf.S3, conf.Add.NoCompress, false, logger)
+	fsFactory, err := initializeFSFactory([]checksum.DigestAlgorithm{conf.Init.Digest}, &conf.AES, &conf.S3, conf.VFS, conf.Add.NoCompress, false, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot create filesystem factory")
 		return

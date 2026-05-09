@@ -12,15 +12,14 @@ import (
 	"strings"
 
 	"emperror.dev/errors"
-	"github.com/je4/filesystem/v3/pkg/vfsrw"
-	"github.com/je4/filesystem/v3/pkg/writefs"
+	"github.com/je4/filesystem/v4/pkg/vfsrw"
+	"github.com/je4/filesystem/v4/pkg/writefs"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
 	"github.com/ocfl-archive/gocfl-cli/internal"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension/extensionimpl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/functions"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/util"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/version"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfllogger"
 	"github.com/rs/zerolog"
@@ -74,11 +73,7 @@ func doExtractMetaConf(cmd *cobra.Command) {
 }
 
 func doExtractMeta(cmd *cobra.Command, args []string) {
-	ocflPath, err := util.Fullpath(args[0])
-	if err != nil {
-		cobra.CheckErr(err)
-		return
-	}
+	ocflPath := args[0]
 
 	// create logger instance
 	hostname, err := os.Hostname()
@@ -146,9 +141,6 @@ func doExtractMeta(cmd *cobra.Command, args []string) {
 	if conf.VFS == nil {
 		conf.VFS = vfsrw.Config{}
 	}
-	for name, val := range getLocalFSConfig() {
-		conf.VFS[name] = val
-	}
 	vfs, err := vfsrw.NewFS(conf.VFS, logger.Logger())
 	if err != nil {
 		logger.Panic().Err(err).Msg("cannot create vfs")
@@ -158,13 +150,18 @@ func doExtractMeta(cmd *cobra.Command, args []string) {
 			logger.Error().Err(err).Msg("cannot close vfs")
 		}
 	}()
+	if err := vfsrw.AddLocal(vfs); err != nil {
+		logger.Error().Err(err).Msg("cannot add local filesystem to vfs")
+	}
 	vfs.AddFS("internal", internal.InternalFS)
 
-	ocflPath, err = path2vfs(ocflPath)
-	if err != nil {
-		logger.Error().Err(err).Msg("cannot create ocfl path")
-		return
-	}
+	/*
+		ocflPath, err = path2vfs(ocflPath)
+		if err != nil {
+			logger.Error().Err(err).Msg("cannot create ocfl path")
+			return
+		}
+	*/
 
 	logger.Info().Msgf("vfs created : %v", vfs)
 

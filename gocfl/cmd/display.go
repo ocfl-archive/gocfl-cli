@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/je4/filesystem/v3/pkg/writefs"
+	"github.com/je4/filesystem/v4/pkg/writefs"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
 	"github.com/ocfl-archive/gocfl-cli/data/displaydata"
 	"github.com/ocfl-archive/gocfl-cli/gocfl/cmd/display"

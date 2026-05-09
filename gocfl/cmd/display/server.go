@@ -22,7 +22,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/gin-contrib/multitemplate"
 	"github.com/gin-gonic/gin"
-	"github.com/je4/filesystem/v3/pkg/writefs"
+	"github.com/je4/filesystem/v4/pkg/writefs"
 	dcert "github.com/je4/utils/v2/pkg/cert"
 	"github.com/je4/utils/v2/pkg/checksum"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_filesystem"

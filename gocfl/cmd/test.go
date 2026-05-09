@@ -12,8 +12,8 @@ import (
 	"regexp"
 
 	"emperror.dev/errors"
-	"github.com/je4/filesystem/v3/pkg/vfsrw"
-	"github.com/je4/filesystem/v3/pkg/writefs"
+	"github.com/je4/filesystem/v4/pkg/vfsrw"
+	"github.com/je4/filesystem/v4/pkg/writefs"
 	"github.com/ocfl-archive/gocfl-cli/internal"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension/extensionimpl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/functions"
