@@ -189,7 +189,13 @@ func initializeFSFactory(zipDigests []checksum.DigestAlgorithm, aesConfig *confi
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create VFS")
 	}
-	if err := vfsrw.AddLocal(vfs); err != nil {
+	if err := vfsrw.AddLocal(vfs, &vfsrw.ZipAsFolder{
+		Enabled:   true,
+		Digests:   []checksum.DigestAlgorithm{checksum.DigestSHA512},
+		CacheSize: 3,
+		Compress:  false,
+		ReadOnly:  false,
+	}); err != nil {
 		return nil, errors.Wrap(err, "cannot add local VFS")
 	}
 

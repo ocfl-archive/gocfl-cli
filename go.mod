@@ -11,7 +11,7 @@ require (
 	github.com/dustin/go-humanize v1.0.1
 	github.com/gin-contrib/multitemplate v1.1.2
 	github.com/gin-gonic/gin v1.12.0
-	github.com/je4/filesystem/v4 v4.0.3
+	github.com/je4/filesystem/v4 v4.0.6
 	github.com/je4/utils/v2 v2.0.68
 	github.com/ocfl-archive/error v1.0.5
 	github.com/ocfl-archive/gocfl-extensions v0.0.0-20260509185829-fb2f957ce91e
