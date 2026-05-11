@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/je4/filesystem/v4/pkg/vfsrw"
 	"github.com/je4/filesystem/v4/pkg/writefs"
 	"github.com/je4/utils/v2/pkg/checksum"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
@@ -155,9 +156,26 @@ func doCreate(cmd *cobra.Command, args []string) {
 
 	//var fss = map[string]fs.FS{"internal": internal.InternalFS}
 
-	fsFactory, err := initializeFSFactory([]checksum.DigestAlgorithm{conf.Init.Digest}, &conf.AES, &conf.S3, conf.VFS, conf.Add.NoCompress, false, logger)
+	/*
+		fsFactory, err := initializeFSFactory([]checksum.DigestAlgorithm{conf.Init.Digest}, &conf.AES, &conf.S3, conf.Add.NoCompress, false, logger)
+		if err != nil {
+			logger.Error().Err(err).Msg("cannot create filesystem factory")
+			return
+		}
+	*/
+	vfs, err := vfsrw.NewFS(conf.VFS, logger.Logger())
 	if err != nil {
-		logger.Error().Err(err).Msg("cannot create filesystem factory")
+		logger.Error().Err(err).Msg("cannot create VFS")
+		return
+	}
+	if err := vfsrw.AddLocal(vfs, &vfsrw.ZipAsFolder{
+		Enabled:   true,
+		Digests:   []checksum.DigestAlgorithm{checksum.DigestSHA512},
+		CacheSize: 3,
+		Compress:  false,
+		ReadOnly:  false,
+	}); err != nil {
+		logger.Error().Err(err).Msg("cannot add local VFS")
 		return
 	}
 
@@ -200,11 +218,13 @@ func doCreate(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	sourceFS, err := fsFactory.Get(srcPath, true)
+	sourceFS, err := fs.Sub(vfs, srcPath)
+	//sourceFS, err := fsFactory.Get(srcPath, true)
 	if err != nil {
 		logger.Fatal().Err(err).Msgf("cannot get filesystem for '%s'", srcPath)
 	}
-	_destFS, err := fsFactory.Get(ocflPath, false)
+	_destFS, err := writefs.Sub(vfs, ocflPath)
+	//_destFS, err := fsFactory.Get(ocflPath, false)
 	if err != nil {
 		logger.Fatal().Msgf("cannot get filesystem for '%s'", ocflPath)
 	}
@@ -237,7 +257,8 @@ func doCreate(cmd *cobra.Command, args []string) {
 		if err != nil {
 			logger.Fatal().Err(err).Msgf("cannot get fullpath for '%s'", matches[2])
 		}
-		areaPaths[matches[1]], err = fsFactory.Get(path, true)
+		areaPaths[matches[1]], err = fs.Sub(vfs, path)
+		//areaPaths[matches[1]], err = fsFactory.Get(path, true)
 		if err != nil {
 			logger.Fatal().Err(err).Msgf("cannot get filesystem for '%s'", args[i])
 		}

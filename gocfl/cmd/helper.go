@@ -174,7 +174,7 @@ func path2vfs(pathStr string) (string, error) {
 }
 
 // todo: use filesystem VFS
-func initializeFSFactory(zipDigests []checksum.DigestAlgorithm, aesConfig *config.AESConfig, s3Config *config.S3Config, vfsConfig vfsrw.Config, noCompression, readOnly bool, logger ocfllogger.OCFLLogger) (*writefs.Factory, error) {
+func initializeFSFactory(zipDigests []checksum.DigestAlgorithm, aesConfig *config.AESConfig, s3Config *config.S3Config, noCompression, readOnly bool, logger ocfllogger.OCFLLogger) (*writefs.Factory, error) {
 	if zipDigests == nil {
 		zipDigests = []checksum.DigestAlgorithm{checksum.DigestSHA512}
 	}
@@ -183,20 +183,6 @@ func initializeFSFactory(zipDigests []checksum.DigestAlgorithm, aesConfig *confi
 	}
 	if s3Config == nil {
 		s3Config = &config.S3Config{}
-	}
-
-	vfs, err := vfsrw.NewFS(vfsConfig, logger.Logger())
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot create VFS")
-	}
-	if err := vfsrw.AddLocal(vfs, &vfsrw.ZipAsFolder{
-		Enabled:   true,
-		Digests:   []checksum.DigestAlgorithm{checksum.DigestSHA512},
-		CacheSize: 3,
-		Compress:  false,
-		ReadOnly:  false,
-	}); err != nil {
-		return nil, errors.Wrap(err, "cannot add local VFS")
 	}
 
 	fsFactory, err := writefs.NewFactory()
