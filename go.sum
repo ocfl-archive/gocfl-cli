@@ -115,8 +115,8 @@ github.com/huandu/xstrings v1.5.0 h1:2ag3IFq9ZDANvthTwTiqSSZLjDc+BedvHPAp5tJy2TI
 github.com/huandu/xstrings v1.5.0/go.mod h1:y5/lhBue+AyNmUVz9RLU9xbLR0o4KIIExikq4ovT0aE=
 github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2s0bqwp9tc8=
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
-github.com/je4/filesystem/v4 v4.0.7 h1:UKdzD4p8+zjdUbOrC2s6Rc0iVeNW9vRJN7/idK2kAXY=
-github.com/je4/filesystem/v4 v4.0.7/go.mod h1:9CIGIiC1q8kFX2sd5Hqt/QRVdEeBeqeyPST0jIUcE0s=
+github.com/je4/filesystem/v4 v4.0.8 h1:YeQUDs6sltXspnfd0DCGapxmRv5YLQ0iVTkWYEMVSbU=
+github.com/je4/filesystem/v4 v4.0.8/go.mod h1:9CIGIiC1q8kFX2sd5Hqt/QRVdEeBeqeyPST0jIUcE0s=
 github.com/je4/goffmpeg v0.0.0-20220114092308-33ab9986404d h1:elX95ncLvCbNgkfD03bfTUhm0cdqdVYuuo5ETIOftoA=
 github.com/je4/goffmpeg v0.0.0-20220114092308-33ab9986404d/go.mod h1:AU6NEns8+WYmI/UYzllN8CWM2jsIVO7jDz2FeCf7Ssw=
 github.com/je4/trustutil/v2 v2.0.31 h1:QUMfnE8LoyNlBLvhaMdSZFiq/UlOoHyPjJd+C6qT5PY=
@@ -166,10 +166,10 @@ github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 h1:zYyBkD/k9seD2A7fsi6
 github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646/go.mod h1:jpp1/29i3P1S/RLdc7JQKbRpFeM1dOBd8T9ki5s+AY8=
 github.com/ocfl-archive/error v1.0.5 h1:nPidx9HBSiViSDZHfVY8nIabBeOSO5vLFOcUMgt7yLo=
 github.com/ocfl-archive/error v1.0.5/go.mod h1:vOwIAdG34QlD9ExXUXu8QSywUKIIMN31ykQ2U0LvOMs=
-github.com/ocfl-archive/gocfl-extensions v0.0.0-20260509185829-fb2f957ce91e h1:SX/5SOjOUmCe16FTD+baWnbSTrg13/0j9sbK4kWiI3s=
-github.com/ocfl-archive/gocfl-extensions v0.0.0-20260509185829-fb2f957ce91e/go.mod h1:ErFlzpe0ULOKV5gRsh/AKg0vu22P/9PSqwuymlJDlGw=
-github.com/ocfl-archive/gocfl/v3 v3.0.0-20260509185718-8f4a8c98bd6e h1:byCGsgooHk7eyiCixcy+I021dXHtCZoJNFmEdvKlsJE=
-github.com/ocfl-archive/gocfl/v3 v3.0.0-20260509185718-8f4a8c98bd6e/go.mod h1:ADp926o78Qtz4TU1sumTstWkzFH5oFCdXeUg0G3ZPjU=
+github.com/ocfl-archive/gocfl-extensions v0.0.0-20260511155630-a52a2c2617e9 h1:ekyM4T4vbkZGxNI8Y+mrAqlWpczFNaKvBaBNm74lJIs=
+github.com/ocfl-archive/gocfl-extensions v0.0.0-20260511155630-a52a2c2617e9/go.mod h1:tVuu0YRv00VCUBh/d3ZBt3gJ8VxaoPbTcUlOyneqWic=
+github.com/ocfl-archive/gocfl/v3 v3.0.0-20260511155509-934610e09caa h1:yKKg5S69Q5jrizMi8QGClN6mH1e03uo1RBI2pF7Zplk=
+github.com/ocfl-archive/gocfl/v3 v3.0.0-20260511155509-934610e09caa/go.mod h1:UlnX4A2hiy1u/5vucsbYr6RXEskn/cNUcVhAEOoeGyE=
 github.com/ocfl-archive/indexer/v3 v3.0.44 h1:JrSkHQ5xLnV7gq/0PKtDAXzyZaq1fMHzqlQ9yJ7UXVM=
 github.com/ocfl-archive/indexer/v3 v3.0.44/go.mod h1:gLVOsu6ZPeEyHCrbRF64hGYjrov0dBCg5oKiwYUxKUA=
 github.com/op/go-logging v0.0.0-20160315200505-970db520ece7 h1:lDH9UUVJtmYCjyT0CI4q8xvlXPxeZ0gYCVvWbmPlp88=
