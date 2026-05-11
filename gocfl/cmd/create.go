@@ -223,7 +223,7 @@ func doCreate(cmd *cobra.Command, args []string) {
 	if err != nil {
 		logger.Fatal().Err(err).Msgf("cannot get filesystem for '%s'", srcPath)
 	}
-	_destFS, err := writefs.Sub(vfs, ocflPath)
+	_destFS, err := writefs.SubCreate(vfs, ocflPath)
 	//_destFS, err := fsFactory.Get(ocflPath, false)
 	if err != nil {
 		logger.Fatal().Msgf("cannot get filesystem for '%s'", ocflPath)

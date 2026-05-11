@@ -108,7 +108,7 @@ func doTest(cmd *cobra.Command, args []string) {
 			logger.Error().Err(err).Msg("cannot close vfs")
 		}
 	}()
-	vfs.AddFS("internal", internal.InternalFS)
+	vfs.AddFS("internal", nil, internal.InternalFS)
 
 	fixturePath := conf.Test.FixturePath
 

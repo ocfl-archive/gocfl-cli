@@ -150,10 +150,17 @@ func doExtractMeta(cmd *cobra.Command, args []string) {
 			logger.Error().Err(err).Msg("cannot close vfs")
 		}
 	}()
-	if err := vfsrw.AddLocal(vfs); err != nil {
+	if err := vfsrw.AddLocal(vfs, &vfsrw.ZipAsFolder{
+		Enabled:   true,
+		Digests:   nil,
+		CacheSize: 2,
+		Compress:  false,
+		ReadOnly:  true,
+		AES:       nil,
+	}); err != nil {
 		logger.Error().Err(err).Msg("cannot add local filesystem to vfs")
 	}
-	vfs.AddFS("internal", internal.InternalFS)
+	vfs.AddFS("internal", nil, internal.InternalFS)
 
 	/*
 		ocflPath, err = path2vfs(ocflPath)
