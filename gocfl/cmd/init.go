@@ -2,8 +2,6 @@ package cmd
 
 import (
 	"context"
-	"crypto/tls"
-	"io"
 	"io/fs"
 	"log"
 	"os"
@@ -13,16 +11,9 @@ import (
 	"github.com/je4/utils/v2/pkg/checksum"
 	defaultextensions_storageroot "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/storageroot"
 	"github.com/ocfl-archive/gocfl/v3/pkg/appendfs"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension/extensionimpl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/util"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/version"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfllogger"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/pkgerrors"
 	"github.com/spf13/cobra"
-	ublogger "gitlab.switch.ch/ub-unibas/go-ublogger/v2"
-	"go.ub.unibas.ch/cloud/certloader/v2/pkg/loader"
 )
 
 var initCmd = &cobra.Command{
@@ -42,6 +33,7 @@ func initInit() {
 	initCmd.Flags().Bool("no-compress", false, "do not compress data in zip file")
 }
 
+// doInitConf updates the configuration based on the command line flags for the 'init' command.
 func doInitConf(cmd *cobra.Command) {
 	if str := getFlagString(cmd, "default-storageroot-extensions"); str != "" {
 		conf.Init.StorageRootExtensionFolder = str
@@ -61,69 +53,46 @@ func doInitConf(cmd *cobra.Command) {
 
 }
 
+// doInit is the main function for the 'init' command.
+// It initializes a new, empty OCFL storage root at the specified path.
 func doInit(cmd *cobra.Command, args []string) {
-	ocflPath, err := util.Fullpath(args[0])
-	if err != nil {
-		cobra.CheckErr(err)
-		return
-	}
+	ocflPath := args[0]
 
-	// create logger instance
-	hostname, err := os.Hostname()
-	if err != nil {
-		log.Fatalf("cannot get hostname: %v", err)
-	}
-
-	var loggerTLSConfig *tls.Config
-	var loggerLoader io.Closer
-	if conf.Log.Stash.TLS != nil {
-		loggerTLSConfig, loggerLoader, err = loader.CreateClientLoader(conf.Log.Stash.TLS, nil)
-		if err != nil {
-			log.Fatalf("cannot create client loader: %v", err)
-		}
-		defer loggerLoader.Close()
-	}
-
-	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
-	_logger, _logstash, _logfile, err := ublogger.CreateUbMultiLoggerTLS(conf.Log.Level, conf.Log.File,
-		ublogger.SetDataset(conf.Log.Stash.Dataset),
-		ublogger.SetLogStash(conf.Log.Stash.LogstashHost, conf.Log.Stash.LogstashPort, conf.Log.Stash.Namespace, conf.Log.Stash.LogstashTraceLevel),
-		ublogger.SetTLS(conf.Log.Stash.TLS != nil),
-		ublogger.SetTLSConfig(loggerTLSConfig),
-	)
-	if err != nil {
-		log.Fatalf("cannot create logger: %v", err)
-	}
-	if _logstash != nil {
-		defer _logstash.Close()
-	}
-
-	if _logfile != nil {
-		defer _logfile.Close()
-	}
-
-	l2 := _logger.With().Timestamp().Str("host", hostname).Logger() //.Output(output)
-
+	// Initialize context and logger
 	ver := version.OCFLVersion(conf.Init.OCFLVersion)
 	if !version.ValidVersion(ver) {
 		log.Fatalf("OCFL version  not supported: %v", ver)
 	}
 	ctx := context.TODO()
-	var logger = ocfllogger.NewOCFLLogger(ctx, &l2, nil, ver, nil)
+	logger, closers, err := setupLogger(ctx, ver)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer func() {
+		for _, closer := range closers {
+			closer.Close()
+		}
+	}()
 
+	// Update configuration based on flags
 	doInitConf(cmd)
 
 	logger.Info().Msgf("creating '%s'", ocflPath)
+	// Start timer for the duration of the operation
 	t := startTimer()
 	defer func() { logger.Info().Msgf("Duration: %s", t.String()) }()
 
-	fsFactory, err := initializeFSFactory([]checksum.DigestAlgorithm{conf.Init.Digest}, &conf.AES, &conf.S3, true, false, logger)
+	// Setup virtual file system
+	vfs, err := setupVFS(logger)
 	if err != nil {
-		logger.Error().Err(err).Msg("cannot create filesystem factory")
+		logger.Error().Err(err).Msg("VFS fail")
 		return
 	}
+	defer vfs.Close()
+	ocflPath = writefs.RealPath(vfs, ocflPath)
 
-	_destFS, err := fsFactory.Get(ocflPath, false)
+	// Prepare access to the OCFL directory
+	_destFS, err := writefs.SubCreate(vfs, ocflPath)
 	if err != nil {
 		logger.Error().Err(err).Msgf("cannot get filesystem for '%s'", ocflPath)
 		return
@@ -139,15 +108,10 @@ func doInit(cmd *cobra.Command, args []string) {
 		}
 	}()
 
-	extensionParams, err := getExtensionParams(cmd)
+	// Setup extension factory and manager for storage root
+	storageRootExtensionFactory, err := setupExtensionFactory[storageroot.ExtensionManager](cmd, logger)
 	if err != nil {
-		logger.Error().Err(err).Msg("cannot get extension params")
-		return
-	}
-
-	storageRootExtensionFactory, err := extensionimpl.NewFactory[storageroot.ExtensionManager](extensionParams, logger)
-	if err != nil {
-		logger.Error().Err(err).Msg("cannot create extension factory")
+		logger.Error().Err(err).Msg("Factory fail")
 		return
 	}
 	storageRootExtensionManager, err := LoadExtensionManager(
@@ -164,6 +128,7 @@ func doInit(cmd *cobra.Command, args []string) {
 		}
 	}()
 
+	// Create the storage root
 	if _, err := CreateStorageRoot(
 		ctx,
 		destFS,

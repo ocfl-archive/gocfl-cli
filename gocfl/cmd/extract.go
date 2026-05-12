@@ -2,9 +2,7 @@ package cmd
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
-	"io"
 	"io/fs"
 	"log"
 	"os"
@@ -13,19 +11,12 @@ import (
 	"github.com/je4/filesystem/v4/pkg/writefs"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/appendfs"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension/extensionimpl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/functions"
 	inventorytypes "github.com/ocfl-archive/gocfl/v3/pkg/ocfl/inventory"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/util"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/version"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfllogger"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/pkgerrors"
 	"github.com/spf13/cobra"
-	ublogger "gitlab.switch.ch/ub-unibas/go-ublogger/v2"
-	"go.ub.unibas.ch/cloud/certloader/v2/pkg/loader"
 )
 
 var extractCmd = &cobra.Command{
@@ -45,6 +36,8 @@ func initExtract() {
 	extractCmd.Flags().String("version", "", "version to extract")
 	extractCmd.Flags().String("area", "content", "data area to extract")
 }
+
+// doExtractConf updates the configuration based on the command line flags for the 'extract' command.
 func doExtractConf(cmd *cobra.Command) {
 	if str := getFlagString(cmd, "object-path"); str != "" {
 		conf.Extract.ObjectPath = str
@@ -68,59 +61,30 @@ func doExtractConf(cmd *cobra.Command) {
 	}
 }
 
+// doExtract is the main function for the 'extract' command.
+// It initializes the logger, sets up the virtual file system (VFS), loads extension managers,
+// and extracts a specific version of an OCFL object to a target folder.
 func doExtract(cmd *cobra.Command, args []string) {
-	// create logger instance
-	hostname, err := os.Hostname()
-	if err != nil {
-		log.Fatalf("cannot get hostname: %v", err)
-	}
-
-	var loggerTLSConfig *tls.Config
-	var loggerLoader io.Closer
-	if conf.Log.Stash.TLS != nil {
-		loggerTLSConfig, loggerLoader, err = loader.CreateClientLoader(conf.Log.Stash.TLS, nil)
-		if err != nil {
-			log.Fatalf("cannot create client loader: %v", err)
-		}
-		defer loggerLoader.Close()
-	}
-
-	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
-	_logger, _logstash, _logfile, err := ublogger.CreateUbMultiLoggerTLS(conf.Log.Level, conf.Log.File,
-		ublogger.SetDataset(conf.Log.Stash.Dataset),
-		ublogger.SetLogStash(conf.Log.Stash.LogstashHost, conf.Log.Stash.LogstashPort, conf.Log.Stash.Namespace, conf.Log.Stash.LogstashTraceLevel),
-		ublogger.SetTLS(conf.Log.Stash.TLS != nil),
-		ublogger.SetTLSConfig(loggerTLSConfig),
-	)
-	if err != nil {
-		log.Fatalf("cannot create logger: %v", err)
-	}
-	if _logstash != nil {
-		defer _logstash.Close()
-	}
-
-	if _logfile != nil {
-		defer _logfile.Close()
-	}
-
+	// Initialize context and logger
 	ctx := context.TODO()
-	l2 := _logger.With().Timestamp().Str("host", hostname).Logger() //.Output(output)
-	var logger = ocfllogger.NewOCFLLogger(ctx, &l2, nil, version.Default, nil)
+	logger, closers, err := setupLogger(ctx, version.Default)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer func() {
+		for _, closer := range closers {
+			closer.Close()
+		}
+	}()
 
+	// Start timer for the duration of the operation
 	t := startTimer()
 	defer func() { logger.Info().Msgf("Duration: %s", t.String()) }()
 
-	rootPath, err := util.Fullpath(args[0])
-	if err != nil {
-		cobra.CheckErr(err)
-		return
-	}
-	destPath, err := util.Fullpath(args[1])
-	if err != nil {
-		cobra.CheckErr(err)
-		return
-	}
+	rootPath := args[0]
+	destPath := args[1]
 
+	// Update configuration based on flags
 	doExtractConf(cmd)
 
 	oPath := conf.Extract.ObjectPath
@@ -133,18 +97,23 @@ func doExtract(cmd *cobra.Command, args []string) {
 
 	logger.Info().Msgf("extracting '%s'", rootPath)
 
-	fsFactory, err := initializeFSFactory(nil, nil, nil, true, true, logger)
+	// Setup virtual file system
+	vfs, err := setupVFS(logger)
 	if err != nil {
-		logger.Error().Err(err).Msg("cannot create filesystem factory")
+		logger.Error().Err(err).Msg("VFS fail")
 		return
 	}
+	defer vfs.Close()
+	rootPath = writefs.RealPath(vfs, rootPath)
+	destPath = writefs.RealPath(vfs, destPath)
 
-	ocflFS, err := fsFactory.Get(rootPath, true)
+	// Prepare source and destination filesystems
+	ocflFS, err := writefs.Sub(vfs, rootPath)
 	if err != nil {
 		logger.Error().Err(err).Msgf("cannot get filesystem for '%s'", rootPath)
 		return
 	}
-	destFS, err := fsFactory.Get(destPath, false)
+	destFS, err := writefs.SubCreate(vfs, destPath)
 	if err != nil {
 		logger.Error().Err(err).Msgf("cannot get filesystem for '%s'", destPath)
 		return
@@ -155,23 +124,19 @@ func doExtract(cmd *cobra.Command, args []string) {
 		}
 	}()
 
-	extensionParams, err := getExtensionParams(cmd)
+	// Setup extension factories for storage root and object
+	storageRootExtensionFactory, err := setupExtensionFactory[storageroot.ExtensionManager](cmd, logger)
 	if err != nil {
-		logger.Error().Err(err).Msg("cannot get extension params")
+		logger.Error().Err(err).Msg("Factory fail")
+		return
+	}
+	objectExtensionFactory, err := setupExtensionFactory[object.ExtensionManager](cmd, logger)
+	if err != nil {
+		logger.Error().Err(err).Msg("Factory fail")
 		return
 	}
 
-	storageRootExtensionFactory, err := extensionimpl.NewFactory[storageroot.ExtensionManager](extensionParams, logger)
-	if err != nil {
-		logger.Error().Err(err).Msg("cannot create extension factory")
-		return
-	}
-	objectExtensionFactory, err := extensionimpl.NewFactory[object.ExtensionManager](extensionParams, logger)
-	if err != nil {
-		logger.Error().Err(err).Msg("cannot create extension factory")
-		return
-	}
-
+	// Load object extension manager
 	objectExtensionManager, err := LoadExtensionManager(
 		objectExtensionFactory,
 		firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)),
@@ -186,6 +151,7 @@ func doExtract(cmd *cobra.Command, args []string) {
 		}
 	}()
 
+	// Load storage root in read-only mode
 	sr, err := LoadStorageRootRO(ctx, ocflFS, storageRootExtensionFactory, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storage root")
@@ -216,6 +182,7 @@ func doExtract(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	// Perform the extraction
 	if err := functions.Extract(
 		context.Background(),
 		sr.GetReadFS(),

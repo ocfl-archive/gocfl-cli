@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path"
@@ -21,6 +23,7 @@ import (
 	"github.com/je4/utils/v2/pkg/checksum"
 	"github.com/je4/utils/v2/pkg/keepass2kms"
 	"github.com/ocfl-archive/gocfl-cli/config"
+	"github.com/ocfl-archive/gocfl-cli/internal"
 	"github.com/ocfl-archive/gocfl/v3/pkg/appendfs"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension/extensionimpl"
@@ -33,10 +36,79 @@ import (
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/validation"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/version"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfllogger"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/pkgerrors"
 	"github.com/shirou/gopsutil/v4/disk"
 	"github.com/spf13/cobra"
 	"github.com/tink-crypto/tink-go/v2/core/registry"
+	ublogger "gitlab.switch.ch/ub-unibas/go-ublogger/v2"
+	"go.ub.unibas.ch/cloud/certloader/v2/pkg/loader"
 )
+
+func setupLogger(ctx context.Context, ver version.OCFLVersion) (ocfllogger.OCFLLogger, []io.Closer, error) {
+	var closers []io.Closer
+	hostname, err := os.Hostname()
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "cannot get hostname")
+	}
+
+	var loggerTLSConfig *tls.Config
+	if conf.Log.Stash.TLS != nil {
+		var loggerLoader io.Closer
+		loggerTLSConfig, loggerLoader, err = loader.CreateClientLoader(conf.Log.Stash.TLS, nil)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "cannot create client loader")
+		}
+		closers = append(closers, loggerLoader)
+	}
+
+	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
+	_logger, _logstash, _logfile, err := ublogger.CreateUbMultiLoggerTLS(conf.Log.Level, conf.Log.File,
+		ublogger.SetDataset(conf.Log.Stash.Dataset),
+		ublogger.SetLogStash(conf.Log.Stash.LogstashHost, conf.Log.Stash.LogstashPort, conf.Log.Stash.Namespace, conf.Log.Stash.LogstashTraceLevel),
+		ublogger.SetTLS(conf.Log.Stash.TLS != nil),
+		ublogger.SetTLSConfig(loggerTLSConfig),
+	)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "cannot create logger")
+	}
+	if _logstash != nil {
+		closers = append(closers, _logstash)
+	}
+	if _logfile != nil {
+		closers = append(closers, _logfile)
+	}
+
+	l2 := _logger.With().Timestamp().Str("host", hostname).Logger()
+	return ocfllogger.NewOCFLLogger(ctx, &l2, nil, ver, nil), closers, nil
+}
+
+func setupVFS(logger ocfllogger.OCFLLogger) (vfsrw.VFSRW, error) {
+	if conf.VFS == nil {
+		conf.VFS = vfsrw.Config{}
+	}
+	for name, val := range getLocalFSConfig() {
+		conf.VFS[name] = val
+	}
+	vfs, err := vfsrw.NewFS(conf.VFS, logger.Logger())
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot create VFS")
+	}
+	vfs.AddFS("internal", nil, internal.InternalFS)
+	return vfs, nil
+}
+
+func setupExtensionFactory[T extension.ManagerCore[T]](cmd *cobra.Command, logger ocfllogger.OCFLLogger) (*extensionimpl.Factory[T], error) {
+	params, err := getExtensionParams(cmd)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot get extension params")
+	}
+	factory, err := extensionimpl.NewFactory[T](params, logger)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot create extension factory")
+	}
+	return factory, nil
+}
 
 func firstOrSecond[T any](first bool, a T, b T) T {
 	if first {
@@ -143,7 +215,7 @@ func (t *timer) Start() {
 }
 
 func (t *timer) String() string {
-	delta := time.Now().Sub(t.start)
+	delta := time.Since(t.start)
 	return delta.String()
 }
 

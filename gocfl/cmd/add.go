@@ -2,35 +2,24 @@ package cmd
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
-	"io"
 	"io/fs"
 	"log"
 	"os"
 	"strings"
 
 	"emperror.dev/errors"
-	"github.com/je4/filesystem/v4/pkg/vfsrw"
 	"github.com/je4/filesystem/v4/pkg/writefs"
 	"github.com/je4/utils/v2/pkg/checksum"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
-	"github.com/ocfl-archive/gocfl-cli/internal"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_indexer"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_migration"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_thumbnail"
 	"github.com/ocfl-archive/gocfl/v3/pkg/appendfs"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension/extensionimpl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/util"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/version"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfllogger"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/pkgerrors"
 	"github.com/spf13/cobra"
-	ublogger "gitlab.switch.ch/ub-unibas/go-ublogger/v2"
-	"go.ub.unibas.ch/cloud/certloader/v2/pkg/loader"
 	"golang.org/x/exp/slices"
 )
 
@@ -58,6 +47,7 @@ func initAdd() {
 	addCmd.Flags().Bool("no-compress", false, "do not compress data in zip file")
 }
 
+// doAddConf updates the configuration based on the command line flags for the 'add' command.
 func doAddConf(cmd *cobra.Command) {
 	if str := getFlagString(cmd, "fixity"); str != "" {
 		parts := strings.Split(str, ",")
@@ -112,78 +102,42 @@ func doAddConf(cmd *cobra.Command) {
 
 }
 
-// initAdd executes the gocfl add command
+// doAdd is the main function for the 'add' command.
+// It initializes the logger, sets up the virtual file system (VFS), loads extension managers,
+// and adds a new object to an existing OCFL structure.
 func doAdd(cmd *cobra.Command, args []string) {
-	var err error
-
 	if err := cmd.ValidateRequiredFlags(); err != nil {
 		cobra.CheckErr(err)
 		return
 	}
 
-	// todo: migration not working
-
-	ocflPath, err := util.Fullpath(args[0])
-	if err != nil {
-		cobra.CheckErr(err)
-		return
-	}
-	srcPath, err := util.Fullpath(args[1])
-	if err != nil {
-		cobra.CheckErr(err)
-		return
-	}
+	ocflPath := args[0]
+	srcPath := args[1]
 
 	if !slices.Contains([]string{"DEBUG", "ERROR", "WARNING", "INFO", "CRITICAL"}, conf.Log.Level) {
 		_ = cmd.Help()
 		cobra.CheckErr(errors.Errorf("invalid log level '%s' for flag 'log-level' or 'LogLevel' config file entry", persistentFlagLoglevel))
 	}
 
-	// create logger instance
-	hostname, err := os.Hostname()
-	if err != nil {
-		log.Fatalf("cannot get hostname: %v", err)
-	}
-
-	var loggerTLSConfig *tls.Config
-	var loggerLoader io.Closer
-	if conf.Log.Stash.TLS != nil {
-		loggerTLSConfig, loggerLoader, err = loader.CreateClientLoader(conf.Log.Stash.TLS, nil)
-		if err != nil {
-			log.Fatalf("cannot create client loader: %v", err)
-		}
-		defer loggerLoader.Close()
-	}
-
-	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
-	_logger, _logstash, _logfile, err := ublogger.CreateUbMultiLoggerTLS(conf.Log.Level, conf.Log.File,
-		ublogger.SetDataset(conf.Log.Stash.Dataset),
-		ublogger.SetLogStash(conf.Log.Stash.LogstashHost, conf.Log.Stash.LogstashPort, conf.Log.Stash.Namespace, conf.Log.Stash.LogstashTraceLevel),
-		ublogger.SetTLS(conf.Log.Stash.TLS != nil),
-		ublogger.SetTLSConfig(loggerTLSConfig),
-	)
-	if err != nil {
-		log.Fatalf("cannot create logger: %v", err)
-	}
-	if _logstash != nil {
-		defer _logstash.Close()
-	}
-
-	if _logfile != nil {
-		defer _logfile.Close()
-	}
-
-	l2 := _logger.With().Timestamp().Str("host", hostname).Logger() //.Output(output)
+	// Initialize context and logger
 	ctx := context.TODO()
+	logger, closers, err := setupLogger(ctx, version.Default)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer func() {
+		for _, closer := range closers {
+			closer.Close()
+		}
+	}()
 
-	var logger = ocfllogger.NewOCFLLogger(ctx, &l2, nil, version.Default, nil)
-
+	// Update configuration based on flags
 	doAddConf(cmd)
 
 	var addr string
 	var localCache bool
-	//var fss = map[string]fs.FS{"internal": internal.InternalFS}
 
+	// Start timer for the duration of the operation
 	t := startTimer()
 	defer func() { logger.Info().Msgf("Duration: %s", t.String()) }()
 
@@ -199,16 +153,15 @@ func doAdd(cmd *cobra.Command, args []string) {
 		fixityAlgs = append(fixityAlgs, checksum.DigestAlgorithm(alg))
 	}
 
-	vfs, err := vfsrw.NewFS(conf.VFS, logger.Logger())
+	// Setup virtual file system
+	vfs, err := setupVFS(logger)
 	if err != nil {
-		logger.Panic().Err(err).Msg("cannot create vfs")
+		logger.Error().Err(err).Msg("VFS fail")
+		return
 	}
-	defer func() {
-		if err := vfs.Close(); err != nil {
-			logger.Error().Err(err).Msg("cannot close vfs")
-		}
-	}()
-	vfs.AddFS("internal", nil, internal.InternalFS)
+	defer vfs.Close()
+	ocflPath = writefs.RealPath(vfs, ocflPath)
+	srcPath = writefs.RealPath(vfs, srcPath)
 
 	logger.Info().Msgf("vfs created : %v", vfs)
 
@@ -216,17 +169,12 @@ func doAdd(cmd *cobra.Command, args []string) {
 		logger.Fatal().Err(err).Msgf("cannot stat '%s'", srcPath)
 	}
 
-	fsFactory, err := initializeFSFactory([]checksum.DigestAlgorithm{conf.Add.Digest}, nil, nil, conf.Add.NoCompress, false, logger)
-	if err != nil {
-		logger.Debug().Err(err)
-		logger.Fatal().Err(err).Msg("cannot create filesystem factory")
-	}
-
-	sourceFS, err := fsFactory.Get(srcPath, true)
+	// Prepare source and destination filesystems
+	sourceFS, err := writefs.Sub(vfs, srcPath)
 	if err != nil {
 		logger.Fatal().Err(err).Msgf("cannot get filesystem for '%s'", srcPath)
 	}
-	_destFS, err := fsFactory.Get(ocflPath, false)
+	_destFS, err := writefs.Sub(vfs, ocflPath)
 	if err != nil {
 		logger.Fatal().Msgf("cannot get filesystem for '%s'", ocflPath)
 	}
@@ -256,7 +204,7 @@ func doAdd(cmd *cobra.Command, args []string) {
 			logger.Error().Msgf("no area given in areapath '%s'", args[i])
 			continue
 		}
-		areaPaths[matches[1]], err = fsFactory.Get(matches[2], true)
+		areaPaths[matches[1]], err = writefs.Sub(vfs, matches[2])
 		if err != nil {
 			doNotClose = true
 			logger.Fatal().Msgf("cannot get filesystem for '%s'", args[i])
@@ -267,27 +215,23 @@ func doAdd(cmd *cobra.Command, args []string) {
 	ext_NNNN_thumbnail.Init(conf.Thumbnail, sourceFS, logger)
 	ext_NNNN_indexer.Init(addr, conf.Indexer, localCache, logger)
 
-	extensionParams, err := getExtensionParams(cmd)
+	// Setup extension factories for storage root and object
+	storageRootExtFactory, err := setupExtensionFactory[storageroot.ExtensionManager](cmd, logger)
 	if err != nil {
 		doNotClose = true
-		logger.Fatal().Err(err).Msg("cannot get extension params")
+		logger.Fatal().Err(err).Msg("Factory fail")
 	}
 
-	storageRootExtFactory, err := extensionimpl.NewFactory[storageroot.ExtensionManager](extensionParams, logger)
+	objectExtFactory, err := setupExtensionFactory[object.ExtensionManager](cmd, logger)
 	if err != nil {
 		doNotClose = true
-		logger.Fatal().Err(err).Msg("cannot create extension factory")
-	}
-
-	objectExtFactory, err := extensionimpl.NewFactory[object.ExtensionManager](extensionParams, logger)
-	if err != nil {
-		doNotClose = true
-		logger.Fatal().Err(err).Msg("cannot create extension factory")
+		logger.Fatal().Err(err).Msg("Factory fail")
 	}
 	//////////////////////////////////////
 
 	logger.Debug().Msgf("initializing ExtensionFactory")
 
+	// Load storage root
 	storageRoot, err := LoadStorageRoot(ctx, destFS, storageRootExtFactory, logger)
 	if err != nil {
 		doNotClose = true
@@ -302,6 +246,7 @@ func doAdd(cmd *cobra.Command, args []string) {
 		}
 	}
 
+	// Load object extension manager
 	objectExtensionManager, err := LoadExtensionManager(
 		objectExtFactory,
 		firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)),
@@ -316,6 +261,7 @@ func doAdd(cmd *cobra.Command, args []string) {
 		}
 	}()
 
+	// Check if the object already exists
 	exists, err := storageRoot.ObjectExists(flagObjectID)
 	if err != nil {
 		doNotClose = true
@@ -326,6 +272,7 @@ func doAdd(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	// Add the object to the storage root
 	_, err = addObjectByPath(
 		ctx,
 		storageRoot,

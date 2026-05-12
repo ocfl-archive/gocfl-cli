@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"crypto/tls"
 	"io"
 	"io/fs"
 	"log"
@@ -16,17 +15,10 @@ import (
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
 	"github.com/ocfl-archive/gocfl-cli/data/displaydata"
 	"github.com/ocfl-archive/gocfl-cli/gocfl/cmd/display"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension/extensionimpl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/util"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/version"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfllogger"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/pkgerrors"
 	"github.com/spf13/cobra"
-	ublogger "gitlab.switch.ch/ub-unibas/go-ublogger/v2"
-	"go.ub.unibas.ch/cloud/certloader/v2/pkg/loader"
 )
 
 var displayCmd = &cobra.Command{
@@ -57,6 +49,7 @@ func initDisplay() {
 	displayCmd.Flags().StringP("display-tls-key", "k", "", "path to tls certificate key")
 }
 
+// doDisplayConf updates the configuration based on the command line flags for the 'display' command.
 func doDisplayConf(cmd *cobra.Command) {
 	if str := getFlagString(cmd, "display-addr"); str != "" {
 		conf.Display.Addr = str
@@ -75,105 +68,74 @@ func doDisplayConf(cmd *cobra.Command) {
 	}
 }
 
+// doDisplay is the main function for the 'display' command.
+// It starts a web server to display the content of an OCFL structure.
 func doDisplay(cmd *cobra.Command, args []string) {
-	ocflPath, err := util.Fullpath(args[0])
-	if err != nil {
-		cobra.CheckErr(err)
-		return
-	}
+	ocflPath := args[0]
 
-	// create logger instance
-	hostname, err := os.Hostname()
-	if err != nil {
-		log.Fatalf("cannot get hostname: %v", err)
-	}
-
-	var loggerTLSConfig *tls.Config
-	var loggerLoader io.Closer
-	if conf.Log.Stash.TLS != nil {
-		loggerTLSConfig, loggerLoader, err = loader.CreateClientLoader(conf.Log.Stash.TLS, nil)
-		if err != nil {
-			log.Fatalf("cannot create client loader: %v", err)
-		}
-		defer loggerLoader.Close()
-	}
-
-	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
-	_logger, _logstash, _logfile, err := ublogger.CreateUbMultiLoggerTLS(conf.Log.Level, conf.Log.File,
-		ublogger.SetDataset(conf.Log.Stash.Dataset),
-		ublogger.SetLogStash(conf.Log.Stash.LogstashHost, conf.Log.Stash.LogstashPort, conf.Log.Stash.Namespace, conf.Log.Stash.LogstashTraceLevel),
-		ublogger.SetTLS(conf.Log.Stash.TLS != nil),
-		ublogger.SetTLSConfig(loggerTLSConfig),
-	)
-	if err != nil {
-		log.Fatalf("cannot create logger: %v", err)
-	}
-	if _logstash != nil {
-		defer _logstash.Close()
-	}
-
-	if _logfile != nil {
-		defer _logfile.Close()
-	}
-
-	l2 := _logger.With().Timestamp().Str("host", hostname).Logger() //.Output(output)
+	// Initialize context and logger
 	ctx := context.TODO()
-	var logger = ocfllogger.NewOCFLLogger(ctx, &l2, nil, version.Default, nil)
+	logger, closers, err := setupLogger(ctx, version.Default)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer func() {
+		for _, closer := range closers {
+			closer.Close()
+		}
+	}()
 
+	// Start timer for the duration of the operation
 	t := startTimer()
 	defer func() { logger.Info().Msgf("Duration: %s", t.String()) }()
 
+	// Update configuration based on flags
 	doDisplayConf(cmd)
 
 	logger.Info().Msgf("opening '%s'", ocflPath)
 
-	fsFactory, err := initializeFSFactory(nil, nil, nil, true, true, logger)
+	// Setup virtual file system
+	vfs, err := setupVFS(logger)
 	if err != nil {
-		logger.Error().Err(err).Msg("cannot create filesystem factory")
+		logger.Error().Err(err).Msg("VFS fail")
 		return
 	}
+	defer vfs.Close()
+	ocflPath = writefs.RealPath(vfs, ocflPath)
 
-	destFS, err := fsFactory.Get(ocflPath, true)
+	// Prepare access to the OCFL directory
+	destFS, err := writefs.Sub(vfs, ocflPath)
 	if err != nil {
 		logger.Error().Err(err).Msgf("cannot get filesystem for '%s'", ocflPath)
 		return
 	}
-	/*
-		destFS, ok := _destFS.(appendfs.FS)
-		if !ok {
-			logger.Error().Err(err).Msgf("filesystem for '%s' is not writeable", ocflPath)
-		}
-	*/
 	defer func() {
 		if err := writefs.Close(destFS); err != nil {
 			logger.Error().Err(err).Msgf("cannot close filesystem for '%s'", destFS)
 		}
 	}()
 
-	extensionParams, err := getExtensionParams(cmd)
+	// Setup extension factories for storage root and object
+	storageRootExtensionFactory, err := setupExtensionFactory[storageroot.ExtensionManager](cmd, logger)
 	if err != nil {
-		logger.Error().Err(err).Msg("cannot get extension params")
+		logger.Error().Err(err).Msg("Factory fail")
 		return
 	}
 
-	storageRootExtensionFactory, err := extensionimpl.NewFactory[storageroot.ExtensionManager](extensionParams, logger)
-	if err != nil {
-		logger.Error().Err(err).Msg("cannot create extension factory")
-		return
-	}
-
+	// Load storage root in read-only mode
 	storageRoot, err := LoadStorageRootRO(ctx, destFS, storageRootExtensionFactory, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storage root")
 		return
 	}
 
-	objectExtensionFactory, err := extensionimpl.NewFactory[object.ExtensionManager](extensionParams, logger)
+	objectExtensionFactory, err := setupExtensionFactory[object.ExtensionManager](cmd, logger)
 	if err != nil {
-		logger.Error().Err(err).Msg("cannot create extension factory")
+		logger.Error().Err(err).Msg("Factory fail")
 		return
 	}
 
+	// Load object extension manager
 	objectExtensionManager, err := LoadExtensionManager(
 		objectExtensionFactory,
 		firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)),
@@ -188,6 +150,7 @@ func doDisplay(cmd *cobra.Command, args []string) {
 		}
 	}()
 
+	// Setup display server
 	urlC, _ := url.Parse(conf.Display.AddrExt)
 	var templateFS fs.FS
 	if conf.Display.Templates == "" {

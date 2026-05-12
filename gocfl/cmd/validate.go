@@ -2,8 +2,6 @@ package cmd
 
 import (
 	"context"
-	"crypto/tls"
-	"io"
 	"io/fs"
 	"log"
 	"os"
@@ -11,18 +9,11 @@ import (
 	"github.com/je4/filesystem/v4/pkg/writefs"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
 	defaultextensions_storageroot "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/storageroot"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension/extensionimpl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/functions"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/util"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/version"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfllogger"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/pkgerrors"
 	"github.com/spf13/cobra"
-	ublogger "gitlab.switch.ch/ub-unibas/go-ublogger/v2"
-	"go.ub.unibas.ch/cloud/certloader/v2/pkg/loader"
 )
 
 var validateCmd = &cobra.Command{
@@ -40,6 +31,7 @@ func initValidate() {
 	validateCmd.Flags().StringP("object-id", "i", "", "validate only the object with the specified id in storage root")
 }
 
+// doValidateConf updates the configuration based on the command line flags.
 func doValidateConf(cmd *cobra.Command) {
 	if str := getFlagString(cmd, "object-path"); str != "" {
 		conf.Validate.ObjectPath = str
@@ -49,67 +41,37 @@ func doValidateConf(cmd *cobra.Command) {
 	}
 }
 
+// doValidate is the main function for the 'validate' command.
+// It initializes the logger, loads extension managers for storage root and objects,
+// sets up the virtual file system (VFS), and performs the actual validation.
 func doValidate(cmd *cobra.Command, args []string) {
-	ocflPath, err := util.Fullpath(args[0])
-	if err != nil {
-		cobra.CheckErr(err)
-		return
-	}
+	ocflPath := args[0]
 
-	// create logger instance
-	hostname, err := os.Hostname()
-	if err != nil {
-		log.Fatalf("cannot get hostname: %v", err)
-	}
-
-	var loggerTLSConfig *tls.Config
-	var loggerLoader io.Closer
-	if conf.Log.Stash.TLS != nil {
-		loggerTLSConfig, loggerLoader, err = loader.CreateClientLoader(conf.Log.Stash.TLS, nil)
-		if err != nil {
-			log.Fatalf("cannot create client loader: %v", err)
-		}
-		defer loggerLoader.Close()
-	}
-
-	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
-	_logger, _logstash, _logfile, err := ublogger.CreateUbMultiLoggerTLS(conf.Log.Level, conf.Log.File,
-		ublogger.SetDataset(conf.Log.Stash.Dataset),
-		ublogger.SetLogStash(conf.Log.Stash.LogstashHost, conf.Log.Stash.LogstashPort, conf.Log.Stash.Namespace, conf.Log.Stash.LogstashTraceLevel),
-		ublogger.SetTLS(conf.Log.Stash.TLS != nil),
-		ublogger.SetTLSConfig(loggerTLSConfig),
-	)
-	if err != nil {
-		log.Fatalf("cannot create logger: %v", err)
-	}
-	if _logstash != nil {
-		defer _logstash.Close()
-	}
-
-	if _logfile != nil {
-		defer _logfile.Close()
-	}
-
-	l2 := _logger.With().Timestamp().Str("host", hostname).Logger() //.Output(output)
+	// Initialize context and logger
 	ctx := context.TODO()
-	var logger = ocfllogger.NewOCFLLogger(ctx, &l2, nil, version.Default, nil)
+	logger, closers, err := setupLogger(ctx, version.Default)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer func() {
+		for _, closer := range closers {
+			closer.Close()
+		}
+	}()
 
+	// Start timer for validation duration
 	t := startTimer()
 	defer func() { logger.Info().Msgf("Duration: %s", t.String()) }()
 
+	// Update configuration based on flags
 	doValidateConf(cmd)
 
 	logger.Info().Msgf("validating '%s'", ocflPath)
 
-	extensionParams, err := getExtensionParams(cmd)
+	// Load extension factory and manager for storage root
+	storageRootExtensionFactory, err := setupExtensionFactory[storageroot.ExtensionManager](cmd, logger)
 	if err != nil {
-		logger.Error().Err(err).Msg("cannot get extension params")
-		return
-	}
-
-	storageRootExtensionFactory, err := extensionimpl.NewFactory[storageroot.ExtensionManager](extensionParams, logger)
-	if err != nil {
-		logger.Error().Err(err).Msg("cannot create extension factory")
+		logger.Error().Err(err).Msg("Factory fail")
 		return
 	}
 
@@ -127,9 +89,10 @@ func doValidate(cmd *cobra.Command, args []string) {
 		}
 	}()
 
-	objectExtensionFactory, err := extensionimpl.NewFactory[object.ExtensionManager](extensionParams, logger)
+	// Load extension factory and manager for objects
+	objectExtensionFactory, err := setupExtensionFactory[object.ExtensionManager](cmd, logger)
 	if err != nil {
-		logger.Error().Err(err).Msg("cannot create extension factory")
+		logger.Error().Err(err).Msg("Factory fail")
 		return
 	}
 
@@ -147,13 +110,17 @@ func doValidate(cmd *cobra.Command, args []string) {
 		}
 	}()
 
-	fsFactory, err := initializeFSFactory(nil, nil, nil, true, true, logger)
+	// Initialize virtual file system
+	vfs, err := setupVFS(logger)
 	if err != nil {
-		logger.Error().Err(err).Msg("cannot create filesystem factory")
+		logger.Error().Err(err).Msg("VFS fail")
 		return
 	}
+	defer vfs.Close()
+	ocflPath = writefs.RealPath(vfs, ocflPath)
 
-	destFS, err := fsFactory.Get(ocflPath, true)
+	// Prepare access to the OCFL directory
+	destFS, err := writefs.Sub(vfs, ocflPath)
 	if err != nil {
 		logger.Error().Err(err).Msgf("cannot get filesystem for '%s'", ocflPath)
 		return
@@ -164,6 +131,7 @@ func doValidate(cmd *cobra.Command, args []string) {
 		}
 	}()
 
+	// Load storage root in read-only mode
 	sr, err := LoadStorageRootRO(ctx, destFS, storageRootExtensionFactory, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storageroot")
@@ -175,29 +143,36 @@ func doValidate(cmd *cobra.Command, args []string) {
 		logger.Error().Msg("do not use object-path AND object-id at the same time")
 		return
 	}
+
+	// If no specific object ID or path was specified, validate the entire storage root
 	if objectID == "" && objectPath == "" {
 		if err := sr.Check(); err != nil {
 			logger.Error().Err(err).Msg("ocfl not valid")
 			return
 		}
 	} else {
+		// Validation of a single object
 		if objectID != "" {
+			// Resolve object ID to path
 			objectPath, err = sr.IdToFolder(objectID)
 			if err != nil {
 				logger.Error().Err(err).Msgf("cannot get object-path for '%s'", objectID)
 				return
 			}
 		}
+		// Create sub-filesystem for the object
 		objFsys, err := fs.Sub(sr.GetReadFS(), objectPath)
 		if err != nil {
 			logger.Error().Err(err).Msgf("cannot open filesystem for '%s'", objectPath)
 			return
 		}
+		// Load object
 		obj, err := functions.LoadObject(ctx, objFsys, objectExtensionFactory, logger)
 		if err != nil {
 			logger.Error().Err(err).Msgf("cannot open object for '%s'", objectPath)
 			return
 		}
+		// Get checker for the object and execute validation
 		checker := obj.GetChecker(objFsys)
 		if err := checker.Check(); err != nil {
 			logger.Error().Err(err).Msgf("ocfl object '%s' not valid", objectPath)

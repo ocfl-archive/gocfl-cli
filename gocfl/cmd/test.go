@@ -2,30 +2,19 @@ package cmd
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
-	"io"
 	"io/fs"
 	"log"
-	"os"
 	"path"
 	"regexp"
 
 	"emperror.dev/errors"
-	"github.com/je4/filesystem/v4/pkg/vfsrw"
 	"github.com/je4/filesystem/v4/pkg/writefs"
-	"github.com/ocfl-archive/gocfl-cli/internal"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension/extensionimpl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/functions"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/validation"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/version"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfllogger"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/pkgerrors"
 	"github.com/spf13/cobra"
-	ublogger "gitlab.switch.ch/ub-unibas/go-ublogger/v2"
-	"go.ub.unibas.ch/cloud/certloader/v2/pkg/loader"
 )
 
 var testCmd = &cobra.Command{
@@ -42,96 +31,57 @@ func initTest() {
 	testCmd.Flags().StringP("object-path", "p", "", "folder of fixture")
 }
 
+// doTestConf updates the configuration based on the command line flags for the 'test' command.
 func doTestConf(cmd *cobra.Command) {
 	if str := getFlagString(cmd, "object-path"); str != "" {
 		conf.Test.ObjectPath = str
 	}
 }
 
+// doTest is the main function for the 'test' command.
+// It runs validation tests against OCFL test fixtures in a specified folder.
 func doTest(cmd *cobra.Command, args []string) {
 	if len(args) > 0 && len(args[0]) > 0 {
 		conf.Test.FixturePath = args[0]
 	}
 
-	// create logger instance
-	hostname, err := os.Hostname()
-	if err != nil {
-		log.Fatalf("cannot get hostname: %v", err)
-	}
-
-	var loggerTLSConfig *tls.Config
-	var loggerLoader io.Closer
-	if conf.Log.Stash.TLS != nil {
-		loggerTLSConfig, loggerLoader, err = loader.CreateClientLoader(conf.Log.Stash.TLS, nil)
-		if err != nil {
-			log.Fatalf("cannot create client loader: %v", err)
-		}
-		defer loggerLoader.Close()
-	}
-
-	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
-	_logger, _logstash, _logfile, err := ublogger.CreateUbMultiLoggerTLS(conf.Log.Level, conf.Log.File,
-		ublogger.SetDataset(conf.Log.Stash.Dataset),
-		ublogger.SetLogStash(conf.Log.Stash.LogstashHost, conf.Log.Stash.LogstashPort, conf.Log.Stash.Namespace, conf.Log.Stash.LogstashTraceLevel),
-		ublogger.SetTLS(conf.Log.Stash.TLS != nil),
-		ublogger.SetTLSConfig(loggerTLSConfig),
-	)
-	if err != nil {
-		log.Fatalf("cannot create logger: %v", err)
-	}
-	if _logstash != nil {
-		defer _logstash.Close()
-	}
-
-	if _logfile != nil {
-		defer _logfile.Close()
-	}
-
-	l2 := _logger.With().Timestamp().Str("host", hostname).Logger() //.Output(output)
+	// Initialize context and logger
 	ctx := context.TODO()
-	var logger = ocfllogger.NewOCFLLogger(ctx, &l2, nil, version.Default, nil)
-
-	doTestConf(cmd)
-
-	if conf.VFS == nil {
-		conf.VFS = vfsrw.Config{}
-	}
-	for name, val := range getLocalFSConfig() {
-		conf.VFS[name] = val
-	}
-	vfs, err := vfsrw.NewFS(conf.VFS, logger.Logger())
+	logger, closers, err := setupLogger(ctx, version.Default)
 	if err != nil {
-		logger.Panic().Err(err).Msg("cannot create vfs")
+		log.Fatal(err)
 	}
 	defer func() {
-		if err := vfs.Close(); err != nil {
-			logger.Error().Err(err).Msg("cannot close vfs")
+		for _, closer := range closers {
+			closer.Close()
 		}
 	}()
-	vfs.AddFS("internal", nil, internal.InternalFS)
 
-	fixturePath := conf.Test.FixturePath
+	// Update configuration based on flags
+	doTestConf(cmd)
 
-	fixturePath, err = path2vfs(fixturePath)
+	// Setup virtual file system
+	vfs, err := setupVFS(logger)
 	if err != nil {
-		logger.Error().Err(err).Msg("cannot create ocfl path")
+		logger.Error().Err(err).Msg("VFS fail")
 		return
 	}
+	defer vfs.Close()
+
+	fixturePath := conf.Test.FixturePath
+	fixturePath = writefs.RealPath(vfs, fixturePath)
 	logger.Info().Msgf("vfs created : %v", vfs)
 
+	// Start timer for the duration of the operation
 	t := startTimer()
 	defer func() { logger.Info().Msgf("Duration: %s", t.String()) }()
 
 	logger.Info().Msgf("opening '%s'", fixturePath)
 
-	extensionParams, err := getExtensionParams(cmd)
+	// Setup object extension factory
+	objectExtensionFactory, err := setupExtensionFactory[object.ExtensionManager](cmd, logger)
 	if err != nil {
-		logger.Error().Err(err).Msg("cannot get extension params")
-		return
-	}
-	objectExtensionFactory, err := extensionimpl.NewFactory[object.ExtensionManager](extensionParams, logger)
-	if err != nil {
-		logger.Error().Err(err).Msg("cannot create extension factory")
+		logger.Error().Err(err).Msg("Factory fail")
 		return
 	}
 

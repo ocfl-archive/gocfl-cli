@@ -55,6 +55,7 @@ func initInitConfig() {
 	initConfigCmd.Flags().Bool("scripts", false, "extract extension scripts")
 }
 
+// doInitConfigConf updates the configuration based on the command line flags for the 'initconfig' command.
 func doInitConfigConf(cmd *cobra.Command) {
 	if str := getFlagString(cmd, "toml"); str != "" {
 		conf.InitConfig.TOMLFile = str
@@ -77,6 +78,8 @@ func doInitConfigConf(cmd *cobra.Command) {
 
 }
 
+// doInitConfig is the main function for the 'initconfig' command.
+// It stores the current configuration of gocfl in TOML format and optionally extracts extension templates and scripts.
 func doInitConfig(cmd *cobra.Command, args []string) {
 	var configFolder string
 	var err error
@@ -125,10 +128,12 @@ func doInitConfig(cmd *cobra.Command, args []string) {
 		defer _logfile.Close()
 	}
 
+	// Initialize context and logger
 	l2 := _logger.With().Timestamp().Str("host", hostname).Logger() //.Output(output)
 	ctx := context.TODO()
 	var logger = ocfllogger.NewOCFLLogger(ctx, &l2, nil, version.Default, nil)
 
+	// Update configuration based on flags
 	doInitConfigConf(cmd)
 
 	var scriptFolder = conf.InitConfig.ScriptFolder
