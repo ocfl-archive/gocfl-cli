@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"context"
-	"crypto/tls"
 	"io"
 	"io/fs"
 	"log"
@@ -13,17 +11,10 @@ import (
 	"emperror.dev/errors"
 	"github.com/BurntSushi/toml"
 	"github.com/je4/filesystem/v4/pkg/writefs"
-	"github.com/je4/utils/v2/pkg/config"
+	configutil "github.com/je4/utils/v2/pkg/config"
 	"github.com/ocfl-archive/gocfl-cli/internal"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_thumbnail"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/util"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/version"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfllogger"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/pkgerrors"
 	"github.com/spf13/cobra"
-	ublogger "gitlab.switch.ch/ub-unibas/go-ublogger/v2"
-	"go.ub.unibas.ch/cloud/certloader/v2/pkg/loader"
 )
 
 func quoteCmdArg(s string) string {
@@ -89,50 +80,7 @@ func doInitConfig(cmd *cobra.Command, args []string) {
 	} else {
 		configFolder = args[0]
 	}
-	configFolder, err = util.Fullpath(configFolder)
-	if err != nil {
-		cobra.CheckErr(err)
-		return
-	}
-
-	// create logger instance
-	hostname, err := os.Hostname()
-	if err != nil {
-		log.Fatalf("cannot get hostname: %v", err)
-	}
-
-	var loggerTLSConfig *tls.Config
-	var loggerLoader io.Closer
-	if conf.Log.Stash.TLS != nil {
-		loggerTLSConfig, loggerLoader, err = loader.CreateClientLoader(conf.Log.Stash.TLS, nil)
-		if err != nil {
-			log.Fatalf("cannot create client loader: %v", err)
-		}
-		defer loggerLoader.Close()
-	}
-
-	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
-	_logger, _logstash, _logfile, err := ublogger.CreateUbMultiLoggerTLS(conf.Log.Level, conf.Log.File,
-		ublogger.SetDataset(conf.Log.Stash.Dataset),
-		ublogger.SetLogStash(conf.Log.Stash.LogstashHost, conf.Log.Stash.LogstashPort, conf.Log.Stash.Namespace, conf.Log.Stash.LogstashTraceLevel),
-		ublogger.SetTLS(conf.Log.Stash.TLS != nil),
-		ublogger.SetTLSConfig(loggerTLSConfig),
-	)
-	if err != nil {
-		log.Fatalf("cannot create logger: %v", err)
-	}
-	if _logstash != nil {
-		defer _logstash.Close()
-	}
-
-	if _logfile != nil {
-		defer _logfile.Close()
-	}
-
-	// Initialize context and logger
-	l2 := _logger.With().Timestamp().Str("host", hostname).Logger() //.Output(output)
-	ctx := context.TODO()
-	var logger = ocfllogger.NewOCFLLogger(ctx, &l2, nil, version.Default, nil)
+	configFolder = writefs.RealPath(vfs, configFolder)
 
 	// Update configuration based on flags
 	doInitConfigConf(cmd)
@@ -157,7 +105,7 @@ func doInitConfig(cmd *cobra.Command, args []string) {
 	logger.Info().Msgf("TOML File: %s", tomlPath)
 
 	//	scripts := []string{}
-	newMiniConfig := config.MiniConfig{
+	newMiniConfig := configutil.MiniConfig{
 		"log.level":      conf.Log.Level,
 		"add.user":       conf.Add.User,
 		"add.message":    conf.Add.Message,
@@ -257,6 +205,6 @@ func doInitConfig(cmd *cobra.Command, args []string) {
 		}
 	}
 	if err := os.WriteFile(tomlPath, buf, 0644); err != nil {
-		logger.Fatal().Msgf("cannot write config file: %v", err)
+		cobra.CheckErr(errors.Errorf("cannot write config file: %v", err))
 	}
 }
