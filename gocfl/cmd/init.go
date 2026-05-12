@@ -80,18 +80,14 @@ func doInit(cmd *cobra.Command, args []string) {
 		}
 	}()
 
-	// Setup extension factory and manager for storage root
-	storageRootExtensionFactory, err := setupExtensionFactory[storageroot.ExtensionManager](cmd, logger)
-	if err != nil {
-		logger.Error().Err(err).Msg("Factory fail")
-		return
-	}
-	storageRootExtensionManager, err := LoadExtensionManager(
-		storageRootExtensionFactory,
+	// Setup extension manager for storage root
+	storageRootExtensionManager, storageRootExtensionFactory, err := SetupExtensionManager[storageroot.ExtensionManager](
+		cmd,
+		logger,
 		firstOrSecond(conf.Init.StorageRootExtensionFolder == "", (fs.FS)(defaultextensions_storageroot.DefaultStorageRootExtensionFS), os.DirFS(conf.Init.StorageRootExtensionFolder)),
 	)
 	if err != nil {
-		logger.Error().Err(err).Msg("cannot load storage root extension")
+		logger.Error().Err(err).Msg("cannot setup storage root extension manager")
 		return
 	}
 	defer func() {

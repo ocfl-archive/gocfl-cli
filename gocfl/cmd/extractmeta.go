@@ -8,10 +8,8 @@ import (
 	"strings"
 
 	"emperror.dev/errors"
-	"github.com/je4/filesystem/v4/pkg/vfsrw"
 	"github.com/je4/filesystem/v4/pkg/writefs"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
-	"github.com/ocfl-archive/gocfl-cli/internal"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/functions"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
@@ -91,26 +89,6 @@ func doExtractMeta(cmd *cobra.Command, args []string) {
 	output := conf.ExtractMeta.Output
 
 	ocflPath = writefs.RealPath(vfs, ocflPath)
-	if err := vfsrw.AddLocal(vfs, &vfsrw.ZipAsFolder{
-		Enabled:   true,
-		Digests:   nil,
-		CacheSize: 2,
-		Compress:  false,
-		ReadOnly:  true,
-		AES:       nil,
-	}); err != nil {
-		logger.Error().Err(err).Msg("cannot add local filesystem to vfs")
-	}
-	vfs.AddFS("internal", nil, internal.InternalFS)
-
-	/*
-		ocflPath, err = path2vfs(ocflPath)
-		if err != nil {
-			logger.Error().Err(err).Msg("cannot create ocfl path")
-			return
-		}
-	*/
-
 	logger.Info().Msgf("vfs created : %v", vfs)
 
 	logger.Info().Msgf("extracting metadata from '%s'", ocflPath)
@@ -138,25 +116,24 @@ func doExtractMeta(cmd *cobra.Command, args []string) {
 		logger.Error().Err(err).Msgf("cannot open ocfl filesystem at '%s'", ocflPath)
 		return
 	}
-	// Setup extension factories for storage root and object
-	storageRootExtensionFactory, err := setupExtensionFactory[storageroot.ExtensionManager](cmd, logger)
+	// Setup extension managers for storage root and object
+	_, storageRootExtensionFactory, err := SetupExtensionManager[storageroot.ExtensionManager](
+		cmd,
+		logger,
+		nil,
+	)
 	if err != nil {
-		logger.Error().Err(err).Msg("Factory fail")
-		return
-	}
-	objectExtensionFactory, err := setupExtensionFactory[object.ExtensionManager](cmd, logger)
-	if err != nil {
-		logger.Error().Err(err).Msg("Factory fail")
+		logger.Error().Err(err).Msg("cannot setup storage root extension manager")
 		return
 	}
 
-	// Load object extension manager
-	objectExtensionManager, err := LoadExtensionManager(
-		objectExtensionFactory,
+	objectExtensionManager, objectExtensionFactory, err := SetupExtensionManager[object.ExtensionManager](
+		cmd,
+		logger,
 		firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)),
 	)
 	if err != nil {
-		logger.Error().Err(err).Msg("cannot load storage root extension")
+		logger.Error().Err(err).Msg("cannot setup object extension manager")
 		return
 	}
 	defer func() {

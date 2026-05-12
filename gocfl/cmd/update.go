@@ -150,20 +150,15 @@ func doUpdate(cmd *cobra.Command, args []string) {
 	ext_NNNN_thumbnail.Init(conf.Thumbnail, sourceFS, logger)
 	ext_NNNN_indexer.Init(addr, conf.Indexer, localCache, logger)
 
-	// Setup extension factories for storage root and object
-	storageRootExtensionFactory, err := setupExtensionFactory[storageroot.ExtensionManager](cmd, logger)
-	if err != nil {
-		logger.Error().Err(err).Msg("Factory fail")
-		doNotClose = true
-		return
-	}
-
-	storageRootExtensionManager, err := LoadExtensionManager(
-		storageRootExtensionFactory,
+	// Setup extension managers for storage root and object
+	storageRootExtensionManager, storageRootExtensionFactory, err := SetupExtensionManager[storageroot.ExtensionManager](
+		cmd,
+		logger,
 		firstOrSecond(conf.Init.StorageRootExtensionFolder == "", (fs.FS)(defaultextensions_storageroot.DefaultStorageRootExtensionFS), os.DirFS(conf.Init.StorageRootExtensionFolder)),
 	)
 	if err != nil {
-		logger.Error().Err(err).Msg("cannot load storage root extension")
+		logger.Error().Err(err).Msg("cannot setup storage root extension manager")
+		doNotClose = true
 		return
 	}
 	defer func() {
@@ -172,18 +167,13 @@ func doUpdate(cmd *cobra.Command, args []string) {
 		}
 	}()
 
-	objectExtensionFactory, err := setupExtensionFactory[object.ExtensionManager](cmd, logger)
-	if err != nil {
-		logger.Error().Err(err).Msg("Factory fail")
-		return
-	}
-
-	objectExtensionManager, err := LoadExtensionManager(
-		objectExtensionFactory,
+	objectExtensionManager, objectExtensionFactory, err := SetupExtensionManager[object.ExtensionManager](
+		cmd,
+		logger,
 		firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)),
 	)
 	if err != nil {
-		logger.Error().Err(err).Msg("cannot load storage root extension")
+		logger.Error().Err(err).Msg("cannot setup object extension manager")
 		return
 	}
 	defer func() {

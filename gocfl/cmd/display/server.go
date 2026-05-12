@@ -208,7 +208,7 @@ func (s *Server) downloadExtFile(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot get folder for object %s", iop.ID)})
 			return
 		}
-		objectFS, err := fs.Sub(s.storageRoot.GetReadFS(), folder)
+		objectFS, err := writefs.Sub(s.storageRoot.GetReadFS(), folder)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot create subfs for %v / %s", s.storageRoot.GetWriteFS(), folder)})
 		}
@@ -1108,7 +1108,7 @@ func (s *Server) report(c *gin.Context) {
 
 	var infoBytes []byte
 	if metafileCfg.StorageType == "extension" {
-		fsys, err := fs.Sub(s.objectFS, path.Join("extensions", ext_NNNN_metafile.MetaFileName))
+		fsys, err := writefs.Sub(s.objectFS, path.Join("extensions", ext_NNNN_metafile.MetaFileName))
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return

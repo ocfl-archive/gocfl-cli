@@ -51,10 +51,14 @@ func doTest(cmd *cobra.Command, args []string) {
 
 	logger.Info().Msgf("opening '%s'", fixturePath)
 
-	// Setup object extension factory
-	objectExtensionFactory, err := setupExtensionFactory[object.ExtensionManager](cmd, logger)
+	// Setup object extension manager
+	_, objectExtensionFactory, err := SetupExtensionManager[object.ExtensionManager](
+		cmd,
+		logger,
+		nil,
+	)
 	if err != nil {
-		logger.Error().Err(err).Msg("Factory fail")
+		logger.Error().Err(err).Msg("cannot setup object extension manager")
 		return
 	}
 

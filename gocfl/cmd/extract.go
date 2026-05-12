@@ -99,25 +99,24 @@ func doExtract(cmd *cobra.Command, args []string) {
 		}
 	}()
 
-	// Setup extension factories for storage root and object
-	storageRootExtensionFactory, err := setupExtensionFactory[storageroot.ExtensionManager](cmd, logger)
+	// Setup extension managers for storage root and object
+	_, storageRootExtensionFactory, err := SetupExtensionManager[storageroot.ExtensionManager](
+		cmd,
+		logger,
+		nil,
+	)
 	if err != nil {
-		logger.Error().Err(err).Msg("Factory fail")
-		return
-	}
-	objectExtensionFactory, err := setupExtensionFactory[object.ExtensionManager](cmd, logger)
-	if err != nil {
-		logger.Error().Err(err).Msg("Factory fail")
+		logger.Error().Err(err).Msg("cannot setup storage root extension manager")
 		return
 	}
 
-	// Load object extension manager
-	objectExtensionManager, err := LoadExtensionManager(
-		objectExtensionFactory,
+	objectExtensionManager, objectExtensionFactory, err := SetupExtensionManager[object.ExtensionManager](
+		cmd,
+		logger,
 		firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)),
 	)
 	if err != nil {
-		logger.Error().Err(err).Msg("cannot load storage root extension")
+		logger.Error().Err(err).Msg("cannot setup object extension manager")
 		return
 	}
 	defer func() {

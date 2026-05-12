@@ -10,6 +10,7 @@ import (
 	"github.com/je4/filesystem/v4/pkg/writefs"
 	"github.com/je4/utils/v2/pkg/checksum"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
+	defaultextensions_storageroot "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/storageroot"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_indexer"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_migration"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_thumbnail"
@@ -189,18 +190,31 @@ func doAdd(cmd *cobra.Command, args []string) {
 	ext_NNNN_thumbnail.Init(conf.Thumbnail, sourceFS, logger)
 	ext_NNNN_indexer.Init(addr, conf.Indexer, localCache, logger)
 
-	// Setup extension factories for storage root and object
-	storageRootExtFactory, err := setupExtensionFactory[storageroot.ExtensionManager](cmd, logger)
+	// Setup extension managers for storage root and object
+	_, storageRootExtFactory, err := SetupExtensionManager[storageroot.ExtensionManager](
+		cmd,
+		logger,
+		firstOrSecond(conf.Init.StorageRootExtensionFolder == "", (fs.FS)(defaultextensions_storageroot.DefaultStorageRootExtensionFS), os.DirFS(conf.Init.StorageRootExtensionFolder)),
+	)
 	if err != nil {
 		doNotClose = true
-		logger.Fatal().Err(err).Msg("Factory fail")
+		logger.Fatal().Err(err).Msg("cannot setup storage root extension manager")
 	}
 
-	objectExtFactory, err := setupExtensionFactory[object.ExtensionManager](cmd, logger)
+	objectExtensionManager, objectExtFactory, err := SetupExtensionManager[object.ExtensionManager](
+		cmd,
+		logger,
+		firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)),
+	)
 	if err != nil {
 		doNotClose = true
-		logger.Fatal().Err(err).Msg("Factory fail")
+		logger.Fatal().Err(err).Msg("cannot setup object extension manager")
 	}
+	defer func() {
+		if err := objectExtensionManager.Terminate(); err != nil {
+			logger.Error().Err(err).Msg("cannot terminate object extension manager")
+		}
+	}()
 	//////////////////////////////////////
 
 	logger.Debug().Msgf("initializing ExtensionFactory")
@@ -218,32 +232,6 @@ func doAdd(cmd *cobra.Command, args []string) {
 			doNotClose = true
 			logger.Fatal().Msgf("storageroot already uses digest '%s' not '%s'", storageRoot.GetDigest(), conf.Add.Digest)
 		}
-	}
-
-	// Load object extension manager
-	objectExtensionManager, err := LoadExtensionManager(
-		objectExtFactory,
-		firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)),
-	)
-	if err != nil {
-		logger.Error().Err(err).Msg("cannot load object extension")
-		return
-	}
-	defer func() {
-		if err := objectExtensionManager.Terminate(); err != nil {
-			logger.Error().Err(err).Msg("cannot terminate object extension manager")
-		}
-	}()
-
-	// Check if the object already exists
-	exists, err := storageRoot.ObjectExists(flagObjectID)
-	if err != nil {
-		doNotClose = true
-		logger.Fatal().Err(err).Msgf("cannot check for object '%s'", flagObjectID)
-	}
-	if exists {
-		fmt.Printf("Object '%s' already exist, exiting", flagObjectID)
-		return
 	}
 
 	// Add the object to the storage root

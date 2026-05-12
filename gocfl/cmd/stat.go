@@ -104,10 +104,14 @@ func doStat(cmd *cobra.Command, args []string) {
 		}
 	}()
 
-	// Setup extension factory for storage root
-	storageRootExtensionFactory, err := setupExtensionFactory[storageroot.ExtensionManager](cmd, logger)
+	// Setup extension manager for storage root
+	_, storageRootExtensionFactory, err := SetupExtensionManager[storageroot.ExtensionManager](
+		cmd,
+		logger,
+		nil,
+	)
 	if err != nil {
-		logger.Error().Err(err).Msg("Factory fail")
+		logger.Error().Err(err).Msg("cannot setup storage root extension manager")
 		return
 	}
 

@@ -94,8 +94,31 @@ func setupVFS(logger ocfllogger.OCFLLogger) (vfsrw.VFSRW, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create VFS")
 	}
+	if err := vfsrw.AddLocal(vfs, &vfsrw.ZipAsFolder{
+		Enabled:   true,
+		Digests:   []checksum.DigestAlgorithm{checksum.DigestSHA512},
+		CacheSize: 3,
+		Compress:  false,
+		ReadOnly:  false,
+	}); err != nil {
+		return nil, errors.Wrap(err, "cannot add local VFS")
+	}
 	vfs.AddFS("internal", nil, internal.InternalFS)
 	return vfs, nil
+}
+
+func SetupExtensionManager[T extension.ManagerCore[T]](cmd *cobra.Command, logger ocfllogger.OCFLLogger, fsys fs.FS) (T, *extensionimpl.Factory[T], error) {
+	factory, err := setupExtensionFactory[T](cmd, logger)
+	if err != nil {
+		var result T
+		return result, nil, err
+	}
+	m, err := LoadExtensionManager[T](factory, fsys)
+	if err != nil {
+		var result T
+		return result, nil, err
+	}
+	return m, factory, nil
 }
 
 func setupExtensionFactory[T extension.ManagerCore[T]](cmd *cobra.Command, logger ocfllogger.OCFLLogger) (*extensionimpl.Factory[T], error) {

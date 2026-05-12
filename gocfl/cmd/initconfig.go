@@ -12,6 +12,7 @@ import (
 
 	"emperror.dev/errors"
 	"github.com/BurntSushi/toml"
+	"github.com/je4/filesystem/v4/pkg/writefs"
 	"github.com/je4/utils/v2/pkg/config"
 	"github.com/ocfl-archive/gocfl-cli/internal"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_thumbnail"
@@ -168,7 +169,7 @@ func doInitConfig(cmd *cobra.Command, args []string) {
 		if err := os.MkdirAll(extensionFolder, 0755); err != nil {
 			logger.Fatal().Err(err).Msgf("cannot create extension folder: %s", extensionFolder)
 		}
-		extFS, err := fs.Sub(internal.InternalFS, "extensions")
+		extFS, err := writefs.Sub(internal.InternalFS, "extensions")
 		if err != nil {
 			logger.Fatal().Err(err).Msg("cannot create subfs for internal:extensions")
 		}

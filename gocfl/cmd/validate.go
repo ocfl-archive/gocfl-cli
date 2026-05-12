@@ -49,19 +49,14 @@ func doValidate(cmd *cobra.Command, args []string) {
 
 	logger.Info().Msgf("validating '%s'", ocflPath)
 
-	// Load extension factory and manager for storage root
-	storageRootExtensionFactory, err := setupExtensionFactory[storageroot.ExtensionManager](cmd, logger)
-	if err != nil {
-		logger.Error().Err(err).Msg("Factory fail")
-		return
-	}
-
-	storageRootExtensionManager, err := LoadExtensionManager(
-		storageRootExtensionFactory,
+	// Load extension manager for storage root
+	storageRootExtensionManager, storageRootExtensionFactory, err := SetupExtensionManager[storageroot.ExtensionManager](
+		cmd,
+		logger,
 		firstOrSecond(conf.Init.StorageRootExtensionFolder == "", (fs.FS)(defaultextensions_storageroot.DefaultStorageRootExtensionFS), os.DirFS(conf.Init.StorageRootExtensionFolder)),
 	)
 	if err != nil {
-		logger.Error().Err(err).Msg("cannot load storage root extension")
+		logger.Error().Err(err).Msg("cannot setup storage root extension manager")
 		return
 	}
 	defer func() {
@@ -70,19 +65,14 @@ func doValidate(cmd *cobra.Command, args []string) {
 		}
 	}()
 
-	// Load extension factory and manager for objects
-	objectExtensionFactory, err := setupExtensionFactory[object.ExtensionManager](cmd, logger)
-	if err != nil {
-		logger.Error().Err(err).Msg("Factory fail")
-		return
-	}
-
-	objectExtensionManager, err := LoadExtensionManager(
-		objectExtensionFactory,
+	// Load extension manager for objects
+	objectExtensionManager, objectExtensionFactory, err := SetupExtensionManager[object.ExtensionManager](
+		cmd,
+		logger,
 		firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)),
 	)
 	if err != nil {
-		logger.Error().Err(err).Msg("cannot load storage root extension")
+		logger.Error().Err(err).Msg("cannot setup object extension manager")
 		return
 	}
 	defer func() {
@@ -135,7 +125,7 @@ func doValidate(cmd *cobra.Command, args []string) {
 			}
 		}
 		// Create sub-filesystem for the object
-		objFsys, err := fs.Sub(sr.GetReadFS(), objectPath)
+		objFsys, err := writefs.Sub(sr.GetReadFS(), objectPath)
 		if err != nil {
 			logger.Error().Err(err).Msgf("cannot open filesystem for '%s'", objectPath)
 			return

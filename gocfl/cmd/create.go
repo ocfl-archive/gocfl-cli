@@ -7,7 +7,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/je4/filesystem/v4/pkg/vfsrw"
 	"github.com/je4/filesystem/v4/pkg/writefs"
 	"github.com/je4/utils/v2/pkg/checksum"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
@@ -88,17 +87,6 @@ func doCreate(cmd *cobra.Command, args []string) {
 
 	ocflPath = writefs.RealPath(vfs, ocflPath)
 	srcPath = writefs.RealPath(vfs, srcPath)
-	if err := vfsrw.AddLocal(vfs, &vfsrw.ZipAsFolder{
-		Enabled:   true,
-		Digests:   []checksum.DigestAlgorithm{checksum.DigestSHA512},
-		CacheSize: 3,
-		Compress:  false,
-		ReadOnly:  false,
-	}); err != nil {
-		logger.Error().Err(err).Msg("cannot add local VFS")
-		return
-	}
-
 	logger.Info().Msgf("creating '%s'", ocflPath)
 
 	fmt.Printf("creating '%s'\n", ocflPath)
@@ -134,7 +122,7 @@ func doCreate(cmd *cobra.Command, args []string) {
 	}
 
 	// Prepare source and destination filesystems
-	sourceFS, err := fs.Sub(vfs, srcPath)
+	sourceFS, err := writefs.Sub(vfs, srcPath)
 	if err != nil {
 		logger.Fatal().Err(err).Msgf("cannot get filesystem for '%s'", srcPath)
 	}
@@ -171,25 +159,20 @@ func doCreate(cmd *cobra.Command, args []string) {
 		}
 		path := matches[2]
 		path = writefs.RealPath(vfs, path)
-		areaPaths[matches[1]], err = fs.Sub(vfs, path)
+		areaPaths[matches[1]], err = writefs.Sub(vfs, path)
 		if err != nil {
 			logger.Fatal().Err(err).Msgf("cannot get filesystem for '%s'", args[i])
 		}
 	}
 
-	// Setup extension factories for storage root and object
-	storageRootExtensionFactory, err := setupExtensionFactory[storageroot.ExtensionManager](cmd, logger)
-	if err != nil {
-		logger.Error().Err(err).Msg("Factory fail")
-		return
-	}
-
-	storageRootExtensionManager, err := LoadExtensionManager(
-		storageRootExtensionFactory,
+	// Setup extension managers for storage root and object
+	storageRootExtensionManager, storageRootExtensionFactory, err := SetupExtensionManager[storageroot.ExtensionManager](
+		cmd,
+		logger,
 		firstOrSecond(conf.Init.StorageRootExtensionFolder == "", (fs.FS)(defaultextensions_storageroot.DefaultStorageRootExtensionFS), os.DirFS(conf.Init.StorageRootExtensionFolder)),
 	)
 	if err != nil {
-		logger.Error().Err(err).Msg("cannot load storage root extension")
+		logger.Error().Err(err).Msg("cannot setup storage root extension manager")
 		return
 	}
 	defer func() {
@@ -198,18 +181,13 @@ func doCreate(cmd *cobra.Command, args []string) {
 		}
 	}()
 
-	objectExtensionFactory, err := setupExtensionFactory[object.ExtensionManager](cmd, logger)
-	if err != nil {
-		logger.Error().Err(err).Msg("Factory fail")
-		return
-	}
-
-	objectExtensionManager, err := LoadExtensionManager(
-		objectExtensionFactory,
+	objectExtensionManager, objectExtensionFactory, err := SetupExtensionManager[object.ExtensionManager](
+		cmd,
+		logger,
 		firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)),
 	)
 	if err != nil {
-		logger.Error().Err(err).Msg("cannot load storage root extension")
+		logger.Error().Err(err).Msg("cannot setup object extension manager")
 		return
 	}
 	defer func() {
