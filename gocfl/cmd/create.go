@@ -1,11 +1,9 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"io/fs"
-	"log"
 	"os"
 	"strings"
 
@@ -84,38 +82,10 @@ func doCreate(cmd *cobra.Command, args []string) {
 	ocflPath := args[0]
 	srcPath := args[1]
 
-	// Initialize context and logger
-	ctx := context.TODO()
-	ver := version.OCFLVersion(conf.Init.OCFLVersion)
-	if ver == "" {
-		ver = version.Default
-	}
-	if !version.ValidVersion(ver) {
-		log.Fatalf("invalid version in [init]: %s", ver)
-		return
-	}
-
-	logger, closers, err := setupLogger(ctx, ver)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer func() {
-		for _, closer := range closers {
-			closer.Close()
-		}
-	}()
-
 	// Update configuration based on flags
 	doInitConf(cmd)
 	doAddConf(cmd)
 
-	// Setup virtual file system
-	vfs, err := setupVFS(logger)
-	if err != nil {
-		logger.Error().Err(err).Msg("VFS fail")
-		return
-	}
-	defer vfs.Close()
 	ocflPath = writefs.RealPath(vfs, ocflPath)
 	srcPath = writefs.RealPath(vfs, srcPath)
 	if err := vfsrw.AddLocal(vfs, &vfsrw.ZipAsFolder{
@@ -128,10 +98,6 @@ func doCreate(cmd *cobra.Command, args []string) {
 		logger.Error().Err(err).Msg("cannot add local VFS")
 		return
 	}
-
-	// Start timer for the duration of the operation
-	t := startTimer()
-	defer func() { logger.Info().Msgf("Duration: %s", t.String()) }()
 
 	logger.Info().Msgf("creating '%s'", ocflPath)
 

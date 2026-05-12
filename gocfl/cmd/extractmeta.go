@@ -1,11 +1,9 @@
 package cmd
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io/fs"
-	"log"
 	"os"
 	"strings"
 
@@ -17,7 +15,6 @@ import (
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/functions"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/version"
 	"github.com/spf13/cobra"
 )
 
@@ -70,22 +67,6 @@ func doExtractMetaConf(cmd *cobra.Command) {
 func doExtractMeta(cmd *cobra.Command, args []string) {
 	ocflPath := args[0]
 
-	// Initialize context and logger
-	ctx := context.TODO()
-	logger, closers, err := setupLogger(ctx, version.Default)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer func() {
-		for _, closer := range closers {
-			closer.Close()
-		}
-	}()
-
-	// Start timer for the duration of the operation
-	t := startTimer()
-	defer func() { logger.Info().Msgf("Duration: %s", t.String()) }()
-
 	// Update configuration based on flags
 	doExtractMetaConf(cmd)
 
@@ -109,13 +90,6 @@ func doExtractMeta(cmd *cobra.Command, args []string) {
 	}
 	output := conf.ExtractMeta.Output
 
-	// Setup virtual file system
-	vfs, err := setupVFS(logger)
-	if err != nil {
-		logger.Error().Err(err).Msg("VFS fail")
-		return
-	}
-	defer vfs.Close()
 	ocflPath = writefs.RealPath(vfs, ocflPath)
 	if err := vfsrw.AddLocal(vfs, &vfsrw.ZipAsFolder{
 		Enabled:   true,

@@ -1,10 +1,8 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"io/fs"
-	"log"
 	"path"
 	"regexp"
 
@@ -13,7 +11,6 @@ import (
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/functions"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/validation"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/version"
 	"github.com/spf13/cobra"
 )
 
@@ -45,36 +42,12 @@ func doTest(cmd *cobra.Command, args []string) {
 		conf.Test.FixturePath = args[0]
 	}
 
-	// Initialize context and logger
-	ctx := context.TODO()
-	logger, closers, err := setupLogger(ctx, version.Default)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer func() {
-		for _, closer := range closers {
-			closer.Close()
-		}
-	}()
-
 	// Update configuration based on flags
 	doTestConf(cmd)
-
-	// Setup virtual file system
-	vfs, err := setupVFS(logger)
-	if err != nil {
-		logger.Error().Err(err).Msg("VFS fail")
-		return
-	}
-	defer vfs.Close()
 
 	fixturePath := conf.Test.FixturePath
 	fixturePath = writefs.RealPath(vfs, fixturePath)
 	logger.Info().Msgf("vfs created : %v", vfs)
-
-	// Start timer for the duration of the operation
-	t := startTimer()
-	defer func() { logger.Info().Msgf("Duration: %s", t.String()) }()
 
 	logger.Info().Msgf("opening '%s'", fixturePath)
 

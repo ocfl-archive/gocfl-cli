@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
-	"log"
 	"os"
 
 	"emperror.dev/errors"
@@ -15,7 +14,6 @@ import (
 	inventorytypes "github.com/ocfl-archive/gocfl/v3/pkg/ocfl/inventory"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/version"
 	"github.com/spf13/cobra"
 )
 
@@ -65,22 +63,6 @@ func doExtractConf(cmd *cobra.Command) {
 // It initializes the logger, sets up the virtual file system (VFS), loads extension managers,
 // and extracts a specific version of an OCFL object to a target folder.
 func doExtract(cmd *cobra.Command, args []string) {
-	// Initialize context and logger
-	ctx := context.TODO()
-	logger, closers, err := setupLogger(ctx, version.Default)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer func() {
-		for _, closer := range closers {
-			closer.Close()
-		}
-	}()
-
-	// Start timer for the duration of the operation
-	t := startTimer()
-	defer func() { logger.Info().Msgf("Duration: %s", t.String()) }()
-
 	rootPath := args[0]
 	destPath := args[1]
 
@@ -97,13 +79,6 @@ func doExtract(cmd *cobra.Command, args []string) {
 
 	logger.Info().Msgf("extracting '%s'", rootPath)
 
-	// Setup virtual file system
-	vfs, err := setupVFS(logger)
-	if err != nil {
-		logger.Error().Err(err).Msg("VFS fail")
-		return
-	}
-	defer vfs.Close()
 	rootPath = writefs.RealPath(vfs, rootPath)
 	destPath = writefs.RealPath(vfs, destPath)
 

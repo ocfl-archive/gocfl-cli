@@ -1,9 +1,7 @@
 package cmd
 
 import (
-	"context"
 	"io/fs"
-	"log"
 	"os"
 
 	"emperror.dev/errors"
@@ -58,37 +56,11 @@ func doInitConf(cmd *cobra.Command) {
 func doInit(cmd *cobra.Command, args []string) {
 	ocflPath := args[0]
 
-	// Initialize context and logger
-	ver := version.OCFLVersion(conf.Init.OCFLVersion)
-	if !version.ValidVersion(ver) {
-		log.Fatalf("OCFL version  not supported: %v", ver)
-	}
-	ctx := context.TODO()
-	logger, closers, err := setupLogger(ctx, ver)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer func() {
-		for _, closer := range closers {
-			closer.Close()
-		}
-	}()
-
 	// Update configuration based on flags
 	doInitConf(cmd)
 
 	logger.Info().Msgf("creating '%s'", ocflPath)
-	// Start timer for the duration of the operation
-	t := startTimer()
-	defer func() { logger.Info().Msgf("Duration: %s", t.String()) }()
 
-	// Setup virtual file system
-	vfs, err := setupVFS(logger)
-	if err != nil {
-		logger.Error().Err(err).Msg("VFS fail")
-		return
-	}
-	defer vfs.Close()
 	ocflPath = writefs.RealPath(vfs, ocflPath)
 
 	// Prepare access to the OCFL directory

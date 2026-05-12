@@ -1,10 +1,8 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"io/fs"
-	"log"
 	"os"
 
 	"emperror.dev/errors"
@@ -18,7 +16,6 @@ import (
 	"github.com/ocfl-archive/gocfl/v3/pkg/appendfs"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/version"
 	"github.com/spf13/cobra"
 )
 
@@ -91,27 +88,11 @@ func doUpdate(cmd *cobra.Command, args []string) {
 	ocflPath := args[0]
 	srcPath := args[1]
 
-	// Initialize context and logger
-	ctx := context.TODO()
-	logger, closers, err := setupLogger(ctx, version.Default)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer func() {
-		for _, closer := range closers {
-			closer.Close()
-		}
-	}()
-
 	// Update configuration based on flags
 	doUpdateConf(cmd)
 
 	var addr string
 	var localCache bool
-
-	// Start timer for the duration of the operation
-	t := startTimer()
-	defer func() { logger.Info().Msgf("Duration: %s", t.String()) }()
 
 	fmt.Printf("opening '%s'\n", ocflPath)
 	logger.Info().Msgf("opening '%s'", ocflPath)
@@ -120,13 +101,6 @@ func doUpdate(cmd *cobra.Command, args []string) {
 		logger.Fatal().Err(err).Msgf("cannot stat '%s'", srcPath)
 	}
 
-	// Setup virtual file system
-	vfs, err := setupVFS(logger)
-	if err != nil {
-		logger.Error().Err(err).Msg("VFS fail")
-		return
-	}
-	defer vfs.Close()
 	ocflPath = writefs.RealPath(vfs, ocflPath)
 	srcPath = writefs.RealPath(vfs, srcPath)
 

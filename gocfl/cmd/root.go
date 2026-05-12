@@ -1,12 +1,15 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
 
 	"emperror.dev/errors"
+	"github.com/je4/filesystem/v4/pkg/vfsrw"
 	configutil "github.com/je4/utils/v2/pkg/config"
 	archiveerror "github.com/ocfl-archive/error/pkg/error"
 	"github.com/ocfl-archive/gocfl-cli/config"
@@ -16,6 +19,7 @@ import (
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/util"
 	version2 "github.com/ocfl-archive/gocfl/v3/pkg/ocfl/version"
+	ocfllogger "github.com/ocfl-archive/gocfl/v3/pkg/ocfllogger"
 	indexerutil "github.com/ocfl-archive/indexer/v3/pkg/util"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -129,6 +133,14 @@ var ErrorFactory = archiveerror.NewFactory("gocfl")
 
 var areaPathRegexp = regexp.MustCompile("^([a-z]{2,}):(.*)$")
 
+var (
+	ctx     context.Context
+	logger  ocfllogger.OCFLLogger
+	closers []io.Closer
+	vfs     vfsrw.VFSRW
+	t       *timer
+)
+
 var appname = "gocfl"
 
 var miniConfig = configutil.MiniConfig{}
@@ -145,6 +157,25 @@ source code is available at: https://github.com/ocfl-archive/gocfl-cli
 
 by Jürgen Enge (University Library Basel, juergen@info-age.net)`,
 	Version: info.Version,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		ctx = context.TODO()
+		var err error
+		logger, closers, err = setupLogger(ctx, version2.Default)
+		if err != nil {
+			return err
+		}
+		vfs, err = setupVFS(logger)
+		if err != nil {
+			return err
+		}
+		t = startTimer()
+		return nil
+	},
+	PersistentPostRun: func(cmd *cobra.Command, args []string) {
+		if t != nil {
+			fmt.Printf("Duration: %s\n", t.String())
+		}
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		//cmd.Version = info.Version
 		_ = cmd.Help()
@@ -318,5 +349,8 @@ func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
+	}
+	for _, closer := range closers {
+		_ = closer.Close()
 	}
 }
