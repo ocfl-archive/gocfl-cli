@@ -11,11 +11,11 @@ require (
 	github.com/dustin/go-humanize v1.0.1
 	github.com/gin-contrib/multitemplate v1.1.2
 	github.com/gin-gonic/gin v1.12.0
-	github.com/je4/filesystem/v4 v4.0.8
+	github.com/je4/filesystem/v4 v4.0.9
 	github.com/je4/utils/v2 v2.0.68
 	github.com/ocfl-archive/error v1.0.5
-	github.com/ocfl-archive/gocfl-extensions v0.0.0-20260511155630-a52a2c2617e9
-	github.com/ocfl-archive/gocfl/v3 v3.0.0-20260511155509-934610e09caa
+	github.com/ocfl-archive/gocfl-extensions v0.0.0-20260512123228-6654832e1057
+	github.com/ocfl-archive/gocfl/v3 v3.0.0-20260512122646-04fa0e18e8fe
 	github.com/ocfl-archive/indexer/v3 v3.0.44
 	github.com/rs/zerolog v1.35.1
 	github.com/shirou/gopsutil/v4 v4.26.4
@@ -96,7 +96,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
-	github.com/quic-go/quic-go v0.59.0 // indirect
+	github.com/quic-go/quic-go v0.59.1 // indirect
 	github.com/richardlehane/characterize v1.0.0 // indirect
 	github.com/richardlehane/match v1.0.5 // indirect
 	github.com/richardlehane/mscfb v1.0.6 // indirect
@@ -128,7 +128,7 @@ require (
 	go.opentelemetry.io/otel v1.43.0 // indirect
 	go.opentelemetry.io/otel/metric v1.43.0 // indirect
 	go.opentelemetry.io/otel/trace v1.43.0 // indirect
-	go.step.sm/crypto v0.78.0 // indirect
+	go.step.sm/crypto v0.79.0 // indirect
 	go.ub.unibas.ch/cloud/genericproto/v2 v2.0.4 // indirect
 	go.ub.unibas.ch/cloud/minikvstore v1.0.2 // indirect
 	go.ub.unibas.ch/cloud/miniresolverclient v1.0.2 // indirect
@@ -137,12 +137,12 @@ require (
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/arch v0.27.0 // indirect
 	golang.org/x/crypto v0.51.0 // indirect
-	golang.org/x/image v0.39.0 // indirect
+	golang.org/x/image v0.40.0 // indirect
 	golang.org/x/net v0.54.0 // indirect
 	golang.org/x/sys v0.44.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260504160031-60b97b32f348 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260511170946-3700d4141b60 // indirect
 	google.golang.org/grpc v1.81.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
