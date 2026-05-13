@@ -130,7 +130,7 @@ func doValidate(cmd *cobra.Command, args []string) {
 			return
 		}
 		// Load object
-		obj, err := functions.LoadObject(ctx, objFsys, objectExtensionFactory, logger)
+		obj, err := functions.LoadObjectFS(ctx, objFsys, objectExtensionFactory, logger)
 		if err != nil {
 			logger.Error().Err(err).Msgf("cannot open object for '%s'", objectPath)
 			return

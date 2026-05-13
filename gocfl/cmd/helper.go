@@ -329,26 +329,6 @@ func showStatus(logger ocfllogger.OCFLLogger) error {
 	return nil
 }
 
-func LoadObjectByID(sr storageroot.StorageRoot, extensionFactory *extensionimpl.Factory[object.ExtensionManager], id string, logger ocfllogger.OCFLLogger) (object.Object, error) {
-	folder, err := sr.IdToFolder(id)
-	if err != nil {
-		return nil, errors.Wrapf(err, "cannot load object %s", id)
-	}
-	var ofs fs.FS = sr.GetWriteFS()
-	if ofs == nil {
-		ofs = sr.GetReadFS()
-	}
-	fsys, err := writefs.Sub(sr.GetReadFS(), folder)
-	if err != nil {
-		return nil, errors.Wrapf(err, "cannot create subfs for %v / %s", sr.GetReadFS(), folder)
-	}
-	obj, err := functions.LoadObject(context.Background(), fsys, extensionFactory, logger)
-	if err != nil {
-		return nil, errors.Wrapf(err, "cannot load object %s", id)
-	}
-	return obj, nil
-}
-
 func addObjectByPath(
 	ctx context.Context,
 	sr storageroot.StorageRoot,
@@ -379,7 +359,7 @@ func addObjectByPath(
 		return false, errors.Wrapf(err, "cannot check for existence of %s", id)
 	}
 	if exists {
-		o, err = LoadObjectByID(sr, extensionFactory, id, logger)
+		o, err = functions.LoadObjectByID(sr, extensionFactory, id, logger)
 		if err != nil {
 			return false, errors.Wrapf(err, "cannot load object %s", id)
 		}
