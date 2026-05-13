@@ -9,6 +9,7 @@ import (
 	"emperror.dev/errors"
 	"github.com/je4/filesystem/v4/pkg/writefs"
 	"github.com/ocfl-archive/gocfl/v3/pkg/appendfs"
+	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension/extensionimpl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
 	"github.com/spf13/cobra"
@@ -104,12 +105,14 @@ func doStat(cmd *cobra.Command, args []string) {
 		}
 	}()
 
+	extensionParams, err := getExtensionParams(cmd)
+	if err != nil {
+		logger.Error().Err(err).Msg("cannot get extension params")
+		return
+	}
+
 	// Setup extension manager for storage root
-	_, storageRootExtensionFactory, err := SetupExtensionManager[storageroot.ExtensionManager](
-		cmd,
-		logger,
-		nil,
-	)
+	_, storageRootExtensionFactory, err := extensionimpl.SetupExtensionManager[storageroot.ExtensionManager](extensionParams, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup storage root extension manager")
 		return

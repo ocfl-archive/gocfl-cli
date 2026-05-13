@@ -10,6 +10,7 @@ import (
 	"emperror.dev/errors"
 	"github.com/je4/filesystem/v4/pkg/writefs"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
+	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension/extensionimpl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/functions"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
@@ -116,22 +117,20 @@ func doExtractMeta(cmd *cobra.Command, args []string) {
 		logger.Error().Err(err).Msgf("cannot open ocfl filesystem at '%s'", ocflPath)
 		return
 	}
+	extensionParams, err := getExtensionParams(cmd)
+	if err != nil {
+		logger.Error().Err(err).Msg("cannot get extension params")
+		return
+	}
+
 	// Setup extension managers for storage root and object
-	_, storageRootExtensionFactory, err := SetupExtensionManager[storageroot.ExtensionManager](
-		cmd,
-		logger,
-		nil,
-	)
+	_, storageRootExtensionFactory, err := extensionimpl.SetupExtensionManager[storageroot.ExtensionManager](extensionParams, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup storage root extension manager")
 		return
 	}
 
-	objectExtensionManager, objectExtensionFactory, err := SetupExtensionManager[object.ExtensionManager](
-		cmd,
-		logger,
-		firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)),
-	)
+	objectExtensionManager, objectExtensionFactory, err := extensionimpl.SetupExtensionManager[object.ExtensionManager](extensionParams, firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)), logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup object extension manager")
 		return

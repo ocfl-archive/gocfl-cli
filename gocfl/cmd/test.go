@@ -8,6 +8,7 @@ import (
 
 	"emperror.dev/errors"
 	"github.com/je4/filesystem/v4/pkg/writefs"
+	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension/extensionimpl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/functions"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/validation"
@@ -51,12 +52,14 @@ func doTest(cmd *cobra.Command, args []string) {
 
 	logger.Info().Msgf("opening '%s'", fixturePath)
 
+	extensionParams, err := getExtensionParams(cmd)
+	if err != nil {
+		logger.Error().Err(err).Msg("cannot get extension params")
+		return
+	}
+
 	// Setup object extension manager
-	_, objectExtensionFactory, err := SetupExtensionManager[object.ExtensionManager](
-		cmd,
-		logger,
-		nil,
-	)
+	_, objectExtensionFactory, err := extensionimpl.SetupExtensionManager[object.ExtensionManager](extensionParams, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup object extension manager")
 		return

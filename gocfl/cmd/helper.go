@@ -107,46 +107,11 @@ func setupVFS(logger ocfllogger.OCFLLogger) (vfsrw.VFSRW, error) {
 	return vfs, nil
 }
 
-func SetupExtensionManager[T extension.ManagerCore[T]](cmd *cobra.Command, logger ocfllogger.OCFLLogger, fsys fs.FS) (T, *extensionimpl.Factory[T], error) {
-	factory, err := setupExtensionFactory[T](cmd, logger)
-	if err != nil {
-		var result T
-		return result, nil, err
-	}
-	m, err := LoadExtensionManager[T](factory, fsys)
-	if err != nil {
-		var result T
-		return result, nil, err
-	}
-	return m, factory, nil
-}
-
-func setupExtensionFactory[T extension.ManagerCore[T]](cmd *cobra.Command, logger ocfllogger.OCFLLogger) (*extensionimpl.Factory[T], error) {
-	params, err := getExtensionParams(cmd)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot get extension params")
-	}
-	factory, err := extensionimpl.NewFactory[T](params, logger)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot create extension factory")
-	}
-	return factory, nil
-}
-
 func firstOrSecond[T any](first bool, a T, b T) T {
 	if first {
 		return a
 	}
 	return b
-}
-
-func LoadExtensionManager[T extension.ManagerCore[T]](fact extension.Factory[T], fsys fs.FS) (T, error) {
-	m, err := fact.LoadExtensionManager(fsys)
-	if err != nil {
-		var result T
-		return result, errors.Wrapf(err, "loading extension manager [%T]", result)
-	}
-	return m, nil
 }
 
 type AddFS interface {

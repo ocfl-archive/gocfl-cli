@@ -14,6 +14,7 @@ import (
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
 	"github.com/ocfl-archive/gocfl-cli/data/displaydata"
 	"github.com/ocfl-archive/gocfl-cli/gocfl/cmd/display"
+	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension/extensionimpl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
 	"github.com/spf13/cobra"
@@ -90,12 +91,14 @@ func doDisplay(cmd *cobra.Command, args []string) {
 		}
 	}()
 
+	extensionParams, err := getExtensionParams(cmd)
+	if err != nil {
+		logger.Error().Err(err).Msg("cannot get extension params")
+		return
+	}
+
 	// Setup extension managers for storage root and object
-	_, storageRootExtensionFactory, err := SetupExtensionManager[storageroot.ExtensionManager](
-		cmd,
-		logger,
-		nil, // no manager needed here, only factory
-	)
+	_, storageRootExtensionFactory, err := extensionimpl.SetupExtensionManager[storageroot.ExtensionManager](extensionParams, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup storage root extension manager")
 		return
@@ -108,11 +111,7 @@ func doDisplay(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	objectExtensionManager, objectExtensionFactory, err := SetupExtensionManager[object.ExtensionManager](
-		cmd,
-		logger,
-		firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)),
-	)
+	objectExtensionManager, objectExtensionFactory, err := extensionimpl.SetupExtensionManager[object.ExtensionManager](extensionParams, firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)), logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup object extension manager")
 		return
