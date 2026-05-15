@@ -10,8 +10,7 @@ import (
 	"emperror.dev/errors"
 	"github.com/je4/filesystem/v4/pkg/writefs"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension/extensionimpl"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/functions"
+	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/initocfl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
 	"github.com/spf13/cobra"
@@ -124,13 +123,13 @@ func doExtractMeta(cmd *cobra.Command, args []string) {
 	}
 
 	// Setup extension managers for storage root and object
-	_, storageRootExtensionFactory, err := extensionimpl.SetupExtensionManager[storageroot.ExtensionManager](extensionParams, nil, logger)
+	_, _, err = initocfl.SetupExtensionManager[storageroot.ExtensionManager](extensionParams, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup storage root extension manager")
 		return
 	}
 
-	objectExtensionManager, objectExtensionFactory, err := extensionimpl.SetupExtensionManager[object.ExtensionManager](extensionParams, firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)), logger)
+	objectExtensionManager, _, err := initocfl.SetupExtensionManager[object.ExtensionManager](extensionParams, firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)), logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup object extension manager")
 		return
@@ -142,7 +141,7 @@ func doExtractMeta(cmd *cobra.Command, args []string) {
 	}()
 
 	// Load storage root in read-only mode
-	sr, err := LoadStorageRootRO(ctx, ocflFS, storageRootExtensionFactory, logger)
+	sr, err := initocfl.LoadStorageRoot(ctx, ocflFS, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storage root")
 		return
@@ -156,7 +155,17 @@ func doExtractMeta(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	metadata, err := functions.ExtractMeta(ctx, sr.GetReadFS(), oPath, objectExtensionFactory, logger)
+	objPathFS, err := fs.Sub(sr.GetReadFS(), oPath)
+	if err != nil {
+		logger.Error().Err(err).Msgf("cannot get subfs for '%s'", oPath)
+		return
+	}
+	obj, err := initocfl.LoadObject(ctx, objPathFS, logger)
+	if err != nil {
+		logger.Error().Err(err).Msg("cannot load object")
+		return
+	}
+	metadata, err := obj.GetExtractor().GetMetadata()
 	if err != nil {
 		fmt.Printf("cannot extract metadata from storage root: %v\n", err)
 		logger.Error().Err(err).Msg("cannot extract metadata from storage root")

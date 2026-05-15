@@ -8,8 +8,7 @@ import (
 
 	"emperror.dev/errors"
 	"github.com/je4/filesystem/v4/pkg/writefs"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension/extensionimpl"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/functions"
+	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/initocfl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/validation"
 	"github.com/spf13/cobra"
@@ -59,7 +58,7 @@ func doTest(cmd *cobra.Command, args []string) {
 	}
 
 	// Setup object extension manager
-	_, objectExtensionFactory, err := extensionimpl.SetupExtensionManager[object.ExtensionManager](extensionParams, nil, logger)
+	_, _, err = initocfl.SetupExtensionManager[object.ExtensionManager](extensionParams, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup object extension manager")
 		return
@@ -84,12 +83,12 @@ func doTest(cmd *cobra.Command, args []string) {
 				return errors.Wrapf(err, "cannot open ocfl filesystem '%s'", fixturePath)
 			}
 
-			obj, err := functions.LoadObjectFS(ctx, objFsys, objectExtensionFactory, logger)
+			obj, err := initocfl.LoadObject(ctx, objFsys, logger)
 			if err != nil {
 				return errors.Wrapf(err, "cannot load object '%v'", objFsys)
 			}
 
-			checker := obj.GetChecker(objFsys)
+			checker := obj.GetChecker()
 			if err := checker.Check(); err != nil {
 				return errors.Wrapf(err, "cannot check object '%v'", objFsys)
 			}

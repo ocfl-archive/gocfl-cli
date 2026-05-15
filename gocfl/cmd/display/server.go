@@ -31,8 +31,7 @@ import (
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_migration"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_thumbnail"
 	extensiontypes "github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension/extensionimpl"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/functions"
+	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/initocfl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/inventory"
 	objecttypes "github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
@@ -58,11 +57,11 @@ type Server struct {
 	templateFS       fs.FS
 	obfuscate        bool
 	httpObjectFS     http.FileSystem
-	extensionFactory *extensionimpl.Factory[objecttypes.ExtensionManager]
+	extensionFactory extensiontypes.Factory[objecttypes.ExtensionManager]
 	objectFS         fs.FS
 }
 
-func NewServer(storageRoot storageroot.StorageRoot, extensionFactory *extensionimpl.Factory[objecttypes.ExtensionManager], service, addr string, urlExt *url.URL, dataFS fs.FS, templateFS fs.FS, log ocfllogger.OCFLLogger, accessLog io.Writer) (*Server, error) {
+func NewServer(storageRoot storageroot.StorageRoot, extensionFactory extensiontypes.Factory[objecttypes.ExtensionManager], service, addr string, urlExt *url.URL, dataFS fs.FS, templateFS fs.FS, log ocfllogger.OCFLLogger, accessLog io.Writer) (*Server, error) {
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
 		return nil, emperror.Wrapf(err, "cannot split address %s", addr)
@@ -195,7 +194,7 @@ func (s *Server) downloadExtFile(c *gin.Context) {
 
 	if s.object != nil && s.object.GetID() == iop.ID {
 		if s.metadata == nil {
-			extractor := s.object.GetExtractor(s.objectFS, nil)
+			extractor := s.object.GetExtractor()
 			s.metadata, err = extractor.GetMetadata()
 			if err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot get metadata for object %s", s.object.GetID()).Error()})
@@ -213,19 +212,19 @@ func (s *Server) downloadExtFile(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot create subfs for %v / %s", s.storageRoot.GetWriteFS(), folder)})
 		}
 		s.objectFS = objectFS
-		s.object, err = functions.LoadObjectFS(context.Background(), objectFS, s.extensionFactory, s.log)
+		s.object, err = initocfl.LoadObject(context.Background(), objectFS, s.log)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		extractor := s.object.GetExtractor(s.objectFS, nil)
+		extractor := s.object.GetExtractor()
 		s.metadata, err = extractor.GetMetadata()
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot get metadata for object %s", s.object.GetID()).Error()})
 			return
 		}
 	}
-	extractor := s.object.GetExtractor(s.objectFS, nil)
+	extractor := s.object.GetExtractor()
 	fp, size, contentType, err := extractor.GetExtensionFileReader(iop.Extension, iop.Path)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot get file for object %s extension %s path %s", iop.ID, iop.Extension, iop.Path)})
@@ -253,7 +252,7 @@ func (s *Server) download(c *gin.Context) {
 
 	if s.object != nil && s.object.GetID() == iop.ID {
 		if s.metadata == nil {
-			extractor := s.object.GetExtractor(s.objectFS, nil)
+			extractor := s.object.GetExtractor()
 			s.metadata, err = extractor.GetMetadata()
 			if err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot get metadata for object %s", s.object.GetID()).Error()})
@@ -271,12 +270,12 @@ func (s *Server) download(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot create subfs for %v / %s", s.storageRoot.GetReadFS(), folder)})
 		}
 		s.objectFS = objectFS
-		s.object, err = functions.LoadObjectFS(context.Background(), objectFS, s.extensionFactory, s.log)
+		s.object, err = initocfl.LoadObject(context.Background(), objectFS, s.log)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		extractor := s.object.GetExtractor(s.objectFS, nil)
+		extractor := s.object.GetExtractor()
 		s.metadata, err = extractor.GetMetadata()
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot get metadata for object %s", s.object.GetID()).Error()})
@@ -290,7 +289,7 @@ func (s *Server) download(c *gin.Context) {
 		return
 	}
 
-	extractor := s.object.GetExtractor(s.objectFS, nil)
+	extractor := s.object.GetExtractor()
 	fp, size, mimetype, err := extractor.GetFileReader(file.InternalName[0])
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot get file %s for object %s", file.InternalName[0], iop.ID).Error()})
@@ -319,7 +318,7 @@ func (s *Server) detail(c *gin.Context) {
 
 	if s.object != nil && s.object.GetID() == iop.ID {
 		if s.metadata == nil {
-			extractor := s.object.GetExtractor(s.objectFS, nil)
+			extractor := s.object.GetExtractor()
 			s.metadata, err = extractor.GetMetadata()
 			if err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot get metadata for object %s", s.object.GetID()).Error()})
@@ -337,12 +336,12 @@ func (s *Server) detail(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot create subfs for %v / %s", s.storageRoot.GetReadFS(), folder)})
 		}
 		s.objectFS = objectFS
-		s.object, err = functions.LoadObjectFS(context.Background(), objectFS, s.extensionFactory, s.log)
+		s.object, err = initocfl.LoadObject(context.Background(), objectFS, s.log)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		extractor := s.object.GetExtractor(s.objectFS, nil)
+		extractor := s.object.GetExtractor()
 		s.metadata, err = extractor.GetMetadata()
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot get metadata for object %s", s.object.GetID()).Error()})
@@ -524,7 +523,7 @@ func (s *Server) manifest(c *gin.Context) {
 
 	if s.object != nil && s.object.GetID() == iop.ID {
 		if s.metadata == nil {
-			extractor := s.object.GetExtractor(s.objectFS, nil)
+			extractor := s.object.GetExtractor()
 			s.metadata, err = extractor.GetMetadata()
 			if err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot get metadata for object %s", s.object.GetID()).Error()})
@@ -542,12 +541,12 @@ func (s *Server) manifest(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot create subfs for %v / %s", s.storageRoot.GetReadFS(), folder)})
 		}
 		s.objectFS = objectFS
-		s.object, err = functions.LoadObjectFS(context.Background(), objectFS, s.extensionFactory, s.log)
+		s.object, err = initocfl.LoadObject(context.Background(), objectFS, s.log)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		extractor := s.object.GetExtractor(s.objectFS, nil)
+		extractor := s.object.GetExtractor()
 		s.metadata, err = extractor.GetMetadata()
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot get metadata for object %s", s.object.GetID()).Error()})
@@ -626,7 +625,7 @@ func (s *Server) version(c *gin.Context) {
 
 	if s.object != nil && s.object.GetID() == iop.ID {
 		if s.metadata == nil {
-			extractor := s.object.GetExtractor(s.objectFS, nil)
+			extractor := s.object.GetExtractor()
 			s.metadata, err = extractor.GetMetadata()
 			if err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot get metadata for object %s", s.object.GetID()).Error()})
@@ -644,12 +643,12 @@ func (s *Server) version(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot create subfs for %v / %s", s.storageRoot.GetReadFS(), folder)})
 		}
 		s.objectFS = objectFS
-		s.object, err = functions.LoadObjectFS(context.Background(), objectFS, s.extensionFactory, s.log)
+		s.object, err = initocfl.LoadObject(context.Background(), objectFS, s.log)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		extractor := s.object.GetExtractor(s.objectFS, nil)
+		extractor := s.object.GetExtractor()
 		s.metadata, err = extractor.GetMetadata()
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot get metadata for object %s", s.object.GetID()).Error()})
@@ -750,7 +749,7 @@ func (s *Server) loadObjectID(c *gin.Context) {
 	if s.object != nil && s.object.GetID() == iop.ID {
 		// already loaded
 		if s.metadata == nil {
-			extractor := s.object.GetExtractor(s.objectFS, nil)
+			extractor := s.object.GetExtractor()
 			s.metadata, err = extractor.GetMetadata()
 			if err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot get metadata for object %s", s.object.GetID()).Error()})
@@ -768,12 +767,12 @@ func (s *Server) loadObjectID(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot create subfs for %v / %s", s.storageRoot.GetReadFS(), folder)})
 		}
 		s.objectFS = objectFS
-		s.object, err = functions.LoadObjectFS(context.Background(), objectFS, s.extensionFactory, s.log)
+		s.object, err = initocfl.LoadObject(context.Background(), objectFS, s.log)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		extractor := s.object.GetExtractor(s.objectFS, nil)
+		extractor := s.object.GetExtractor()
 		s.metadata, err = extractor.GetMetadata()
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot get metadata for object %s", s.object.GetID()).Error()})
@@ -804,12 +803,12 @@ func (s *Server) loadObjectPath(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot create subfs for %v / %s", s.storageRoot.GetReadFS(), folder)})
 	}
 	s.objectFS = objectFS
-	s.object, err = functions.LoadObjectFS(context.Background(), objectFS, s.extensionFactory, s.log)
+	s.object, err = initocfl.LoadObject(context.Background(), objectFS, s.log)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	extractor := s.object.GetExtractor(s.objectFS, nil)
+	extractor := s.object.GetExtractor()
 	s.metadata, err = extractor.GetMetadata()
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot get metadata for object %s", s.object.GetID()).Error()})
@@ -903,7 +902,7 @@ func (s *Server) loadObjectBrowser(c *gin.Context) {
 	if s.object != nil && s.object.GetID() == iop.ID {
 		// already loaded
 		if s.metadata == nil {
-			extractor := s.object.GetExtractor(s.objectFS, nil)
+			extractor := s.object.GetExtractor()
 			s.metadata, err = extractor.GetMetadata()
 			if err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot get metadata for object %s", s.object.GetID()).Error()})
@@ -927,12 +926,12 @@ func (s *Server) loadObjectBrowser(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot create subfs for %v / %s", s.storageRoot.GetReadFS(), folder)})
 		}
 		s.objectFS = objectFS
-		s.object, err = functions.LoadObjectFS(context.Background(), objectFS, s.extensionFactory, s.log)
+		s.object, err = initocfl.LoadObject(context.Background(), objectFS, s.log)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		extractor := s.object.GetExtractor(s.objectFS, nil)
+		extractor := s.object.GetExtractor()
 		s.metadata, err = extractor.GetMetadata()
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot get metadata for object %s", s.object.GetID()).Error()})
@@ -976,7 +975,7 @@ func (s *Server) report(c *gin.Context) {
 
 	if s.object != nil && s.object.GetID() == iop.ID {
 		if s.metadata == nil {
-			extractor := s.object.GetExtractor(s.objectFS, nil)
+			extractor := s.object.GetExtractor()
 			s.metadata, err = extractor.GetMetadata()
 			if err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot get metadata for object %s", s.object.GetID()).Error()})
@@ -994,12 +993,12 @@ func (s *Server) report(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot create subfs for %v / %s", s.storageRoot.GetReadFS(), folder)})
 		}
 		s.objectFS = objectFS
-		s.object, err = functions.LoadObjectFS(context.Background(), objectFS, s.extensionFactory, s.log)
+		s.object, err = initocfl.LoadObject(context.Background(), objectFS, s.log)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		extractor := s.object.GetExtractor(s.objectFS, nil)
+		extractor := s.object.GetExtractor()
 		s.metadata, err = extractor.GetMetadata()
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot get metadata for object %s", s.object.GetID()).Error()})

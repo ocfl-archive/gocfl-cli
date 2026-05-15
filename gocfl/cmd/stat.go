@@ -7,9 +7,9 @@ import (
 
 	"emperror.dev/emperror"
 	"emperror.dev/errors"
+	"github.com/je4/filesystem/v4/pkg/appendfs"
 	"github.com/je4/filesystem/v4/pkg/writefs"
-	"github.com/ocfl-archive/gocfl/v3/pkg/appendfs"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension/extensionimpl"
+	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/initocfl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
 	"github.com/spf13/cobra"
@@ -112,14 +112,14 @@ func doStat(cmd *cobra.Command, args []string) {
 	}
 
 	// Setup extension manager for storage root
-	_, storageRootExtensionFactory, err := extensionimpl.SetupExtensionManager[storageroot.ExtensionManager](extensionParams, nil, logger)
+	_, _, err = initocfl.SetupExtensionManager[storageroot.ExtensionManager](extensionParams, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup storage root extension manager")
 		return
 	}
 
 	// Load the storage root
-	storageRoot, err := LoadStorageRoot(ctx, destFS, storageRootExtensionFactory, logger)
+	storageRoot, err := initocfl.LoadStorageRoot(ctx, destFS, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storage root")
 		return

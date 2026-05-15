@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"emperror.dev/errors"
+	"github.com/je4/filesystem/v4/pkg/appendfs"
 	"github.com/je4/filesystem/v4/pkg/osfsrw"
 	"github.com/je4/filesystem/v4/pkg/s3fsrw"
 	"github.com/je4/filesystem/v4/pkg/vfsrw"
@@ -24,16 +25,10 @@ import (
 	"github.com/je4/utils/v2/pkg/keepass2kms"
 	"github.com/ocfl-archive/gocfl-cli/config"
 	"github.com/ocfl-archive/gocfl-cli/internal"
-	"github.com/ocfl-archive/gocfl/v3/pkg/appendfs"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension/extensionimpl"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/factory/factoryimpl"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/functions"
+	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/initocfl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/ocflerrors"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/util"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/validation"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/version"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfllogger"
 	"github.com/rs/zerolog"
@@ -333,7 +328,7 @@ func addObjectByPath(
 	ctx context.Context,
 	sr storageroot.StorageRoot,
 	fixity []checksum.DigestAlgorithm,
-	extensionFactory *extensionimpl.Factory[object.ExtensionManager],
+	extensionFactory extension.Factory[object.ExtensionManager],
 	extensionManager object.ExtensionManager,
 	checkDuplicates bool,
 	id, userName, userAddress, message string,
@@ -354,12 +349,12 @@ func addObjectByPath(
 	if err != nil {
 		return false, errors.Wrapf(err, "cannot create subfs %v / %s for id %s", sr.GetWriteFS(), objPath, id)
 	}
-	exists, err := sr.ObjectExists(flagObjectID)
+	exists, err := sr.ObjectExists(id)
 	if err != nil {
 		return false, errors.Wrapf(err, "cannot check for existence of %s", id)
 	}
 	if exists {
-		o, err = functions.LoadObjectByID(sr, extensionFactory, id, logger)
+		o, err = initocfl.LoadObject(ctx, objectFS, logger)
 		if err != nil {
 			return false, errors.Wrapf(err, "cannot load object %s", id)
 		}
@@ -372,12 +367,12 @@ func addObjectByPath(
 		if extensionManager == nil {
 			return false, errors.New("extension manager is nil")
 		}
-		o, err = functions.CreateObject(ctx, id, sr.GetVersion(), sr.GetDigest(), fixity, extensionFactory, extensionManager, objectFS, logger)
+		o, err = initocfl.InitObject(ctx, objectFS, sr.GetOCFLVersion(), id, sr.GetDigest(), logger)
 		if err != nil {
 			return false, errors.Wrapf(err, "cannot create object %s", id)
 		}
 	}
-	versionWriter, err := o.StartUpdate(objectFS, message, userName, userAddress, echo)
+	versionWriter, err := o.StartUpdate(message, userName, userAddress, echo)
 	if err != nil {
 		return false, errors.Wrapf(err, "cannot start update for object %s", id)
 	}
@@ -406,72 +401,29 @@ func addObjectByPath(
 	return o.GetInventory().IsModified(), nil
 }
 
-func CreateStorageRoot(ctx context.Context, objectWriteFS appendfs.FS, ver version.OCFLVersion, extensionFactory *extensionimpl.Factory[storageroot.ExtensionManager], extensionManager storageroot.ExtensionManager, digest checksum.DigestAlgorithm, logger ocfllogger.OCFLLogger) (storageroot.StorageRoot, error) {
-	fact := factoryimpl.NewFactoryStorageRoot(ver, extensionFactory, logger)
-	storageRoot := fact.NewStorageRoot(ctx).WithReadFS(objectWriteFS).WithWriteFS(objectWriteFS).WithExtensionManager(extensionManager).WithDigestAlgorithm(digest)
-
-	init := storageRoot.GetInitializer()
-	defer init.Close()
-	if err := init.Init(); err != nil {
-		return nil, errors.Wrap(err, "cannot initialize storage root")
+func CreateStorageRoot(ctx context.Context, objectWriteFS appendfs.FS, ver version.OCFLVersion, extensionFactory extension.Factory[storageroot.ExtensionManager], extensionManager storageroot.ExtensionManager, digest checksum.DigestAlgorithm, logger ocfllogger.OCFLLogger) (storageroot.StorageRoot, error) {
+	sr, err := initocfl.InitStorageRoot(ctx, objectWriteFS, ver, logger)
+	if err != nil {
+		return nil, err
 	}
-
-	return storageRoot, nil
-}
-
-func loadStorageRootInternal(
-	ctx context.Context,
-	readFS fs.FS,
-	writeFS appendfs.FS,
-	extensionFactory *extensionimpl.Factory[storageroot.ExtensionManager],
-	logger ocfllogger.OCFLLogger,
-) (storageroot.StorageRoot, error) {
-	ver, err := util.GetVersion(readFS, ".", "ocfl_")
-	if err != nil && !errors.Is(err, ocflerrors.ErrVersionNone) {
-		return nil, errors.WithStack(err)
-	}
-	if ver == "" {
-		dirs, err := fs.ReadDir(readFS, ".")
-		if err != nil {
-			return nil, errors.WithStack(err)
-		}
-		if len(dirs) > 0 {
-			logger.ValidationError(validation.E069, "storage root %s not empty without version information", readFS)
-		}
-		ver = version.Version1_1
-	}
-
-	logger.WithVersion(ver)
-	fact := factoryimpl.NewFactoryStorageRoot(ver, extensionFactory, logger)
-
-	storageRoot := fact.NewStorageRoot(ctx).WithReadFS(readFS)
-	if writeFS != nil {
-		storageRoot = storageRoot.WithWriteFS(writeFS)
-	}
-
-	loader := storageRoot.GetLoader(extensionFactory)
-	defer loader.Close()
-
-	if err := loader.Load(); err != nil {
-		return nil, errors.Wrap(err, "cannot load storage root")
-	}
-	return storageRoot, nil
+	sr = sr.WithDigestAlgorithm(digest)
+	return sr, nil
 }
 
 func LoadStorageRoot(
 	ctx context.Context,
 	storageRootFS appendfs.FS,
-	extensionFactory *extensionimpl.Factory[storageroot.ExtensionManager],
+	extensionFactory extension.Factory[storageroot.ExtensionManager],
 	logger ocfllogger.OCFLLogger,
 ) (storageroot.StorageRoot, error) {
-	return loadStorageRootInternal(ctx, storageRootFS, storageRootFS, extensionFactory, logger)
+	return initocfl.LoadStorageRoot(ctx, storageRootFS, logger)
 }
 
 func LoadStorageRootRO(
 	ctx context.Context,
 	storageRootFS fs.FS,
-	extensionFactory *extensionimpl.Factory[storageroot.ExtensionManager],
+	extensionFactory extension.Factory[storageroot.ExtensionManager],
 	logger ocfllogger.OCFLLogger,
 ) (storageroot.StorageRoot, error) {
-	return loadStorageRootInternal(ctx, storageRootFS, nil, extensionFactory, logger)
+	return initocfl.LoadStorageRoot(ctx, storageRootFS, logger)
 }

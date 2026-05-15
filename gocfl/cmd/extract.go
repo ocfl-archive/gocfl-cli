@@ -7,11 +7,10 @@ import (
 	"os"
 
 	"emperror.dev/errors"
+	"github.com/je4/filesystem/v4/pkg/appendfs"
 	"github.com/je4/filesystem/v4/pkg/writefs"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
-	"github.com/ocfl-archive/gocfl/v3/pkg/appendfs"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension/extensionimpl"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/functions"
+	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/initocfl"
 	inventorytypes "github.com/ocfl-archive/gocfl/v3/pkg/ocfl/inventory"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
@@ -107,13 +106,13 @@ func doExtract(cmd *cobra.Command, args []string) {
 	}
 
 	// Setup extension managers for storage root and object
-	_, storageRootExtensionFactory, err := extensionimpl.SetupExtensionManager[storageroot.ExtensionManager](extensionParams, nil, logger)
+	_, _, err = initocfl.SetupExtensionManager[storageroot.ExtensionManager](extensionParams, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup storage root extension manager")
 		return
 	}
 
-	objectExtensionManager, objectExtensionFactory, err := extensionimpl.SetupExtensionManager[object.ExtensionManager](extensionParams, firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)), logger)
+	objectExtensionManager, _, err := initocfl.SetupExtensionManager[object.ExtensionManager](extensionParams, firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)), logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup object extension manager")
 		return
@@ -125,7 +124,7 @@ func doExtract(cmd *cobra.Command, args []string) {
 	}()
 
 	// Load storage root in read-only mode
-	sr, err := LoadStorageRootRO(ctx, ocflFS, storageRootExtensionFactory, logger)
+	sr, err := initocfl.LoadStorageRoot(ctx, ocflFS, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storage root")
 		return
@@ -156,17 +155,18 @@ func doExtract(cmd *cobra.Command, args []string) {
 	}
 
 	// Perform the extraction
-	if err := functions.Extract(
-		context.Background(),
-		sr.GetReadFS(),
-		destAppendFS,
-		conf.Extract.ObjectPath,
-		inventorytypes.NewVersionNumber().WithString(conf.Extract.Version),
-		conf.Extract.Manifest,
-		conf.Extract.Area,
-		objectExtensionFactory,
-		logger,
-	); err != nil {
+	obj, err := initocfl.LoadObject(context.Background(), ocflFS, logger)
+	if err != nil {
+		logger.Error().Err(err).Msg("cannot load object")
+		return
+	}
+	if err := obj.GetExtractor().
+		WithDestFS(destAppendFS).
+		Extract(
+			inventorytypes.NewVersionNumber().WithString(conf.Extract.Version),
+			conf.Extract.Manifest,
+			conf.Extract.Area,
+		); err != nil {
 		fmt.Printf("cannot extract storage root: %v\n", err)
 		logger.Error().Err(err).Msg("cannot extract storage root")
 		return
