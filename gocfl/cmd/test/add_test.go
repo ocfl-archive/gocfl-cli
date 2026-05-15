@@ -3,55 +3,88 @@ package test
 import (
 	"io/fs"
 	"os"
+	"path"
+	"path/filepath"
 	"testing"
 
 	"github.com/ocfl-archive/gocfl-cli/gocfl/cmd"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAdd(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "gocfl_test_add")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
+	require.NoError(t, err)
 	defer os.RemoveAll(tempDir)
-
-	// Auf Windows haben wir VFS-Probleme mit absoluten Pfaden bei mehrfachem Execute.
-	// Da ResetForTest nun existiert, testen wir die Korrektheit der Cmd-Logik
-	// durch zwei aufeinanderfolgende Init-Aufrufe mit verschiedenen Pfaden.
 
 	currentDir, _ := os.Getwd()
 	os.Chdir(tempDir)
 	defer os.Chdir(currentDir)
 
+	// 1. Initialisiere OCFL Struktur
 	cmd.ResetForTest()
 	root := cmd.GetRootCmd()
+	ocflRoot := "ocfl_root"
+	root.SetArgs([]string{"init", ocflRoot})
+	err = root.Execute()
+	require.NoError(t, err)
 
-	// 1. Initialisiere OCFL Struktur 1
-	root.SetArgs([]string{"init", "ocfl_root_1"})
-	if err := root.Execute(); err != nil {
-		t.Fatalf("init 1 Execute() failed: %v", err)
-	}
+	// 2. Erstelle Quelldaten zum Hinzufügen
+	srcDir := "source_data"
+	err = os.Mkdir(srcDir, 0755)
+	require.NoError(t, err)
 
-	// 2. Initialisiere OCFL Struktur 2 (Testet ResetForTest und sync.Once)
+	testFile := "test.txt"
+	testContent := "hello ocfl"
+	err = os.WriteFile(filepath.Join(srcDir, testFile), []byte(testContent), 0644)
+	require.NoError(t, err)
+
+	// 3. Füge Objekt hinzu
 	cmd.ResetForTest()
 	root = cmd.GetRootCmd()
-	root.SetArgs([]string{"init", "ocfl_root_2"})
-	if err := root.Execute(); err != nil {
-		t.Fatalf("init 2 Execute() failed: %v", err)
-	}
+	objID := "urn:uuid:12345678-1234-1234-1234-1234567890ab"
 
-	// 3. Verifiziere das Ergebnis via VFS
+	root.SetArgs([]string{"add", ocflRoot, srcDir, "--object-id", objID, "-m", "initial add", "-u", "Junie", "-a", "mailto:junie@jetbrains.com"})
+
+	err = root.Execute()
+	require.NoError(t, err)
+
+	// 4. Verifiziere das Ergebnis via VFS
 	vfs := cmd.GetVFS()
-	if vfs == nil {
-		t.Fatal("VFS not initialized")
-	}
+	require.NotNil(t, vfs)
+	vfsRoot := vfs.RealPath(ocflRoot)
 
-	namaste1 := "ocfl_root_1/0=ocfl_1.1"
-	if _, err := fs.Stat(vfs, namaste1); err != nil {
-		t.Errorf("OCFL Namaste file 1 not found via VFS: %v", err)
-	}
-	namaste2 := "ocfl_root_2/0=ocfl_1.1"
-	if _, err := fs.Stat(vfs, namaste2); err != nil {
-		t.Errorf("OCFL Namaste file 2 not found via VFS: %v", err)
-	}
+	// Prüfe ob Storage Root Namaste existiert via VFS
+	rootNamaste := path.Join(vfsRoot, "0=ocfl_1.1")
+	_, err = fs.Stat(vfs, rootNamaste)
+	require.NoError(t, err)
+
+	// Prüfe ob das Objekt im Storage Root existiert
+	found := false
+	err = fs.WalkDir(vfs, vfsRoot, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() && filepath.Base(path) == "0=ocfl_object_1.1" {
+			found = true
+			return fs.SkipAll
+		}
+		return nil
+	})
+	require.NoError(t, err)
+	require.True(t, found)
+
+	// Prüfe spezifisch auf die Testdatei im VFS
+	fileFound := false
+	err = fs.WalkDir(vfs, vfsRoot, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() && filepath.Base(path) == testFile {
+			fileFound = true
+			return fs.SkipAll
+		}
+		return nil
+	})
+	require.NoError(t, err)
+	require.True(t, fileFound)
 }
