@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sync"
 
 	"emperror.dev/errors"
 	"github.com/je4/filesystem/v4/pkg/vfsrw"
@@ -144,9 +145,24 @@ var (
 var appname = "gocfl"
 
 var miniConfig = configutil.MiniConfig{}
+var initOnce sync.Once
 
 func GetMiniConfig() configutil.MiniConfig {
 	return miniConfig
+}
+
+func GetVFS() vfsrw.VFSRW {
+	return vfs
+}
+
+func ResetForTest() {
+	initOnce = sync.Once{}
+	ErrorFactory = archiveerror.NewFactory("gocfl")
+	vfs = nil
+	for _, closer := range closers {
+		_ = closer.Close()
+	}
+	closers = nil
 }
 
 var rootCmd = &cobra.Command{
@@ -205,100 +221,102 @@ func getFlagBool(cmd *cobra.Command, flag string) (value bool, ok bool) {
 }
 
 func initConfig() {
-	// load config file
-	if persistentFlagConfigFile != "" {
+	initOnce.Do(func() {
+		// load config file
+		if persistentFlagConfigFile != "" {
+			var err error
+			persistentFlagConfigFile, err = util.Fullpath(persistentFlagConfigFile)
+			if err != nil {
+				cobra.CheckErr(errors.Errorf("cannot convert '%s' to absolute path: %v", persistentFlagConfigFile, err))
+				return
+			}
+			log.Info().Msgf("loading configuration from %s", persistentFlagLogfile)
+		} else {
+			log.Info().Msg("loading default configuration")
+		}
 		var err error
-		persistentFlagConfigFile, err = util.Fullpath(persistentFlagConfigFile)
+		conf, err = config.LoadGOCFLConfig(persistentFlagConfigFile)
 		if err != nil {
-			cobra.CheckErr(errors.Errorf("cannot convert '%s' to absolute path: %v", persistentFlagConfigFile, err))
+			cobra.CheckErr(errors.Errorf("cannot load configuration from '%s': %v", persistentFlagConfigFile, err))
 			return
 		}
-		log.Info().Msgf("loading configuration from %s", persistentFlagLogfile)
-	} else {
-		log.Info().Msg("loading default configuration")
-	}
-	var err error
-	conf, err = config.LoadGOCFLConfig(persistentFlagConfigFile)
-	if err != nil {
-		cobra.CheckErr(errors.Errorf("cannot load configuration from '%s': %v", persistentFlagConfigFile, err))
+
+		// overwrite config file with command line data
+		if persistentFlagErrorConfig != "" {
+			conf.ErrorConfig = persistentFlagErrorConfig
+		}
+		if persistentFlagLogfile != "" {
+			conf.Log.File = persistentFlagLogfile
+		}
+		if persistentFlagLoglevel != "" {
+			conf.Log.Level = persistentFlagLoglevel
+		}
+		if persistenFlagS3Endpoint != "" {
+			conf.S3.Endpoint = configutil.EnvString(persistenFlagS3Endpoint)
+		}
+		if persistentFlagS3Region != "" {
+			conf.S3.Region = configutil.EnvString(persistentFlagS3Region)
+		}
+		if persistenFlagS3AccessKeyID != "" {
+			conf.S3.AccessKeyID = configutil.EnvString(persistenFlagS3AccessKeyID)
+		}
+		if persistenFlagS3SecretAccessKey != "" {
+			conf.S3.AccessKey = configutil.EnvString(persistenFlagS3SecretAccessKey)
+		}
+		//todo: we do not see, whether there's an active false flag at cmd
+		if persistentFlagAutoconfig {
+			conf.Autoconfig = true
+			if conf.Indexer != nil {
+				conf.Indexer.Optimize = true
+			}
+		}
+
+		if conf.Autoconfig {
+			thumbMiniConfig, err := ext_NNNN_thumbnail.Autoconfig(conf.Thumbnail, map[string]string{}, new(zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr})))
+			if err != nil {
+				log.Fatal().Err(err).Msg("cannot autoconfig thumbnail")
+			}
+			for k, v := range thumbMiniConfig {
+				miniConfig["thumbnail."+k] = v
+			}
+		}
+		if conf.Indexer.Optimize {
+			indexerMiniConfig, err := indexerutil.OptimizeConfig(conf.Indexer, new(zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr})))
+			if err != nil {
+				log.Fatal().Err(err).Msg("cannot optimize indexer")
+			}
+			for k, v := range indexerMiniConfig {
+				miniConfig["indexer."+k] = v
+			}
+		}
+
+		var archiveErrs []*archiveerror.Error
+		if conf.ErrorConfig != "" {
+			errorExt := filepath.Ext(conf.ErrorConfig)
+			var err error
+			switch errorExt {
+			case ".toml":
+				archiveErrs, err = archiveerror.LoadTOMLFile(conf.ErrorConfig)
+			case ".yaml":
+				archiveErrs, err = archiveerror.LoadYAMLFile(conf.ErrorConfig)
+			default:
+				err = errors.Errorf("unknown error config file extension %s", errorExt)
+			}
+			if err != nil {
+				log.Fatal().Err(err).Msgf("cannot load error config file %s", conf.ErrorConfig)
+			}
+		} else {
+			var err error
+			archiveErrs, err = archiveerror.LoadTOMLFileFS(internal.InternalFS, "errors.toml")
+			if err != nil {
+				log.Fatal().Err(err).Msg("cannot load error config file")
+			}
+		}
+		if err := ErrorFactory.RegisterErrors(archiveErrs); err != nil {
+			log.Fatal().Err(err).Msg("cannot register errors")
+		}
 		return
-	}
-
-	// overwrite config file with command line data
-	if persistentFlagErrorConfig != "" {
-		conf.ErrorConfig = persistentFlagErrorConfig
-	}
-	if persistentFlagLogfile != "" {
-		conf.Log.File = persistentFlagLogfile
-	}
-	if persistentFlagLoglevel != "" {
-		conf.Log.Level = persistentFlagLoglevel
-	}
-	if persistenFlagS3Endpoint != "" {
-		conf.S3.Endpoint = configutil.EnvString(persistenFlagS3Endpoint)
-	}
-	if persistentFlagS3Region != "" {
-		conf.S3.Region = configutil.EnvString(persistentFlagS3Region)
-	}
-	if persistenFlagS3AccessKeyID != "" {
-		conf.S3.AccessKeyID = configutil.EnvString(persistenFlagS3AccessKeyID)
-	}
-	if persistenFlagS3SecretAccessKey != "" {
-		conf.S3.AccessKey = configutil.EnvString(persistenFlagS3SecretAccessKey)
-	}
-	//todo: we do not see, whether there's an active false flag at cmd
-	if persistentFlagAutoconfig {
-		conf.Autoconfig = true
-		if conf.Indexer != nil {
-			conf.Indexer.Optimize = true
-		}
-	}
-
-	if conf.Autoconfig {
-		thumbMiniConfig, err := ext_NNNN_thumbnail.Autoconfig(conf.Thumbnail, map[string]string{}, new(zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr})))
-		if err != nil {
-			log.Fatal().Err(err).Msg("cannot autoconfig thumbnail")
-		}
-		for k, v := range thumbMiniConfig {
-			miniConfig["thumbnail."+k] = v
-		}
-	}
-	if conf.Indexer.Optimize {
-		indexerMiniConfig, err := indexerutil.OptimizeConfig(conf.Indexer, new(zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr})))
-		if err != nil {
-			log.Fatal().Err(err).Msg("cannot optimize indexer")
-		}
-		for k, v := range indexerMiniConfig {
-			miniConfig["indexer."+k] = v
-		}
-	}
-
-	var archiveErrs []*archiveerror.Error
-	if conf.ErrorConfig != "" {
-		errorExt := filepath.Ext(conf.ErrorConfig)
-		var err error
-		switch errorExt {
-		case ".toml":
-			archiveErrs, err = archiveerror.LoadTOMLFile(conf.ErrorConfig)
-		case ".yaml":
-			archiveErrs, err = archiveerror.LoadYAMLFile(conf.ErrorConfig)
-		default:
-			err = errors.Errorf("unknown error config file extension %s", errorExt)
-		}
-		if err != nil {
-			log.Fatal().Err(err).Msgf("cannot load error config file %s", conf.ErrorConfig)
-		}
-	} else {
-		var err error
-		archiveErrs, err = archiveerror.LoadTOMLFileFS(internal.InternalFS, "errors.toml")
-		if err != nil {
-			log.Fatal().Err(err).Msg("cannot load error config file")
-		}
-	}
-	if err := ErrorFactory.RegisterErrors(archiveErrs); err != nil {
-		log.Fatal().Err(err).Msg("cannot register errors")
-	}
-	return
+	})
 }
 
 func setExtensionFlags(commands ...*cobra.Command) {
@@ -343,6 +361,10 @@ func init() {
 
 	setExtensionFlags(validateCmd, initCmd, createCmd, addCmd, updateCmd, statCmd, extractCmd, extractMetaCmd, displayCmd, testCmd, initConfigCmd)
 	rootCmd.AddCommand(validateCmd, initCmd, createCmd, addCmd, updateCmd, statCmd, extractCmd, extractMetaCmd, displayCmd, testCmd, initConfigCmd)
+}
+
+func GetRootCmd() *cobra.Command {
+	return rootCmd
 }
 
 func Execute() {
