@@ -141,11 +141,12 @@ func doExtractMeta(cmd *cobra.Command, args []string) {
 	}()
 
 	// Load storage root in read-only mode
-	sr, err := initocfl.LoadStorageRoot(ctx, ocflFS, logger)
+	sr, srCloser, err := initocfl.LoadStorageRoot(ctx, ocflFS, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storage root")
 		return
 	}
+	defer srCloser.Close()
 	logger.WithVersion(sr.GetOCFLVersion())
 	if oID != "" {
 		oPath, err = sr.IdToFolder(oID)
@@ -160,11 +161,12 @@ func doExtractMeta(cmd *cobra.Command, args []string) {
 		logger.Error().Err(err).Msgf("cannot get subfs for '%s'", oPath)
 		return
 	}
-	obj, err := initocfl.LoadObject(ctx, objPathFS, logger)
+	obj, objCloser, err := initocfl.LoadObject(ctx, objPathFS, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load object")
 		return
 	}
+	defer objCloser.Close()
 	metadata, err := obj.GetExtractor().GetMetadata()
 	if err != nil {
 		fmt.Printf("cannot extract metadata from storage root: %v\n", err)

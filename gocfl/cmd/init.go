@@ -9,8 +9,6 @@ import (
 	"github.com/je4/filesystem/v4/pkg/writefs"
 	"github.com/je4/utils/v2/pkg/checksum"
 	defaultextensions_storageroot "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/storageroot"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/initocfl"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/version"
 	"github.com/spf13/cobra"
 )
@@ -87,26 +85,14 @@ func doInit(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	// Setup extension manager for storage root
-	storageRootExtensionManager, _, err := initocfl.SetupExtensionManager[storageroot.ExtensionManager](extensionParams, firstOrSecond(conf.Init.StorageRootExtensionFolder == "", (fs.FS)(defaultextensions_storageroot.DefaultStorageRootExtensionFS), os.DirFS(conf.Init.StorageRootExtensionFolder)), logger)
-	if err != nil {
-		logger.Error().Err(err).Msg("cannot setup storage root extension manager")
-		return
-	}
-	defer func() {
-		if err := storageRootExtensionManager.Terminate(); err != nil {
-			logger.Error().Err(err).Msg("cannot terminate storage root extension manager")
-		}
-	}()
-
 	// Create the storage root
 	if _, err := CreateStorageRoot(
 		ctx,
 		destFS,
+		firstOrSecond(conf.Init.StorageRootExtensionFolder == "", (fs.FS)(defaultextensions_storageroot.DefaultStorageRootExtensionFS), os.DirFS(conf.Init.StorageRootExtensionFolder)),
 		version.OCFLVersion(conf.Init.OCFLVersion),
-		nil, storageRootExtensionManager,
 		conf.Init.Digest,
-		(logger),
+		extensionParams, logger,
 	); err != nil {
 		if err := writefs.Close(destFS); err != nil {
 			logger.Error().Err(err).Msgf("cannot close filesystem '%s'", destFS)

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"io/fs"
 	"os"
 
 	"emperror.dev/errors"
@@ -9,6 +10,7 @@ import (
 	"github.com/je4/utils/v2/pkg/checksum"
 	configutil "github.com/je4/utils/v2/pkg/config"
 	"github.com/je4/utils/v2/pkg/stashconfig"
+	"github.com/ocfl-archive/gocfl-cli/internal"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_migration"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_thumbnail"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/util"
@@ -158,7 +160,16 @@ func LoadGOCFLConfig(filename string) (*GOCFLConfig, error) {
 		}
 	}
 	if filename != "" {
-		if _, err := toml.DecodeFile(filename, conf); err != nil {
+		var configData []byte
+		if filename == "internal" {
+			configData, err = fs.ReadFile(internal.InternalFS, "default.toml")
+		} else {
+			configData, err = os.ReadFile(filename)
+		}
+		if err != nil {
+			return nil, errors.Wrapf(err, "error reading configuration file %s", filename)
+		}
+		if _, err := toml.Decode(string(configData), conf); err != nil {
 			return nil, errors.Wrapf(err, "error decoding configuration file %s", filename)
 		}
 	}

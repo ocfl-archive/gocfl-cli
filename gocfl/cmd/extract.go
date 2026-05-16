@@ -124,11 +124,12 @@ func doExtract(cmd *cobra.Command, args []string) {
 	}()
 
 	// Load storage root in read-only mode
-	sr, err := initocfl.LoadStorageRoot(ctx, ocflFS, logger)
+	sr, srCloser, err := initocfl.LoadStorageRoot(ctx, ocflFS, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storage root")
 		return
 	}
+	defer srCloser.Close()
 
 	dirs, err := fs.ReadDir(destFS, ".")
 	if err != nil {
@@ -155,11 +156,12 @@ func doExtract(cmd *cobra.Command, args []string) {
 	}
 
 	// Perform the extraction
-	obj, err := initocfl.LoadObject(context.Background(), ocflFS, logger)
+	obj, objCloser, err := initocfl.LoadObject(context.Background(), ocflFS, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load object")
 		return
 	}
+	defer objCloser.Close()
 	if err := obj.GetExtractor().
 		WithDestFS(destAppendFS).
 		Extract(

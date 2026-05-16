@@ -178,12 +178,13 @@ func doUpdate(cmd *cobra.Command, args []string) {
 	}()
 
 	// Load the storage root
-	storageRoot, err := initocfl.LoadStorageRoot(ctx, destFS, logger)
+	storageRoot, srCloser, err := initocfl.LoadStorageRoot(ctx, destFS, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storage root")
 		doNotClose = true
 		return
 	}
+	defer srCloser.Close()
 
 	exists, err := storageRoot.ObjectExists(flagObjectID)
 	if err != nil {

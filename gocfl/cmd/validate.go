@@ -94,11 +94,12 @@ func doValidate(cmd *cobra.Command, args []string) {
 	}()
 
 	// Load storage root in read-only mode
-	sr, err := initocfl.LoadStorageRoot(ctx, destFS, logger)
+	sr, srCloser, err := initocfl.LoadStorageRoot(ctx, destFS, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storageroot")
 		return
 	}
+	defer srCloser.Close()
 	objectID := conf.Validate.ObjectID
 	objectPath := conf.Validate.ObjectPath
 	if objectID != "" && objectPath != "" {
@@ -129,11 +130,12 @@ func doValidate(cmd *cobra.Command, args []string) {
 			return
 		}
 		// Load object
-		obj, err := initocfl.LoadObject(ctx, objFsys, logger)
+		obj, objCloser, err := initocfl.LoadObject(ctx, objFsys, logger)
 		if err != nil {
 			logger.Error().Err(err).Msgf("cannot open object for '%s'", objectPath)
 			return
 		}
+		defer objCloser.Close()
 		// Get checker for the object and execute validation
 		checker := obj.GetChecker()
 		if err := checker.Check(); err != nil {

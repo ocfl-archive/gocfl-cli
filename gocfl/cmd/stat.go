@@ -119,11 +119,12 @@ func doStat(cmd *cobra.Command, args []string) {
 	}
 
 	// Load the storage root
-	storageRoot, err := initocfl.LoadStorageRoot(ctx, destFS, logger)
+	storageRoot, srCloser, err := initocfl.LoadStorageRoot(ctx, destFS, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storage root")
 		return
 	}
+	defer srCloser.Close()
 
 	if err := storageRoot.Stat(os.Stdout, oPath, oID, statInfo); err != nil {
 		logger.Error().Err(err).Msg("cannot get statistics")

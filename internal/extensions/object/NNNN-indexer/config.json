@@ -2,7 +2,7 @@
   "extensionName": "NNNN-indexer",
   "storageType": "extension",
   "storageName": "metadata",
-  "actions": ["siegfried", "xml", "ffprobe", "json", "identify", "tika", "checksum"],
+  "actions": ["siegfried", "xml", "json", "checksum"],
   "compress": "gzip"
 }
 

@@ -354,10 +354,12 @@ func addObjectByPath(
 		return false, errors.Wrapf(err, "cannot check for existence of %s", id)
 	}
 	if exists {
-		o, err = initocfl.LoadObject(ctx, objectFS, logger)
+		var objCloser io.Closer
+		o, objCloser, err = initocfl.LoadObject(ctx, objectFS, logger)
 		if err != nil {
 			return false, errors.Wrapf(err, "cannot load object %s", id)
 		}
+		defer objCloser.Close()
 		// if we update, fixity is taken from last object version
 		f := o.GetInventory().GetFixity()
 		for alg := range f.GetDigestAlgorithms() {
@@ -401,12 +403,11 @@ func addObjectByPath(
 	return o.GetInventory().IsModified(), nil
 }
 
-func CreateStorageRoot(ctx context.Context, objectWriteFS appendfs.FS, ver version.OCFLVersion, extensionFactory extension.Factory[storageroot.ExtensionManager], extensionManager storageroot.ExtensionManager, digest checksum.DigestAlgorithm, logger ocfllogger.OCFLLogger) (storageroot.StorageRoot, error) {
-	sr, err := initocfl.InitStorageRoot(ctx, objectWriteFS, ver, logger)
+func CreateStorageRoot(ctx context.Context, objectWriteFS appendfs.FS, extensionConfigFS fs.FS, ver version.OCFLVersion, digest checksum.DigestAlgorithm, params map[string]string, logger ocfllogger.OCFLLogger) (storageroot.StorageRoot, error) {
+	sr, err := initocfl.InitStorageRoot(ctx, objectWriteFS, extensionConfigFS, ver, digest, params, logger)
 	if err != nil {
 		return nil, err
 	}
-	sr = sr.WithDigestAlgorithm(digest)
 	return sr, nil
 }
 
@@ -415,7 +416,7 @@ func LoadStorageRoot(
 	storageRootFS appendfs.FS,
 	extensionFactory extension.Factory[storageroot.ExtensionManager],
 	logger ocfllogger.OCFLLogger,
-) (storageroot.StorageRoot, error) {
+) (storageroot.StorageRoot, io.Closer, error) {
 	return initocfl.LoadStorageRoot(ctx, storageRootFS, logger)
 }
 
@@ -424,6 +425,6 @@ func LoadStorageRootRO(
 	storageRootFS fs.FS,
 	extensionFactory extension.Factory[storageroot.ExtensionManager],
 	logger ocfllogger.OCFLLogger,
-) (storageroot.StorageRoot, error) {
+) (storageroot.StorageRoot, io.Closer, error) {
 	return initocfl.LoadStorageRoot(ctx, storageRootFS, logger)
 }
