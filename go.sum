@@ -115,6 +115,8 @@ github.com/huandu/xstrings v1.5.0 h1:2ag3IFq9ZDANvthTwTiqSSZLjDc+BedvHPAp5tJy2TI
 github.com/huandu/xstrings v1.5.0/go.mod h1:y5/lhBue+AyNmUVz9RLU9xbLR0o4KIIExikq4ovT0aE=
 github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2s0bqwp9tc8=
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
+github.com/je4/filesystem/v4 v4.0.13 h1:tKdtMxQWXFq0tIzGA62zDpMEv/SSGZ5J6Utcp+XkuN8=
+github.com/je4/filesystem/v4 v4.0.13/go.mod h1:AwHU/33Q37ETgP+xW5+UcMlc6DRadIiENeWMyiExAoo=
 github.com/je4/goffmpeg v0.0.0-20220114092308-33ab9986404d h1:elX95ncLvCbNgkfD03bfTUhm0cdqdVYuuo5ETIOftoA=
 github.com/je4/goffmpeg v0.0.0-20220114092308-33ab9986404d/go.mod h1:AU6NEns8+WYmI/UYzllN8CWM2jsIVO7jDz2FeCf7Ssw=
 github.com/je4/trustutil/v2 v2.0.31 h1:QUMfnE8LoyNlBLvhaMdSZFiq/UlOoHyPjJd+C6qT5PY=
@@ -164,6 +166,10 @@ github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 h1:zYyBkD/k9seD2A7fsi6
 github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646/go.mod h1:jpp1/29i3P1S/RLdc7JQKbRpFeM1dOBd8T9ki5s+AY8=
 github.com/ocfl-archive/error v1.0.5 h1:nPidx9HBSiViSDZHfVY8nIabBeOSO5vLFOcUMgt7yLo=
 github.com/ocfl-archive/error v1.0.5/go.mod h1:vOwIAdG34QlD9ExXUXu8QSywUKIIMN31ykQ2U0LvOMs=
+github.com/ocfl-archive/gocfl-extensions v0.0.0-20260516175040-8d2d91a51f7f h1:kb2g6L87lFU+1tbCGzKL6kIE9x9GNhZGtH1NlA9V/i4=
+github.com/ocfl-archive/gocfl-extensions v0.0.0-20260516175040-8d2d91a51f7f/go.mod h1:6gIook4+8KlVY4TjFuojWdskbyLihPzOxeiMgdrEUZQ=
+github.com/ocfl-archive/gocfl/v3 v3.0.0-20260516174650-cb14abcdeb24 h1:UrxoDNkTXKftjj6UpIr6HAJZuQZ+lyaHEZ4vqEsPL0U=
+github.com/ocfl-archive/gocfl/v3 v3.0.0-20260516174650-cb14abcdeb24/go.mod h1:jJhAidxVAjoVW1Vf+09ceEgx9ORPKL9nz+kykx1bJDo=
 github.com/ocfl-archive/indexer/v3 v3.0.44 h1:JrSkHQ5xLnV7gq/0PKtDAXzyZaq1fMHzqlQ9yJ7UXVM=
 github.com/ocfl-archive/indexer/v3 v3.0.44/go.mod h1:gLVOsu6ZPeEyHCrbRF64hGYjrov0dBCg5oKiwYUxKUA=
 github.com/op/go-logging v0.0.0-20160315200505-970db520ece7 h1:lDH9UUVJtmYCjyT0CI4q8xvlXPxeZ0gYCVvWbmPlp88=

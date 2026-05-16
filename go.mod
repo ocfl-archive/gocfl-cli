@@ -147,9 +147,3 @@ require (
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/ocfl-archive/gocfl/v3 => ../gocfl
-
-replace github.com/ocfl-archive/gocfl-extensions => ../gocfl-extensions
-
-replace github.com/je4/filesystem/v4 => ../filesystem
