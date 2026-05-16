@@ -14,12 +14,13 @@ require (
 	github.com/je4/filesystem/v4 v4.0.13
 	github.com/je4/utils/v2 v2.0.68
 	github.com/ocfl-archive/error v1.0.5
-	github.com/ocfl-archive/gocfl-extensions v0.0.0-20260515153203-fae67c28f574
-	github.com/ocfl-archive/gocfl/v3 v3.0.0-20260515150745-b92f63120f8a
+	github.com/ocfl-archive/gocfl-extensions v0.0.0-20260516175040-8d2d91a51f7f
+	github.com/ocfl-archive/gocfl/v3 v3.0.0-20260516174650-cb14abcdeb24
 	github.com/ocfl-archive/indexer/v3 v3.0.44
 	github.com/rs/zerolog v1.35.1
 	github.com/shirou/gopsutil/v4 v4.26.4
 	github.com/spf13/cobra v1.10.2
+	github.com/stretchr/testify v1.11.1
 	github.com/tink-crypto/tink-go/v2 v2.6.0
 	gitlab.switch.ch/ub-unibas/go-ublogger/v2 v2.0.1
 	go.ub.unibas.ch/cloud/certloader/v2 v2.0.24
@@ -112,7 +113,6 @@ require (
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
-	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/tamerh/xml-stream-parser v1.5.0 // indirect
 	github.com/tamerh/xpath v1.0.0 // indirect
 	github.com/telkomdev/go-stash v1.0.6 // indirect
@@ -147,3 +147,9 @@ require (
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/ocfl-archive/gocfl/v3 => ../gocfl
+
+replace github.com/ocfl-archive/gocfl-extensions => ../gocfl-extensions
+
+replace github.com/je4/filesystem/v4 => ../filesystem
