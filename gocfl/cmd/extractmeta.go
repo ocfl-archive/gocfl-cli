@@ -30,7 +30,7 @@ func initExtractMeta() {
 	extractMetaCmd.Flags().StringP("object-path", "p", "", "object path to extract")
 	extractMetaCmd.Flags().StringP("object-id", "i", "", "object id to extract")
 	extractMetaCmd.Flags().String("version", "latest", "version to extract")
-	extractMetaCmd.Flags().String("format", "json", "output format (json)")
+	extractMetaCmd.Flags().String("format", "json", "output format (json, human)")
 	extractMetaCmd.Flags().String("output", "", "output file (default stdout)")
 	extractMetaCmd.Flags().Bool("obfuscate", false, "obfuscate metadata")
 }
@@ -81,7 +81,7 @@ func doExtractMeta(cmd *cobra.Command, args []string) {
 		return
 	}
 	format := strings.ToLower(conf.ExtractMeta.Format)
-	if format != "json" {
+	if format != "json" && format != "human" {
 		cmd.Help()
 		cobra.CheckErr(errors.Errorf("invalid format '%s' for flag 'format' or 'Format' config file entry", format))
 		return
@@ -141,7 +141,7 @@ func doExtractMeta(cmd *cobra.Command, args []string) {
 	}()
 
 	// Load storage root in read-only mode
-	sr, srCloser, err := initocfl.LoadStorageRoot(ctx, ocflFS, logger)
+	sr, srCloser, err := initocfl.LoadStorageRoot(ctx, ocflFS, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storage root")
 		return
@@ -161,7 +161,7 @@ func doExtractMeta(cmd *cobra.Command, args []string) {
 		logger.Error().Err(err).Msgf("cannot get subfs for '%s'", oPath)
 		return
 	}
-	obj, objCloser, err := initocfl.LoadObject(ctx, objPathFS, logger)
+	obj, objCloser, err := initocfl.LoadObject(ctx, objPathFS, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load object")
 		return
@@ -181,22 +181,28 @@ func doExtractMeta(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	jsonBytes, err := json.MarshalIndent(metadata, "", "  ")
-	if err != nil {
-		fmt.Printf("cannot marshal metadata")
-		logger.Error().Err(err).Msg("cannot marshal metadata")
-		return
+	var outputBytes []byte
+	if format == "human" {
+		outputBytes = []byte(metadata.String())
+	} else {
+		outputBytes, err = json.MarshalIndent(metadata, "", "  ")
+		if err != nil {
+			fmt.Printf("cannot marshal metadata\n")
+			logger.Error().Err(err).Msg("cannot marshal metadata")
+			return
+		}
 	}
+
 	if output != "" {
-		if err := os.WriteFile(output, jsonBytes, 0644); err != nil {
-			fmt.Printf("cannot write json to file")
-			logger.Error().Err(err).Msgf("cannot write json to file '%s'", output)
+		if err := os.WriteFile(output, outputBytes, 0644); err != nil {
+			fmt.Printf("cannot write to file '%s'\n", output)
+			logger.Error().Err(err).Msgf("cannot write to file '%s'", output)
 			return
 		}
 	} else {
-		if _, err := os.Stdout.Write(jsonBytes); err != nil {
-			fmt.Printf("cannot write json to file")
-			logger.Error().Err(err).Msg("cannot write json to file standard output")
+		if _, err := os.Stdout.Write(outputBytes); err != nil {
+			fmt.Printf("cannot write to standard output\n")
+			logger.Error().Err(err).Msg("cannot write to standard output")
 			return
 		}
 		fmt.Print("\n")

@@ -16,7 +16,6 @@ import (
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_migration"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_thumbnail"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/initocfl"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/spf13/cobra"
 )
 
@@ -197,23 +196,10 @@ func doAdd(cmd *cobra.Command, args []string) {
 		logger.Fatal().Err(err).Msg("cannot get extension params")
 	}
 
-	// Setup extension managers for storage root and object
-	objectExtensionManager, objectExtFactory, err := initocfl.SetupExtensionManager[object.ExtensionManager](extensionParams, firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)), logger)
-	if err != nil {
-		doNotClose = true
-		logger.Fatal().Err(err).Msg("cannot setup object extension manager")
-	}
-	defer func() {
-		if err := objectExtensionManager.Terminate(); err != nil {
-			logger.Error().Err(err).Msg("cannot terminate object extension manager")
-		}
-	}()
-	//////////////////////////////////////
-
 	logger.Debug().Msgf("initializing ExtensionFactory")
 
 	// Load storage root
-	storageRoot, srCloser, err := initocfl.LoadStorageRoot(ctx, destFS, logger)
+	storageRoot, srCloser, err := initocfl.LoadStorageRoot(ctx, destFS, extensionParams, logger)
 	if err != nil {
 		doNotClose = true
 		logger.Fatal().Err(err).Msg("cannot open storage root")
@@ -233,19 +219,18 @@ func doAdd(cmd *cobra.Command, args []string) {
 		ctx,
 		storageRoot,
 		fixityAlgs,
-		objectExtFactory,
-		objectExtensionManager,
+		extensionParams,
 		conf.Add.Deduplicate,
 		flagObjectID,
 		conf.Add.User.Name,
 		conf.Add.User.Address,
 		conf.Add.Message,
 		sourceFS,
+		firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)),
 		area,
 		areaPaths,
 		false,
-		logger,
-	)
+		logger)
 	if err != nil {
 		doNotClose = true
 		logger.Fatal().Err(err).Msgf("error adding content to storageroot filesystem '%s'", destFS)

@@ -134,6 +134,10 @@ func GetVFS() vfsrw.VFSRW {
 	return vfs
 }
 
+func GetLogger() ocfllogger.OCFLLogger {
+	return logger
+}
+
 func ResetForTest() {
 	initOnce = sync.Once{}
 	ErrorFactory = archiveerror.NewFactory("gocfl")

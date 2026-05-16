@@ -328,11 +328,12 @@ func addObjectByPath(
 	ctx context.Context,
 	sr storageroot.StorageRoot,
 	fixity []checksum.DigestAlgorithm,
-	extensionFactory extension.Factory[object.ExtensionManager],
-	extensionManager object.ExtensionManager,
+	extensionParams map[string]string,
 	checkDuplicates bool,
 	id, userName, userAddress, message string,
-	sourceFS fs.FS, area string,
+	sourceFS fs.FS,
+	extensionFS fs.FS,
+	area string,
 	areaPaths map[string]fs.FS,
 	echo bool,
 	logger ocfllogger.OCFLLogger,
@@ -355,7 +356,7 @@ func addObjectByPath(
 	}
 	if exists {
 		var objCloser io.Closer
-		o, objCloser, err = initocfl.LoadObject(ctx, objectFS, logger)
+		o, objCloser, err = initocfl.LoadObject(ctx, objectFS, extensionParams, logger)
 		if err != nil {
 			return false, errors.Wrapf(err, "cannot load object %s", id)
 		}
@@ -366,10 +367,10 @@ func addObjectByPath(
 			fixity = append(fixity, alg)
 		}
 	} else {
-		if extensionManager == nil {
+		if extensionParams == nil {
 			return false, errors.New("extension manager is nil")
 		}
-		o, err = initocfl.InitObject(ctx, objectFS, sr.GetOCFLVersion(), id, sr.GetDigest(), logger)
+		o, err = initocfl.InitObject(ctx, objectFS, extensionFS, sr.GetOCFLVersion(), id, sr.GetDigest(), extensionParams, logger)
 		if err != nil {
 			return false, errors.Wrapf(err, "cannot create object %s", id)
 		}
@@ -417,7 +418,7 @@ func LoadStorageRoot(
 	extensionFactory extension.Factory[storageroot.ExtensionManager],
 	logger ocfllogger.OCFLLogger,
 ) (storageroot.StorageRoot, io.Closer, error) {
-	return initocfl.LoadStorageRoot(ctx, storageRootFS, logger)
+	return initocfl.LoadStorageRoot(ctx, storageRootFS, nil, logger)
 }
 
 func LoadStorageRootRO(
@@ -426,5 +427,5 @@ func LoadStorageRootRO(
 	extensionFactory extension.Factory[storageroot.ExtensionManager],
 	logger ocfllogger.OCFLLogger,
 ) (storageroot.StorageRoot, io.Closer, error) {
-	return initocfl.LoadStorageRoot(ctx, storageRootFS, logger)
+	return initocfl.LoadStorageRoot(ctx, storageRootFS, nil, logger)
 }

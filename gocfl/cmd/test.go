@@ -83,7 +83,7 @@ func doTest(cmd *cobra.Command, args []string) {
 				return errors.Wrapf(err, "cannot open ocfl filesystem '%s'", fixturePath)
 			}
 
-			obj, objCloser, err := initocfl.LoadObject(ctx, objFsys, logger)
+			obj, objCloser, err := initocfl.LoadObject(ctx, objFsys, nil, logger)
 			if err != nil {
 				return errors.Wrapf(err, "cannot load object '%v'", objFsys)
 			}

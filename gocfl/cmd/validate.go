@@ -94,7 +94,7 @@ func doValidate(cmd *cobra.Command, args []string) {
 	}()
 
 	// Load storage root in read-only mode
-	sr, srCloser, err := initocfl.LoadStorageRoot(ctx, destFS, logger)
+	sr, srCloser, err := initocfl.LoadStorageRoot(ctx, destFS, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storageroot")
 		return
@@ -130,7 +130,7 @@ func doValidate(cmd *cobra.Command, args []string) {
 			return
 		}
 		// Load object
-		obj, objCloser, err := initocfl.LoadObject(ctx, objFsys, logger)
+		obj, objCloser, err := initocfl.LoadObject(ctx, objFsys, nil, logger)
 		if err != nil {
 			logger.Error().Err(err).Msgf("cannot open object for '%s'", objectPath)
 			return

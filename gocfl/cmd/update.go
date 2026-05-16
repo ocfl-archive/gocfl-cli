@@ -9,14 +9,12 @@ import (
 	"github.com/je4/filesystem/v4/pkg/appendfs"
 	"github.com/je4/filesystem/v4/pkg/writefs"
 	"github.com/je4/utils/v2/pkg/checksum"
-	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
 	defaultextensions_storageroot "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/storageroot"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_indexer"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_metafile"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_migration"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_thumbnail"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/initocfl"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
 	"github.com/spf13/cobra"
 )
@@ -166,19 +164,8 @@ func doUpdate(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	objectExtensionManager, objectExtensionFactory, err := initocfl.SetupExtensionManager[object.ExtensionManager](extensionParams, firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)), logger)
-	if err != nil {
-		logger.Error().Err(err).Msg("cannot setup object extension manager")
-		return
-	}
-	defer func() {
-		if err := objectExtensionManager.Terminate(); err != nil {
-			logger.Error().Err(err).Msg("cannot terminate storage root extension manager")
-		}
-	}()
-
 	// Load the storage root
-	storageRoot, srCloser, err := initocfl.LoadStorageRoot(ctx, destFS, logger)
+	storageRoot, srCloser, err := initocfl.LoadStorageRoot(ctx, destFS, extensionParams, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storage root")
 		doNotClose = true
@@ -203,7 +190,6 @@ func doUpdate(cmd *cobra.Command, args []string) {
 		ctx,
 		storageRoot,
 		nil,
-		objectExtensionFactory,
 		nil,
 		conf.Update.Deduplicate,
 		flagObjectID,
@@ -211,6 +197,7 @@ func doUpdate(cmd *cobra.Command, args []string) {
 		conf.Update.User.Address,
 		conf.Update.Message,
 		sourceFS,
+		nil,
 		area,
 		areaPaths,
 		conf.Update.Echo,

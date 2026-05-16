@@ -213,7 +213,7 @@ func (s *Server) downloadExtFile(c *gin.Context) {
 		}
 		s.objectFS = objectFS
 		var objCloser io.Closer
-		s.object, objCloser, err = initocfl.LoadObject(context.Background(), objectFS, s.log)
+		s.object, objCloser, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -274,7 +274,7 @@ func (s *Server) download(c *gin.Context) {
 		}
 		s.objectFS = objectFS
 		var objCloser io.Closer
-		s.object, objCloser, err = initocfl.LoadObject(context.Background(), objectFS, s.log)
+		s.object, objCloser, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -342,7 +342,7 @@ func (s *Server) detail(c *gin.Context) {
 		}
 		s.objectFS = objectFS
 		var objCloser io.Closer
-		s.object, objCloser, err = initocfl.LoadObject(context.Background(), objectFS, s.log)
+		s.object, objCloser, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -549,7 +549,7 @@ func (s *Server) manifest(c *gin.Context) {
 		}
 		s.objectFS = objectFS
 		var objCloser io.Closer
-		s.object, objCloser, err = initocfl.LoadObject(context.Background(), objectFS, s.log)
+		s.object, objCloser, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -653,7 +653,7 @@ func (s *Server) version(c *gin.Context) {
 		}
 		s.objectFS = objectFS
 		var objCloser io.Closer
-		s.object, objCloser, err = initocfl.LoadObject(context.Background(), objectFS, s.log)
+		s.object, objCloser, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -779,7 +779,7 @@ func (s *Server) loadObjectID(c *gin.Context) {
 		}
 		s.objectFS = objectFS
 		var objCloser io.Closer
-		s.object, objCloser, err = initocfl.LoadObject(context.Background(), objectFS, s.log)
+		s.object, objCloser, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -817,7 +817,7 @@ func (s *Server) loadObjectPath(c *gin.Context) {
 	}
 	s.objectFS = objectFS
 	var objCloser io.Closer
-	s.object, objCloser, err = initocfl.LoadObject(context.Background(), objectFS, s.log)
+	s.object, objCloser, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -942,7 +942,7 @@ func (s *Server) loadObjectBrowser(c *gin.Context) {
 		}
 		s.objectFS = objectFS
 		var objCloser io.Closer
-		s.object, objCloser, err = initocfl.LoadObject(context.Background(), objectFS, s.log)
+		s.object, objCloser, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -1011,7 +1011,7 @@ func (s *Server) report(c *gin.Context) {
 		}
 		s.objectFS = objectFS
 		var objCloser io.Closer
-		s.object, objCloser, err = initocfl.LoadObject(context.Background(), objectFS, s.log)
+		s.object, objCloser, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return

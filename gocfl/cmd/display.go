@@ -105,7 +105,7 @@ func doDisplay(cmd *cobra.Command, args []string) {
 	}
 
 	// Load storage root in read-only mode
-	storageRoot, srCloser, err := initocfl.LoadStorageRoot(ctx, destFS, logger)
+	storageRoot, srCloser, err := initocfl.LoadStorageRoot(ctx, destFS, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storage root")
 		return
