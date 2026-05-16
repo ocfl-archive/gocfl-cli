@@ -13,6 +13,7 @@ import (
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
 	defaultextensions_storageroot "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/storageroot"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_indexer"
+	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_metafile"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_migration"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_thumbnail"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/initocfl"
@@ -190,6 +191,7 @@ func doAdd(cmd *cobra.Command, args []string) {
 	ext_NNNN_migration.Init(&conf.Migration, sourceFS, logger)
 	ext_NNNN_thumbnail.Init(conf.Thumbnail, sourceFS, logger)
 	ext_NNNN_indexer.Init(addr, conf.Indexer, localCache, logger)
+	ext_NNNN_metafile.Init(vfs, logger)
 
 	extensionParams, err := getExtensionParams(cmd)
 	if err != nil {

@@ -13,11 +13,11 @@ import (
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
 	defaultextensions_storageroot "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/storageroot"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_indexer"
+	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_metafile"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_migration"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_thumbnail"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/initocfl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/version"
 	"github.com/spf13/cobra"
 )
@@ -146,6 +146,7 @@ func doCreate(cmd *cobra.Command, args []string) {
 	ext_NNNN_migration.Init(&conf.Migration, sourceFS, logger)
 	ext_NNNN_thumbnail.Init(conf.Thumbnail, sourceFS, logger)
 	ext_NNNN_indexer.Init(addr, conf.Indexer, localCache, logger)
+	ext_NNNN_metafile.Init(vfs, logger)
 
 	area := conf.DefaultArea
 	if area == "" {
@@ -171,17 +172,22 @@ func doCreate(cmd *cobra.Command, args []string) {
 		logger.Fatal().Err(err).Msg("cannot get extension params")
 	}
 
-	// Setup extension managers for storage root and object
-	storageRootExtensionManager, _, err := initocfl.SetupExtensionManager[storageroot.ExtensionManager](extensionParams, firstOrSecond(conf.Init.StorageRootExtensionFolder == "", (fs.FS)(defaultextensions_storageroot.DefaultStorageRootExtensionFS), os.DirFS(conf.Init.StorageRootExtensionFolder)), logger)
+	// Create the storage root
+	storageRoot, err := CreateStorageRoot(
+		ctx,
+		destFS,
+		firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_storageroot.DefaultStorageRootExtensionFS), os.DirFS(conf.Init.StorageRootExtensionFolder)),
+		version.OCFLVersion(conf.Init.OCFLVersion),
+		conf.Init.Digest,
+		extensionParams,
+		logger,
+	)
 	if err != nil {
-		logger.Error().Err(err).Msg("cannot setup storage root extension manager")
-		return
-	}
-	defer func() {
-		if err := storageRootExtensionManager.Terminate(); err != nil {
-			logger.Error().Err(err).Msg("cannot terminate storage root extension manager")
+		if err := writefs.Close(destFS); err != nil {
+			logger.Error().Err(err).Msgf("cannot close filesystem '%s'", destFS)
 		}
-	}()
+		logger.Fatal().Err(err).Msg("cannot create new storage root")
+	}
 
 	objectExtensionManager, objectExtensionFactory, err := initocfl.SetupExtensionManager[object.ExtensionManager](extensionParams, firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)), logger)
 	if err != nil {
@@ -193,23 +199,6 @@ func doCreate(cmd *cobra.Command, args []string) {
 			logger.Error().Err(err).Msg("cannot terminate storage root extension manager")
 		}
 	}()
-
-	// Create the storage root
-	storageRoot, err := CreateStorageRoot(
-		ctx,
-		destFS,
-		version.OCFLVersion(conf.Init.OCFLVersion),
-		nil,
-		storageRootExtensionManager,
-		conf.Init.Digest,
-		logger,
-	)
-	if err != nil {
-		if err := writefs.Close(destFS); err != nil {
-			logger.Error().Err(err).Msgf("cannot close filesystem '%s'", destFS)
-		}
-		logger.Fatal().Err(err).Msg("cannot create new storage root")
-	}
 
 	// Add the object to the storage root
 	_, err = addObjectByPath(
