@@ -10,8 +10,8 @@ import (
 
 	"emperror.dev/errors"
 	"github.com/BurntSushi/toml"
-	"github.com/je4/filesystem/v4/pkg/writefs"
 	configutil "github.com/je4/utils/v2/pkg/config"
+	"github.com/ocfl-archive/filesystem/pkg/writefs"
 	"github.com/ocfl-archive/gocfl-cli/internal"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_thumbnail"
 	"github.com/spf13/cobra"

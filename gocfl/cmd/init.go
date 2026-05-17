@@ -5,9 +5,9 @@ import (
 	"os"
 
 	"emperror.dev/errors"
-	"github.com/je4/filesystem/v4/pkg/appendfs"
-	"github.com/je4/filesystem/v4/pkg/writefs"
 	"github.com/je4/utils/v2/pkg/checksum"
+	"github.com/ocfl-archive/filesystem/pkg/appendfs"
+	"github.com/ocfl-archive/filesystem/pkg/writefs"
 	defaultextensions_storageroot "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/storageroot"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/version"
 	"github.com/spf13/cobra"

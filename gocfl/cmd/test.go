@@ -7,7 +7,7 @@ import (
 	"regexp"
 
 	"emperror.dev/errors"
-	"github.com/je4/filesystem/v4/pkg/writefs"
+	"github.com/ocfl-archive/filesystem/pkg/writefs"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/initocfl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/validation"

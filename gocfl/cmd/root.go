@@ -10,9 +10,9 @@ import (
 	"sync"
 
 	"emperror.dev/errors"
-	"github.com/je4/filesystem/v4/pkg/vfsrw"
 	configutil "github.com/je4/utils/v2/pkg/config"
 	archiveerror "github.com/ocfl-archive/error/pkg/error"
+	"github.com/ocfl-archive/filesystem/pkg/vfsrw"
 	"github.com/ocfl-archive/gocfl-cli/config"
 	"github.com/ocfl-archive/gocfl-cli/info"
 	"github.com/ocfl-archive/gocfl-cli/internal"

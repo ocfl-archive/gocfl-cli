@@ -4,7 +4,7 @@ import (
 	"io/fs"
 	"os"
 
-	"github.com/je4/filesystem/v4/pkg/writefs"
+	"github.com/ocfl-archive/filesystem/pkg/writefs"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
 	defaultextensions_storageroot "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/storageroot"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/initocfl"

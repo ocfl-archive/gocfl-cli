@@ -7,8 +7,8 @@ import (
 	"os"
 
 	"emperror.dev/errors"
-	"github.com/je4/filesystem/v4/pkg/appendfs"
-	"github.com/je4/filesystem/v4/pkg/writefs"
+	"github.com/ocfl-archive/filesystem/pkg/appendfs"
+	"github.com/ocfl-archive/filesystem/pkg/writefs"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/initocfl"
 	inventorytypes "github.com/ocfl-archive/gocfl/v3/pkg/ocfl/inventory"

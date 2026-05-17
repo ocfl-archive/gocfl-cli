@@ -6,10 +6,10 @@ import (
 
 	"emperror.dev/errors"
 	"github.com/BurntSushi/toml"
-	"github.com/je4/filesystem/v4/pkg/vfsrw"
 	"github.com/je4/utils/v2/pkg/checksum"
 	configutil "github.com/je4/utils/v2/pkg/config"
 	"github.com/je4/utils/v2/pkg/stashconfig"
+	"github.com/ocfl-archive/filesystem/pkg/vfsrw"
 	"github.com/ocfl-archive/gocfl-cli/internal"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_migration"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_thumbnail"

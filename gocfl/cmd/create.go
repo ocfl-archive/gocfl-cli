@@ -7,9 +7,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/je4/filesystem/v4/pkg/appendfs"
-	"github.com/je4/filesystem/v4/pkg/writefs"
 	"github.com/je4/utils/v2/pkg/checksum"
+	"github.com/ocfl-archive/filesystem/pkg/appendfs"
+	"github.com/ocfl-archive/filesystem/pkg/writefs"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
 	defaultextensions_storageroot "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/storageroot"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_indexer"

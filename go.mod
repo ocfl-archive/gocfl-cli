@@ -11,11 +11,11 @@ require (
 	github.com/dustin/go-humanize v1.0.1
 	github.com/gin-contrib/multitemplate v1.1.2
 	github.com/gin-gonic/gin v1.12.0
-	github.com/je4/filesystem/v4 v4.0.13
 	github.com/je4/utils/v2 v2.0.68
 	github.com/ocfl-archive/error v1.0.5
+	github.com/ocfl-archive/filesystem v1.0.1
 	github.com/ocfl-archive/gocfl-extensions v0.0.0-20260516175040-8d2d91a51f7f
-	github.com/ocfl-archive/gocfl/v3 v3.0.0-20260516174650-cb14abcdeb24
+	github.com/ocfl-archive/gocfl/v3 v3.0.2
 	github.com/ocfl-archive/indexer/v3 v3.0.44
 	github.com/rs/zerolog v1.35.1
 	github.com/shirou/gopsutil/v4 v4.26.4
@@ -69,6 +69,7 @@ require (
 	github.com/gosimple/unidecode v1.0.1 // indirect
 	github.com/huandu/xstrings v1.5.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/je4/filesystem/v4 v4.0.13 // indirect
 	github.com/je4/goffmpeg v0.0.0-20220114092308-33ab9986404d // indirect
 	github.com/je4/trustutil/v2 v2.0.31 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
