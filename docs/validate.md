@@ -18,7 +18,7 @@ gocfl validate ./archive.zip
 
 Flags:
   -h, --help                 help for validate
-      --object-id string     validate only the object with the specified id in storage root
+  -i, --object-id string     validate only the object with the specified id in storage root
   -o, --object-path string   validate only the object at the specified path in storage root
 
 Global Flags:

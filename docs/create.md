@@ -18,7 +18,7 @@ Examples:
 gocfl create ./archive.zip /tmp/testdata --digest sha512 -u 'Jane Doe' -a 'mailto:user@domain' -m 'initial add' -object-id 'id:abc123'
 
 Flags:
-      --aes-iv string                               initialisation vector to use for encrypted container in hex format (32 char, sempty: generate random vector)
+      --aes-iv string                               initialisation vector to use for encrypted container in hex format (32 chars, empty: generate random vector)
       --aes-key string                              key to use for encrypted container in hex format (64 chars, empty: generate random key)
       --deduplicate                                 force deduplication (slower)
       --default-area string                         default area for update or ingest (default: content)

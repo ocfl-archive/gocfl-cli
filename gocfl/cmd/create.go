@@ -48,7 +48,7 @@ func initCreate() {
 	createCmd.Flags().Bool("no-compress", false, "do not compress data in zip file")
 	createCmd.Flags().Bool("encrypt-aes", false, "create encrypted container (only for container target)")
 	createCmd.Flags().String("aes-key", "", "key to use for encrypted container in hex format (64 chars, empty: generate random key)")
-	createCmd.Flags().String("aes-iv", "", "initialisation vector to use for encrypted container in hex format (32 char, sempty: generate random vector)")
+	createCmd.Flags().String("aes-iv", "", "initialisation vector to use for encrypted container in hex format (32 chars, empty: generate random vector)")
 	createCmd.Flags().String("keypass-file", "", "file with keypass2 database")
 	createCmd.Flags().String("keypass-entry", "", "keypass2 entry to use for key encryption")
 	createCmd.Flags().String("keypass-key", "", "key to use for keypass2 database decryption")

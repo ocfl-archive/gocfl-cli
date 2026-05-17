@@ -39,8 +39,8 @@ func initUpdate() {
 	updateCmd.Flags().Bool("echo", false, "update strategy 'echo' (reflects deletions). if not set, update strategy is 'contribute'")
 	updateCmd.Flags().Bool("no-compress", false, "do not compress data in zip file")
 	updateCmd.Flags().Bool("encrypt-aes", false, "set flag to create encrypted container (only for container target)")
-	updateCmd.Flags().String("aes-key", "", "key to use for encrypted container in hex format (64 chars, empty: generate random key")
-	updateCmd.Flags().String("aes-iv", "", "initialisation vector to use for encrypted container in hex format (32 charsempty: generate random vector")
+	updateCmd.Flags().String("aes-key", "", "key to use for encrypted container in hex format (64 chars, empty: generate random key)")
+	updateCmd.Flags().String("aes-iv", "", "initialisation vector to use for encrypted container in hex format (32 chars, empty: generate random vector)")
 }
 
 // doUpdateConf updates the configuration based on the command line flags for the 'update' command.

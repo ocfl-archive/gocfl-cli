@@ -17,8 +17,8 @@ Examples:
 gocfl update ./archive.zip /tmp/testdata -u 'Jane Doe' -a 'mailto:user@domain' -m 'initial add' -object-id 'id:abc123'
 
 Flags:
-      --aes-iv string                               initialisation vector to use for encrypted container in hex format (32 charsempty: generate random vector
-      --aes-key string                              key to use for encrypted container in hex format (64 chars, empty: generate random key
+      --aes-iv string                               initialisation vector to use for encrypted container in hex format (32 chars, empty: generate random vector)
+      --aes-key string                              key to use for encrypted container in hex format (64 chars, empty: generate random key)
   -d, --digest string                               digest to use for zip file checksum
       --echo                                        update strategy 'echo' (reflects deletions). if not set, update strategy is 'contribute'
       --encrypt-aes                                 set flag to create encrypted container (only for container target)
