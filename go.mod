@@ -13,9 +13,9 @@ require (
 	github.com/gin-gonic/gin v1.12.0
 	github.com/je4/utils/v2 v2.0.68
 	github.com/ocfl-archive/error v1.0.5
-	github.com/ocfl-archive/filesystem v1.0.1
-	github.com/ocfl-archive/gocfl-extensions v0.0.0-20260516175040-8d2d91a51f7f
-	github.com/ocfl-archive/gocfl/v3 v3.0.2
+	github.com/ocfl-archive/filesystem v1.0.3
+	github.com/ocfl-archive/gocfl-extensions v0.0.0-20260519124700-9f493f2f8671
+	github.com/ocfl-archive/gocfl/v3 v3.0.3
 	github.com/ocfl-archive/indexer/v3 v3.0.44
 	github.com/rs/zerolog v1.35.1
 	github.com/shirou/gopsutil/v4 v4.26.4
@@ -143,7 +143,7 @@ require (
 	golang.org/x/sys v0.44.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260511170946-3700d4141b60 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260519071638-aa98bba5eb94 // indirect
 	google.golang.org/grpc v1.81.1 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
