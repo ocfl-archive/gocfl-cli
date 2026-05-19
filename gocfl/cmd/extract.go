@@ -124,7 +124,7 @@ func doExtract(cmd *cobra.Command, args []string) {
 	}()
 
 	// Load storage root in read-only mode
-	sr, srCloser, err := initocfl.LoadStorageRoot(ctx, ocflFS, nil, logger)
+	sr, srCloser, err := initocfl.LoadStorageRoot(ctx, ocflFS, nil, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storage root")
 		return

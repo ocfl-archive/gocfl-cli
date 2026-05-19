@@ -199,7 +199,7 @@ func doAdd(cmd *cobra.Command, args []string) {
 	logger.Debug().Msgf("initializing ExtensionFactory")
 
 	// Load storage root
-	storageRoot, srCloser, err := initocfl.LoadStorageRoot(ctx, destFS, extensionParams, logger)
+	storageRoot, srCloser, err := initocfl.LoadStorageRoot(ctx, destFS, extensionParams, nil, logger)
 	if err != nil {
 		doNotClose = true
 		logger.Fatal().Err(err).Msg("cannot open storage root")

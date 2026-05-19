@@ -418,7 +418,7 @@ func LoadStorageRoot(
 	extensionFactory extension.Factory[storageroot.ExtensionManager],
 	logger ocfllogger.OCFLLogger,
 ) (storageroot.StorageRoot, io.Closer, error) {
-	return initocfl.LoadStorageRoot(ctx, storageRootFS, nil, logger)
+	return initocfl.LoadStorageRoot(ctx, storageRootFS, nil, nil, logger)
 }
 
 func LoadStorageRootRO(
@@ -427,5 +427,5 @@ func LoadStorageRootRO(
 	extensionFactory extension.Factory[storageroot.ExtensionManager],
 	logger ocfllogger.OCFLLogger,
 ) (storageroot.StorageRoot, io.Closer, error) {
-	return initocfl.LoadStorageRoot(ctx, storageRootFS, nil, logger)
+	return initocfl.LoadStorageRoot(ctx, storageRootFS, nil, nil, logger)
 }

@@ -119,7 +119,7 @@ func doStat(cmd *cobra.Command, args []string) {
 	}
 
 	// Load the storage root
-	storageRoot, srCloser, err := initocfl.LoadStorageRoot(ctx, destFS, nil, logger)
+	storageRoot, srCloser, err := initocfl.LoadStorageRoot(ctx, destFS, nil, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storage root")
 		return
