@@ -10,7 +10,7 @@ import (
 	"github.com/ocfl-archive/filesystem/pkg/appendfs"
 	"github.com/ocfl-archive/filesystem/pkg/writefs"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/initocfl"
+	"github.com/ocfl-archive/gocfl/v3/pkg/initocfl"
 	inventorytypes "github.com/ocfl-archive/gocfl/v3/pkg/ocfl/inventory"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
@@ -124,12 +124,12 @@ func doExtract(cmd *cobra.Command, args []string) {
 	}()
 
 	// Load storage root in read-only mode
-	sr, srCloser, err := initocfl.LoadStorageRoot(ctx, ocflFS, nil, nil, logger)
+	sr, err := initocfl.LoadStorageRoot(ctx, ocflFS, nil, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storage root")
 		return
 	}
-	defer srCloser.Close()
+	defer sr.Close()
 
 	dirs, err := fs.ReadDir(destFS, ".")
 	if err != nil {
@@ -156,12 +156,12 @@ func doExtract(cmd *cobra.Command, args []string) {
 	}
 
 	// Perform the extraction
-	obj, objCloser, err := initocfl.LoadObject(context.Background(), ocflFS, extensionParams, logger)
+	obj, err := initocfl.LoadObject(context.Background(), ocflFS, extensionParams, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load object")
 		return
 	}
-	defer objCloser.Close()
+	defer obj.Close()
 	if err := obj.GetExtractor().
 		WithDestFS(destAppendFS).
 		Extract(

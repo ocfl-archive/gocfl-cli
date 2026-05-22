@@ -16,7 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"emperror.dev/emperror"
 	"emperror.dev/errors"
 	"github.com/Masterminds/sprig/v3"
 	"github.com/dustin/go-humanize"
@@ -30,8 +29,8 @@ import (
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_metafile"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_migration"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_thumbnail"
+	"github.com/ocfl-archive/gocfl/v3/pkg/initocfl"
 	extensiontypes "github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/initocfl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/inventory"
 	objecttypes "github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
@@ -64,7 +63,7 @@ type Server struct {
 func NewServer(storageRoot storageroot.StorageRoot, extensionFactory extensiontypes.Factory[objecttypes.ExtensionManager], service, addr string, urlExt *url.URL, dataFS fs.FS, templateFS fs.FS, log ocfllogger.OCFLLogger, accessLog io.Writer) (*Server, error) {
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
-		return nil, emperror.Wrapf(err, "cannot split address %s", addr)
+		return nil, errors.Wrapf(err, "cannot split address %s", addr)
 	}
 
 	srv := &Server{
@@ -212,13 +211,12 @@ func (s *Server) downloadExtFile(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot create subfs for %v / %s", s.storageRoot.GetWriteFS(), folder)})
 		}
 		s.objectFS = objectFS
-		var objCloser io.Closer
-		s.object, objCloser, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
+		s.object, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		defer objCloser.Close()
+		defer s.object.Close()
 
 		extractor := s.object.GetExtractor()
 		s.metadata, err = extractor.GetMetadata()
@@ -273,13 +271,12 @@ func (s *Server) download(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot create subfs for %v / %s", s.storageRoot.GetReadFS(), folder)})
 		}
 		s.objectFS = objectFS
-		var objCloser io.Closer
-		s.object, objCloser, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
+		s.object, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		defer objCloser.Close()
+		defer s.object.Close()
 		extractor := s.object.GetExtractor()
 		s.metadata, err = extractor.GetMetadata()
 		if err != nil {
@@ -341,13 +338,12 @@ func (s *Server) detail(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot create subfs for %v / %s", s.storageRoot.GetReadFS(), folder)})
 		}
 		s.objectFS = objectFS
-		var objCloser io.Closer
-		s.object, objCloser, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
+		s.object, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		defer objCloser.Close()
+		defer s.object.Close()
 		extractor := s.object.GetExtractor()
 		s.metadata, err = extractor.GetMetadata()
 		if err != nil {
@@ -548,13 +544,12 @@ func (s *Server) manifest(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot create subfs for %v / %s", s.storageRoot.GetReadFS(), folder)})
 		}
 		s.objectFS = objectFS
-		var objCloser io.Closer
-		s.object, objCloser, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
+		s.object, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		defer objCloser.Close()
+		defer s.object.Close()
 		extractor := s.object.GetExtractor()
 		s.metadata, err = extractor.GetMetadata()
 		if err != nil {
@@ -652,13 +647,12 @@ func (s *Server) version(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot create subfs for %v / %s", s.storageRoot.GetReadFS(), folder)})
 		}
 		s.objectFS = objectFS
-		var objCloser io.Closer
-		s.object, objCloser, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
+		s.object, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		defer objCloser.Close()
+		defer s.object.Close()
 		extractor := s.object.GetExtractor()
 		s.metadata, err = extractor.GetMetadata()
 		if err != nil {
@@ -778,13 +772,12 @@ func (s *Server) loadObjectID(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot create subfs for %v / %s", s.storageRoot.GetReadFS(), folder)})
 		}
 		s.objectFS = objectFS
-		var objCloser io.Closer
-		s.object, objCloser, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
+		s.object, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		defer objCloser.Close()
+		defer s.object.Close()
 		extractor := s.object.GetExtractor()
 		s.metadata, err = extractor.GetMetadata()
 		if err != nil {
@@ -816,13 +809,12 @@ func (s *Server) loadObjectPath(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot create subfs for %v / %s", s.storageRoot.GetReadFS(), folder)})
 	}
 	s.objectFS = objectFS
-	var objCloser io.Closer
-	s.object, objCloser, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
+	s.object, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	defer objCloser.Close()
+	defer s.object.Close()
 	extractor := s.object.GetExtractor()
 	s.metadata, err = extractor.GetMetadata()
 	if err != nil {
@@ -941,13 +933,12 @@ func (s *Server) loadObjectBrowser(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot create subfs for %v / %s", s.storageRoot.GetReadFS(), folder)})
 		}
 		s.objectFS = objectFS
-		var objCloser io.Closer
-		s.object, objCloser, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
+		s.object, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		defer objCloser.Close()
+		defer s.object.Close()
 		extractor := s.object.GetExtractor()
 		s.metadata, err = extractor.GetMetadata()
 		if err != nil {
@@ -1010,13 +1001,12 @@ func (s *Server) report(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot create subfs for %v / %s", s.storageRoot.GetReadFS(), folder)})
 		}
 		s.objectFS = objectFS
-		var objCloser io.Closer
-		s.object, objCloser, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
+		s.object, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		defer objCloser.Close()
+		defer s.object.Close()
 		extractor := s.object.GetExtractor()
 		s.metadata, err = extractor.GetMetadata()
 		if err != nil {

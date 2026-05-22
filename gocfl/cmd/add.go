@@ -15,7 +15,7 @@ import (
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_metafile"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_migration"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_thumbnail"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/initocfl"
+	"github.com/ocfl-archive/gocfl/v3/pkg/initocfl"
 	"github.com/spf13/cobra"
 )
 
@@ -138,8 +138,6 @@ func doAdd(cmd *cobra.Command, args []string) {
 	ocflPath = writefs.RealPath(vfs, ocflPath)
 	srcPath = writefs.RealPath(vfs, srcPath)
 
-	logger.Info().Msgf("vfs created : %v", vfs)
-
 	if _, err := fs.Stat(vfs, srcPath); err != nil {
 		logger.Fatal().Err(err).Msgf("cannot stat '%s'", srcPath)
 	}
@@ -199,12 +197,12 @@ func doAdd(cmd *cobra.Command, args []string) {
 	logger.Debug().Msgf("initializing ExtensionFactory")
 
 	// Load storage root
-	storageRoot, srCloser, err := initocfl.LoadStorageRoot(ctx, destFS, extensionParams, nil, logger)
+	storageRoot, err := initocfl.LoadStorageRoot(ctx, destFS, extensionParams, nil, logger)
 	if err != nil {
 		doNotClose = true
 		logger.Fatal().Err(err).Msg("cannot open storage root")
 	}
-	defer srCloser.Close()
+	defer storageRoot.Close()
 	if storageRoot.GetDigest() == "" {
 		storageRoot.SetDigest(checksum.DigestAlgorithm(conf.Add.Digest))
 	} else {

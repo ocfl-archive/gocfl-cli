@@ -14,7 +14,7 @@ import (
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_metafile"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_migration"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_thumbnail"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/initocfl"
+	"github.com/ocfl-archive/gocfl/v3/pkg/initocfl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
 	"github.com/spf13/cobra"
 )
@@ -165,13 +165,13 @@ func doUpdate(cmd *cobra.Command, args []string) {
 	}
 
 	// Load the storage root
-	storageRoot, srCloser, err := initocfl.LoadStorageRoot(ctx, destFS, extensionParams, nil, logger)
+	storageRoot, err := initocfl.LoadStorageRoot(ctx, destFS, extensionParams, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storage root")
 		doNotClose = true
 		return
 	}
-	defer srCloser.Close()
+	defer storageRoot.Close()
 
 	exists, err := storageRoot.ObjectExists(flagObjectID)
 	if err != nil {

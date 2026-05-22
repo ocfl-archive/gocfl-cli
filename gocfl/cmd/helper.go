@@ -25,8 +25,8 @@ import (
 	"github.com/ocfl-archive/filesystem/pkg/zipfsrw"
 	"github.com/ocfl-archive/gocfl-cli/config"
 	"github.com/ocfl-archive/gocfl-cli/internal"
+	"github.com/ocfl-archive/gocfl/v3/pkg/initocfl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/initocfl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/version"
@@ -75,7 +75,7 @@ func setupLogger(ctx context.Context, ver version.OCFLVersion) (ocfllogger.OCFLL
 	}
 
 	l2 := _logger.With().Timestamp().Str("host", hostname).Logger()
-	return ocfllogger.NewOCFLLogger(ctx, &l2, nil, ver, nil), closers, nil
+	return initocfl.NewOCFLLogger(ctx, &l2, nil, ver, nil), closers, nil
 }
 
 func setupVFS(logger ocfllogger.OCFLLogger) (vfsrw.VFSRW, error) {
@@ -346,21 +346,21 @@ func addObjectByPath(
 	if err != nil {
 		return false, errors.Wrapf(err, "cannot create folder for id %s", id)
 	}
-	objectFS, err := appendfs.Sub(sr.GetWriteFS(), objPath)
+	objectFS, closer, err := appendfs.Sub(sr.GetWriteFS(), objPath)
 	if err != nil {
 		return false, errors.Wrapf(err, "cannot create subfs %v / %s for id %s", sr.GetWriteFS(), objPath, id)
 	}
+	defer func() { _ = closer.Close() }()
 	exists, err := sr.ObjectExists(id)
 	if err != nil {
 		return false, errors.Wrapf(err, "cannot check for existence of %s", id)
 	}
 	if exists {
-		var objCloser io.Closer
-		o, objCloser, err = initocfl.LoadObject(ctx, objectFS, extensionParams, logger)
+		o, err = initocfl.LoadObject(ctx, objectFS, extensionParams, logger)
 		if err != nil {
 			return false, errors.Wrapf(err, "cannot load object %s", id)
 		}
-		defer objCloser.Close()
+		defer o.Close()
 		// if we update, fixity is taken from last object version
 		f := o.GetInventory().GetFixity()
 		for alg := range f.GetDigestAlgorithms() {
@@ -417,7 +417,7 @@ func LoadStorageRoot(
 	storageRootFS appendfs.FS,
 	extensionFactory extension.Factory[storageroot.ExtensionManager],
 	logger ocfllogger.OCFLLogger,
-) (storageroot.StorageRoot, io.Closer, error) {
+) (storageroot.StorageRoot, error) {
 	return initocfl.LoadStorageRoot(ctx, storageRootFS, nil, nil, logger)
 }
 
@@ -426,6 +426,6 @@ func LoadStorageRootRO(
 	storageRootFS fs.FS,
 	extensionFactory extension.Factory[storageroot.ExtensionManager],
 	logger ocfllogger.OCFLLogger,
-) (storageroot.StorageRoot, io.Closer, error) {
+) (storageroot.StorageRoot, error) {
 	return initocfl.LoadStorageRoot(ctx, storageRootFS, nil, nil, logger)
 }

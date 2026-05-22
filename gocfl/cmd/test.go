@@ -8,7 +8,7 @@ import (
 
 	"emperror.dev/errors"
 	"github.com/ocfl-archive/filesystem/pkg/writefs"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/initocfl"
+	"github.com/ocfl-archive/gocfl/v3/pkg/initocfl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/validation"
 	"github.com/spf13/cobra"
@@ -83,11 +83,11 @@ func doTest(cmd *cobra.Command, args []string) {
 				return errors.Wrapf(err, "cannot open ocfl filesystem '%s'", fixturePath)
 			}
 
-			obj, objCloser, err := initocfl.LoadObject(ctx, objFsys, nil, logger)
+			obj, err := initocfl.LoadObject(ctx, objFsys, nil, logger)
 			if err != nil {
 				return errors.Wrapf(err, "cannot load object '%v'", objFsys)
 			}
-			defer objCloser.Close()
+			defer obj.Close()
 
 			checker := obj.GetChecker()
 			if err := checker.Check(); err != nil {

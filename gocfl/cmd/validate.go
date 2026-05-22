@@ -7,7 +7,7 @@ import (
 	"github.com/ocfl-archive/filesystem/pkg/writefs"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
 	defaultextensions_storageroot "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/storageroot"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/initocfl"
+	"github.com/ocfl-archive/gocfl/v3/pkg/initocfl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
 	"github.com/spf13/cobra"
@@ -94,12 +94,12 @@ func doValidate(cmd *cobra.Command, args []string) {
 	}()
 
 	// Load storage root in read-only mode
-	sr, srCloser, err := initocfl.LoadStorageRoot(ctx, destFS, nil, nil, logger)
+	sr, err := initocfl.LoadStorageRoot(ctx, destFS, nil, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storageroot")
 		return
 	}
-	defer srCloser.Close()
+	defer sr.Close()
 	objectID := conf.Validate.ObjectID
 	objectPath := conf.Validate.ObjectPath
 	if objectID != "" && objectPath != "" {
@@ -130,12 +130,12 @@ func doValidate(cmd *cobra.Command, args []string) {
 			return
 		}
 		// Load object
-		obj, objCloser, err := initocfl.LoadObject(ctx, objFsys, nil, logger)
+		obj, err := initocfl.LoadObject(ctx, objFsys, nil, logger)
 		if err != nil {
 			logger.Error().Err(err).Msgf("cannot open object for '%s'", objectPath)
 			return
 		}
-		defer objCloser.Close()
+		defer obj.Close()
 		// Get checker for the object and execute validation
 		checker := obj.GetChecker()
 		if err := checker.Check(); err != nil {

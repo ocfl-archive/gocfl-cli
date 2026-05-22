@@ -10,7 +10,7 @@ import (
 	"emperror.dev/errors"
 	"github.com/ocfl-archive/filesystem/pkg/writefs"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/initocfl"
+	"github.com/ocfl-archive/gocfl/v3/pkg/initocfl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
 	"github.com/spf13/cobra"
@@ -141,12 +141,12 @@ func doExtractMeta(cmd *cobra.Command, args []string) {
 	}()
 
 	// Load storage root in read-only mode
-	sr, srCloser, err := initocfl.LoadStorageRoot(ctx, ocflFS, nil, nil, logger)
+	sr, err := initocfl.LoadStorageRoot(ctx, ocflFS, nil, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storage root")
 		return
 	}
-	defer srCloser.Close()
+	defer sr.Close()
 	logger.WithVersion(sr.GetOCFLVersion())
 	if oID != "" {
 		oPath, err = sr.IdToFolder(oID)
@@ -161,12 +161,12 @@ func doExtractMeta(cmd *cobra.Command, args []string) {
 		logger.Error().Err(err).Msgf("cannot get subfs for '%s'", oPath)
 		return
 	}
-	obj, objCloser, err := initocfl.LoadObject(ctx, objPathFS, nil, logger)
+	obj, err := initocfl.LoadObject(ctx, objPathFS, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load object")
 		return
 	}
-	defer objCloser.Close()
+	defer obj.Close()
 	metadata, err := obj.GetExtractor().GetMetadata()
 	if err != nil {
 		fmt.Printf("cannot extract metadata from storage root: %v\n", err)
