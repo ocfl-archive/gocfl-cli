@@ -149,7 +149,9 @@ func doExtractMeta(cmd *cobra.Command, args []string) {
 		return
 	}
 	defer obj.Close()
-	metadata, err := obj.GetExtractor().GetMetadata()
+	extractor := obj.GetExtractor()
+	defer extractor.Close()
+	metadata, err := extractor.GetMetadata()
 	if err != nil {
 		fmt.Printf("cannot extract metadata from storage root: %v\n", err)
 		logger.Error().Err(err).Msg("cannot extract metadata from storage root")

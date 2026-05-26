@@ -162,7 +162,9 @@ func doExtract(cmd *cobra.Command, args []string) {
 		return
 	}
 	defer obj.Close()
-	if err := obj.GetExtractor().
+	extractor := obj.GetExtractor()
+	defer extractor.Close()
+	if err := extractor.
 		WithDestFS(destAppendFS).
 		Extract(
 			inventorytypes.NewVersionNumber().WithString(conf.Extract.Version),

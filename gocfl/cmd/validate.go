@@ -138,6 +138,7 @@ func doValidate(cmd *cobra.Command, args []string) {
 		defer obj.Close()
 		// Get checker for the object and execute validation
 		checker := obj.GetValidator()
+		defer checker.Close()
 		if err := checker.Validate(); err != nil {
 			logger.Error().Err(err).Msgf("ocfl object '%s' not valid", objectPath)
 			return

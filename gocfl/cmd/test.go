@@ -90,6 +90,7 @@ func doTest(cmd *cobra.Command, args []string) {
 			defer obj.Close()
 
 			checker := obj.GetValidator()
+			defer checker.Close()
 			if err := checker.Validate(); err != nil {
 				return errors.Wrapf(err, "cannot check object '%v'", objFsys)
 			}
