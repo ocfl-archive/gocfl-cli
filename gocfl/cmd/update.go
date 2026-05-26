@@ -14,7 +14,7 @@ import (
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_metafile"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_migration"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_thumbnail"
-	"github.com/ocfl-archive/gocfl/v3/pkg/initocfl"
+	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
 	"github.com/spf13/cobra"
 )
@@ -91,7 +91,6 @@ func doUpdate(cmd *cobra.Command, args []string) {
 	// Update configuration based on flags
 	doUpdateConf(cmd)
 
-	var addr string
 	var localCache bool
 
 	fmt.Printf("opening '%s'\n", ocflPath)
@@ -148,7 +147,7 @@ func doUpdate(cmd *cobra.Command, args []string) {
 
 	ext_NNNN_migration.Init(&conf.Migration, sourceFS, logger)
 	ext_NNNN_thumbnail.Init(conf.Thumbnail, sourceFS, logger)
-	ext_NNNN_indexer.Init(addr, conf.Indexer, localCache, logger)
+	ext_NNNN_indexer.Init(conf.Indexer, localCache, logger)
 	ext_NNNN_metafile.Init(vfs, logger)
 
 	extensionParams, err := getExtensionParams(cmd)
@@ -157,7 +156,7 @@ func doUpdate(cmd *cobra.Command, args []string) {
 	}
 
 	// Setup extension managers for storage root and object
-	_, _, err = initocfl.SetupExtensionManager[storageroot.ExtensionManager](extensionParams, firstOrSecond(conf.Init.StorageRootExtensionFolder == "", (fs.FS)(defaultextensions_storageroot.DefaultStorageRootExtensionFS), os.DirFS(conf.Init.StorageRootExtensionFolder)), logger)
+	_, _, err = ocfl.SetupExtensionManager[storageroot.ExtensionManager](extensionParams, firstOrSecond(conf.Init.StorageRootExtensionFolder == "", (fs.FS)(defaultextensions_storageroot.DefaultStorageRootExtensionFS), os.DirFS(conf.Init.StorageRootExtensionFolder)), logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup storage root extension manager")
 		doNotClose = true
@@ -165,7 +164,7 @@ func doUpdate(cmd *cobra.Command, args []string) {
 	}
 
 	// Load the storage root
-	storageRoot, err := initocfl.LoadStorageRoot(ctx, destFS, extensionParams, nil, logger)
+	storageRoot, err := ocfl.LoadStorageRoot(ctx, destFS, extensionParams, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storage root")
 		doNotClose = true

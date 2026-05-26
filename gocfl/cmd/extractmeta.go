@@ -10,7 +10,7 @@ import (
 	"emperror.dev/errors"
 	"github.com/ocfl-archive/filesystem/pkg/writefs"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
-	"github.com/ocfl-archive/gocfl/v3/pkg/initocfl"
+	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
 	"github.com/spf13/cobra"
@@ -93,24 +93,6 @@ func doExtractMeta(cmd *cobra.Command, args []string) {
 
 	logger.Info().Msgf("extracting metadata from '%s'", ocflPath)
 
-	/*
-		fsFactory, err := initializeFSFactory(nil, nil, nil, true, true, logger)
-		if err != nil {
-			logger.Error().Err(err).Msg("cannot create filesystem factory")
-			return
-		}
-		ocflFS, err := fsFactory.Get(ocflPath, true)
-		if err != nil {
-			logger.Error().Err(err).Msgf("cannot get filesystem for '%s'", ocflPath)
-			return
-		}
-		defer func() {
-			if err := writefs.Close(ocflFS); err != nil {
-				logger.Error().Err(err).Msgf("cannot close filesystem for '%s'", ocflFS)
-			}
-		}()
-	*/
-	// Prepare access to the OCFL directory
 	ocflFS, err := writefs.Sub(vfs, ocflPath)
 	if err != nil {
 		logger.Error().Err(err).Msgf("cannot open ocfl filesystem at '%s'", ocflPath)
@@ -123,13 +105,13 @@ func doExtractMeta(cmd *cobra.Command, args []string) {
 	}
 
 	// Setup extension managers for storage root and object
-	_, _, err = initocfl.SetupExtensionManager[storageroot.ExtensionManager](extensionParams, nil, logger)
+	_, _, err = ocfl.SetupExtensionManager[storageroot.ExtensionManager](extensionParams, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup storage root extension manager")
 		return
 	}
 
-	objectExtensionManager, _, err := initocfl.SetupExtensionManager[object.ExtensionManager](extensionParams, firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)), logger)
+	objectExtensionManager, _, err := ocfl.SetupExtensionManager[object.ExtensionManager](extensionParams, firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)), logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup object extension manager")
 		return
@@ -141,7 +123,7 @@ func doExtractMeta(cmd *cobra.Command, args []string) {
 	}()
 
 	// Load storage root in read-only mode
-	sr, err := initocfl.LoadStorageRoot(ctx, ocflFS, nil, nil, logger)
+	sr, err := ocfl.LoadStorageRoot(ctx, ocflFS, nil, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storage root")
 		return
@@ -161,7 +143,7 @@ func doExtractMeta(cmd *cobra.Command, args []string) {
 		logger.Error().Err(err).Msgf("cannot get subfs for '%s'", oPath)
 		return
 	}
-	obj, err := initocfl.LoadObject(ctx, objPathFS, nil, logger)
+	obj, err := ocfl.LoadObject(ctx, objPathFS, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load object")
 		return

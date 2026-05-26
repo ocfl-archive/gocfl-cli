@@ -8,7 +8,7 @@ import (
 
 	"emperror.dev/errors"
 	"github.com/ocfl-archive/filesystem/pkg/writefs"
-	"github.com/ocfl-archive/gocfl/v3/pkg/initocfl"
+	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/validation"
 	"github.com/spf13/cobra"
@@ -58,7 +58,7 @@ func doTest(cmd *cobra.Command, args []string) {
 	}
 
 	// Setup object extension manager
-	_, _, err = initocfl.SetupExtensionManager[object.ExtensionManager](extensionParams, nil, logger)
+	_, _, err = ocfl.SetupExtensionManager[object.ExtensionManager](extensionParams, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup object extension manager")
 		return
@@ -83,14 +83,14 @@ func doTest(cmd *cobra.Command, args []string) {
 				return errors.Wrapf(err, "cannot open ocfl filesystem '%s'", fixturePath)
 			}
 
-			obj, err := initocfl.LoadObject(ctx, objFsys, nil, logger)
+			obj, err := ocfl.LoadObject(ctx, objFsys, nil, logger)
 			if err != nil {
 				return errors.Wrapf(err, "cannot load object '%v'", objFsys)
 			}
 			defer obj.Close()
 
-			checker := obj.GetChecker()
-			if err := checker.Check(); err != nil {
+			checker := obj.GetValidator()
+			if err := checker.Validate(); err != nil {
 				return errors.Wrapf(err, "cannot check object '%v'", objFsys)
 			}
 			return nil

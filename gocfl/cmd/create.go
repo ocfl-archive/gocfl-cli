@@ -139,11 +139,10 @@ func doCreate(cmd *cobra.Command, args []string) {
 		}
 	}()
 
-	var addr string
 	var localCache bool
 	ext_NNNN_migration.Init(&conf.Migration, sourceFS, logger)
 	ext_NNNN_thumbnail.Init(conf.Thumbnail, sourceFS, logger)
-	ext_NNNN_indexer.Init(addr, conf.Indexer, localCache, logger)
+	ext_NNNN_indexer.Init(conf.Indexer, localCache, logger)
 	ext_NNNN_metafile.Init(vfs, logger)
 
 	area := conf.DefaultArea

@@ -14,7 +14,7 @@ import (
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
 	"github.com/ocfl-archive/gocfl-cli/data/displaydata"
 	"github.com/ocfl-archive/gocfl-cli/gocfl/cmd/display"
-	"github.com/ocfl-archive/gocfl/v3/pkg/initocfl"
+	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
 	"github.com/spf13/cobra"
@@ -98,21 +98,21 @@ func doDisplay(cmd *cobra.Command, args []string) {
 	}
 
 	// Setup extension managers for storage root and object
-	_, _, err = initocfl.SetupExtensionManager[storageroot.ExtensionManager](extensionParams, nil, logger)
+	_, _, err = ocfl.SetupExtensionManager[storageroot.ExtensionManager](extensionParams, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup storage root extension manager")
 		return
 	}
 
 	// Load storage root in read-only mode
-	storageRoot, err := initocfl.LoadStorageRoot(ctx, destFS, nil, nil, logger)
+	storageRoot, err := ocfl.LoadStorageRoot(ctx, destFS, nil, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storage root")
 		return
 	}
 	defer storageRoot.Close()
 
-	objectExtensionManager, objectExtensionFactory, err := initocfl.SetupExtensionManager[object.ExtensionManager](extensionParams, firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)), logger)
+	objectExtensionManager, objectExtensionFactory, err := ocfl.SetupExtensionManager[object.ExtensionManager](extensionParams, firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)), logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup object extension manager")
 		return

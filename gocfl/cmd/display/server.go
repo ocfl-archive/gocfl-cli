@@ -29,7 +29,7 @@ import (
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_metafile"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_migration"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_thumbnail"
-	"github.com/ocfl-archive/gocfl/v3/pkg/initocfl"
+	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl"
 	extensiontypes "github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/inventory"
 	objecttypes "github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
@@ -211,7 +211,7 @@ func (s *Server) downloadExtFile(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot create subfs for %v / %s", s.storageRoot.GetWriteFS(), folder)})
 		}
 		s.objectFS = objectFS
-		s.object, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
+		s.object, err = ocfl.LoadObject(context.Background(), objectFS, nil, s.log)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -271,7 +271,7 @@ func (s *Server) download(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot create subfs for %v / %s", s.storageRoot.GetReadFS(), folder)})
 		}
 		s.objectFS = objectFS
-		s.object, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
+		s.object, err = ocfl.LoadObject(context.Background(), objectFS, nil, s.log)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -338,7 +338,7 @@ func (s *Server) detail(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot create subfs for %v / %s", s.storageRoot.GetReadFS(), folder)})
 		}
 		s.objectFS = objectFS
-		s.object, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
+		s.object, err = ocfl.LoadObject(context.Background(), objectFS, nil, s.log)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -544,7 +544,7 @@ func (s *Server) manifest(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot create subfs for %v / %s", s.storageRoot.GetReadFS(), folder)})
 		}
 		s.objectFS = objectFS
-		s.object, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
+		s.object, err = ocfl.LoadObject(context.Background(), objectFS, nil, s.log)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -647,7 +647,7 @@ func (s *Server) version(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot create subfs for %v / %s", s.storageRoot.GetReadFS(), folder)})
 		}
 		s.objectFS = objectFS
-		s.object, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
+		s.object, err = ocfl.LoadObject(context.Background(), objectFS, nil, s.log)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -772,7 +772,7 @@ func (s *Server) loadObjectID(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot create subfs for %v / %s", s.storageRoot.GetReadFS(), folder)})
 		}
 		s.objectFS = objectFS
-		s.object, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
+		s.object, err = ocfl.LoadObject(context.Background(), objectFS, nil, s.log)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -809,7 +809,7 @@ func (s *Server) loadObjectPath(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot create subfs for %v / %s", s.storageRoot.GetReadFS(), folder)})
 	}
 	s.objectFS = objectFS
-	s.object, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
+	s.object, err = ocfl.LoadObject(context.Background(), objectFS, nil, s.log)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -933,7 +933,7 @@ func (s *Server) loadObjectBrowser(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot create subfs for %v / %s", s.storageRoot.GetReadFS(), folder)})
 		}
 		s.objectFS = objectFS
-		s.object, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
+		s.object, err = ocfl.LoadObject(context.Background(), objectFS, nil, s.log)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -1001,7 +1001,7 @@ func (s *Server) report(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot create subfs for %v / %s", s.storageRoot.GetReadFS(), folder)})
 		}
 		s.objectFS = objectFS
-		s.object, err = initocfl.LoadObject(context.Background(), objectFS, nil, s.log)
+		s.object, err = ocfl.LoadObject(context.Background(), objectFS, nil, s.log)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return

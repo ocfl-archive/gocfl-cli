@@ -7,7 +7,7 @@ import (
 	"github.com/ocfl-archive/filesystem/pkg/writefs"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
 	defaultextensions_storageroot "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/storageroot"
-	"github.com/ocfl-archive/gocfl/v3/pkg/initocfl"
+	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/storageroot"
 	"github.com/spf13/cobra"
@@ -56,7 +56,7 @@ func doValidate(cmd *cobra.Command, args []string) {
 	}
 
 	// Load extension manager for storage root
-	storageRootExtensionManager, _, err := initocfl.SetupExtensionManager[storageroot.ExtensionManager](extensionParams, firstOrSecond(conf.Init.StorageRootExtensionFolder == "", (fs.FS)(defaultextensions_storageroot.DefaultStorageRootExtensionFS), os.DirFS(conf.Init.StorageRootExtensionFolder)), logger)
+	storageRootExtensionManager, _, err := ocfl.SetupExtensionManager[storageroot.ExtensionManager](extensionParams, firstOrSecond(conf.Init.StorageRootExtensionFolder == "", (fs.FS)(defaultextensions_storageroot.DefaultStorageRootExtensionFS), os.DirFS(conf.Init.StorageRootExtensionFolder)), logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup storage root extension manager")
 		return
@@ -68,7 +68,7 @@ func doValidate(cmd *cobra.Command, args []string) {
 	}()
 
 	// Load extension manager for objects
-	objectExtensionManager, _, err := initocfl.SetupExtensionManager[object.ExtensionManager](extensionParams, firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)), logger)
+	objectExtensionManager, _, err := ocfl.SetupExtensionManager[object.ExtensionManager](extensionParams, firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)), logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup object extension manager")
 		return
@@ -94,7 +94,7 @@ func doValidate(cmd *cobra.Command, args []string) {
 	}()
 
 	// Load storage root in read-only mode
-	sr, err := initocfl.LoadStorageRoot(ctx, destFS, nil, nil, logger)
+	sr, err := ocfl.LoadStorageRoot(ctx, destFS, nil, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storageroot")
 		return
@@ -130,15 +130,15 @@ func doValidate(cmd *cobra.Command, args []string) {
 			return
 		}
 		// Load object
-		obj, err := initocfl.LoadObject(ctx, objFsys, nil, logger)
+		obj, err := ocfl.LoadObject(ctx, objFsys, nil, logger)
 		if err != nil {
 			logger.Error().Err(err).Msgf("cannot open object for '%s'", objectPath)
 			return
 		}
 		defer obj.Close()
 		// Get checker for the object and execute validation
-		checker := obj.GetChecker()
-		if err := checker.Check(); err != nil {
+		checker := obj.GetValidator()
+		if err := checker.Validate(); err != nil {
 			logger.Error().Err(err).Msgf("ocfl object '%s' not valid", objectPath)
 			return
 		}
