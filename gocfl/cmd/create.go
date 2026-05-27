@@ -32,7 +32,7 @@ var createCmd = &cobra.Command{
 		"This command is a combination of init and add",
 	Example: "gocfl create ./archive.zip /tmp/testdata --digest sha512 -u 'Jane Doe' -a 'mailto:user@domain' -m 'initial add' -object-id 'id:abc123'",
 	Args:    cobra.MinimumNArgs(2),
-	Run:     doCreate,
+	RunE:    doCreate,
 }
 
 // initCreate initializes the gocfl create command
@@ -75,11 +75,10 @@ func isEmpty(name string) (bool, error) {
 // doCreate is the main function for the 'create' command.
 // It initializes a new OCFL storage root and adds an initial object to it.
 // This command effectively combines 'init' and 'add' operations.
-func doCreate(cmd *cobra.Command, args []string) {
+func doCreate(cmd *cobra.Command, args []string) error {
 	// Validate that all required flags are set
 	if err := cmd.ValidateRequiredFlags(); err != nil {
-		cobra.CheckErr(err)
-		return
+		return errors.WithStack(err)
 	}
 
 	ocflPath := args[0]
@@ -103,8 +102,7 @@ func doCreate(cmd *cobra.Command, args []string) {
 			continue
 		}
 		if _, err := checksum.GetHash(checksum.DigestAlgorithm(alg)); err != nil {
-			logger.Error().Msgf("unknown hash function '%s'", alg)
-			return
+			return errors.Errorf("unknown hash function '%s'", alg)
 		}
 		fixityAlgs = append(fixityAlgs, checksum.DigestAlgorithm(alg))
 	}
@@ -115,36 +113,30 @@ func doCreate(cmd *cobra.Command, args []string) {
 	if err == nil {
 		// If target exists, it must be a directory and it must be empty
 		if isZip || !fi.IsDir() {
-			logger.Error().
-				Any("archive_error", ErrorFactory.NewError(ERRORTest2, "already exists", nil)).
-				Msgf("file '%s' already exists", ocflPath)
-			return
+			return ErrorFactory.NewError(ERRORTest2, "already exists", errors.Errorf("file '%s' already exists", ocflPath))
 		}
 
 		if empty, err := isEmpty(ocflPath); err != nil {
-			logger.Error().Err(err).Msgf("cannot check if directory '%s' is empty", ocflPath)
-			return
+			return errors.Wrapf(err, "cannot check if directory '%s' is empty", ocflPath)
 		} else if !empty {
-			logger.Error().Msgf("directory '%s' is not empty", ocflPath)
-			return
+			return errors.Errorf("directory '%s' is not empty", ocflPath)
 		}
 	} else if !errors.Is(err, fs.ErrNotExist) {
-		logger.Error().Err(err).Msgf("cannot check status of '%s'", ocflPath)
-		return
+		return errors.Wrapf(err, "cannot check status of '%s'", ocflPath)
 	}
 
 	// Prepare source and destination filesystems
 	var _destFS fs.FS
 	sourceFS, err := writefs.Sub(vfs, srcPath)
 	if err != nil {
-		logger.Fatal().Err(err).Msgf("cannot get filesystem for '%s'", srcPath)
+		return errors.Wrapf(err, "cannot get filesystem for '%s'", srcPath)
 	}
 
 	if isZip {
 		// Create a writer for the ZIP file
 		zipWriter, err := writefs.Create(vfs, ocflPath)
 		if err != nil {
-			logger.Fatal().Err(err).Msgf("cannot create zip file '%s'", ocflPath)
+			return errors.Wrapf(err, "cannot create zip file '%s'", ocflPath)
 		}
 		// Initialize the ZIP filesystem wrapper
 		_destFS, err = zipfsw.NewFS(
@@ -172,21 +164,26 @@ func doCreate(cmd *cobra.Command, args []string) {
 			if closer, ok := zipWriter.(io.Closer); ok {
 				_ = closer.Close()
 			}
-			logger.Fatal().Err(err).Msgf("cannot create zip filesystem for '%s'", ocflPath)
+			return errors.Wrapf(err, "cannot create zip filesystem for '%s'", ocflPath)
 		}
 	} else {
 		// Regular directory-based filesystem
 		_destFS, err = writefs.SubCreate(vfs, ocflPath)
 		if err != nil {
-			logger.Fatal().Msgf("cannot get filesystem for '%s'", ocflPath)
+			return errors.Wrapf(err, "cannot get filesystem for '%s'", ocflPath)
 		}
 	}
 
 	// Ensure destination filesystem is writeable
 	destFS, ok := _destFS.(appendfs.FS)
 	if !ok {
-		logger.Fatal().Msgf("filesystem for '%s' is not writeable", ocflPath)
+		return errors.Errorf("filesystem for '%s' is not writeable", ocflPath)
 	}
+	defer func() {
+		if err := writefs.Close(destFS); err != nil {
+			logger.Error().Err(err).Msgf("cannot close filesystem '%s'", destFS)
+		}
+	}()
 
 	// Initialize extensions
 	var localCache bool
@@ -209,24 +206,18 @@ func doCreate(cmd *cobra.Command, args []string) {
 			logger.Error().Msgf("no area given in areapath '%s'", args[i])
 			continue
 		}
-		path := matches[2]
-		path = writefs.RealPath(vfs, path)
-		areaPaths[matches[1]], err = writefs.Sub(vfs, path)
+		p := matches[2]
+		p = writefs.RealPath(vfs, p)
+		areaPaths[matches[1]], err = writefs.Sub(vfs, p)
 		if err != nil {
-			if err := writefs.Close(destFS); err != nil {
-				logger.Error().Err(err).Msgf("cannot close filesystem '%s'", destFS)
-			}
-			logger.Fatal().Err(err).Msgf("cannot get filesystem for '%s'", args[i])
+			return errors.Wrapf(err, "cannot get filesystem for '%s'", args[i])
 		}
 	}
 
 	// Retrieve extension parameters from command flags
 	extensionParams, err := getExtensionParams(cmd)
 	if err != nil {
-		if err := writefs.Close(destFS); err != nil {
-			logger.Error().Err(err).Msgf("cannot close filesystem '%s'", destFS)
-		}
-		logger.Fatal().Err(err).Msg("cannot get extension params")
+		return errors.Wrap(err, "cannot get extension params")
 	}
 
 	// Create the OCFL storage root
@@ -241,32 +232,20 @@ func doCreate(cmd *cobra.Command, args []string) {
 		logger,
 	)
 	if err != nil {
-		// Ensure filesystem is closed before fatal exit
-		if err := writefs.Close(destFS); err != nil {
-			logger.Error().Err(err).Msgf("cannot close filesystem '%s'", destFS)
-		}
-		logger.Error().Err(err).Msg("cannot create new storage root")
-		return
+		return errors.Wrap(err, "cannot create new storage root")
 	}
+	defer storageRoot.Close()
 
 	// Determine folder path for the new object based on its ID
 	objPath, err := storageRoot.IdToFolder(flagObjectID)
 	if err != nil {
-		storageRoot.Close()
-		if err := writefs.Close(destFS); err != nil {
-			logger.Error().Err(err).Msgf("cannot close filesystem '%s'", destFS)
-		}
-		logger.Fatal().Err(err).Msgf("cannot create folder for id %s", flagObjectID)
+		return errors.Wrapf(err, "cannot create folder for id %s", flagObjectID)
 	}
 
 	// Get a sub-filesystem for the object
 	objectFS, closer, err := appendfs.Sub(storageRoot.GetWriteFS(), objPath)
 	if err != nil {
-		storageRoot.Close()
-		if err := writefs.Close(destFS); err != nil {
-			logger.Error().Err(err).Msgf("cannot close filesystem '%s'", destFS)
-		}
-		logger.Fatal().Err(err).Msgf("cannot create subfs %v / %s for id %s", storageRoot.GetWriteFS(), objPath, flagObjectID)
+		return errors.Wrapf(err, "cannot create subfs %v / %s for id %s", storageRoot.GetWriteFS(), objPath, flagObjectID)
 	}
 	// Use defer for closer as it is local and non-critical for overall archive integrity if it fails later
 	defer func() {
@@ -279,11 +258,7 @@ func doCreate(cmd *cobra.Command, args []string) {
 	objectExtensionFS := firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder))
 	o, err := ocfl.InitObject(ctx, objectFS, objectExtensionFS, storageRoot.GetOCFLVersion(), flagObjectID, storageRoot.GetDigest(), extensionParams, logger)
 	if err != nil {
-		storageRoot.Close()
-		if err := writefs.Close(destFS); err != nil {
-			logger.Error().Err(err).Msgf("cannot close filesystem '%s'", destFS)
-		}
-		logger.Fatal().Err(err).Msgf("cannot create object %s", flagObjectID)
+		return errors.Wrapf(err, "cannot create object %s", flagObjectID)
 	}
 	// Object should be closed at the end to flush its inventory
 	defer func() {
@@ -295,23 +270,13 @@ func doCreate(cmd *cobra.Command, args []string) {
 	// Start a new version for the object
 	versionWriter, err := o.StartUpdate(conf.Add.Message, conf.Add.User.Name, conf.Add.User.Address, false)
 	if err != nil {
-		_ = o.Close()
-		storageRoot.Close()
-		if err := writefs.Close(destFS); err != nil {
-			logger.Error().Err(err).Msgf("cannot close filesystem '%s'", destFS)
-		}
-		logger.Fatal().Err(err).Msgf("cannot start update for object %s", flagObjectID)
+		return errors.Wrapf(err, "cannot start update for object %s", flagObjectID)
 	}
 
 	// Add the main source folder to the new version
 	if err := versionWriter.AddFolder(sourceFS, conf.Add.Deduplicate, area); err != nil {
 		_ = versionWriter.Close()
-		_ = o.Close()
-		storageRoot.Close()
-		if err := writefs.Close(destFS); err != nil {
-			logger.Error().Err(err).Msgf("cannot close filesystem '%s'", destFS)
-		}
-		logger.Fatal().Err(err).Msgf("cannot add folder '%s' to '%s'", sourceFS, flagObjectID)
+		return errors.Wrapf(err, "cannot add folder '%s' to '%s'", sourceFS, flagObjectID)
 	}
 
 	// Add any additional area folders
@@ -319,35 +284,18 @@ func doCreate(cmd *cobra.Command, args []string) {
 		for a, aPath := range areaPaths {
 			if err := versionWriter.AddFolder(aPath, conf.Add.Deduplicate, a); err != nil {
 				_ = versionWriter.Close()
-				_ = o.Close()
-				storageRoot.Close()
-				if err := writefs.Close(destFS); err != nil {
-					logger.Error().Err(err).Msgf("cannot close filesystem '%s'", destFS)
-				}
-				logger.Fatal().Err(err).Msgf("cannot add area '%s' folder '%s' to '%s'", a, aPath, flagObjectID)
+				return errors.Wrapf(err, "cannot add area '%s' folder '%s' to '%s'", a, aPath, flagObjectID)
 			}
 		}
 	}
 
 	// Finalize the version
 	if err := versionWriter.Close(); err != nil {
-		_ = o.Close()
-		storageRoot.Close()
-		if err := writefs.Close(destFS); err != nil {
-			logger.Error().Err(err).Msgf("cannot close filesystem '%s'", destFS)
-		}
-		logger.Fatal().Err(err).Msgf("cannot close version writer for object %s", flagObjectID)
-	}
-
-	// Cleanup and close all resources in correct order
-	if err := o.Close(); err != nil {
-		logger.Error().Err(err).Msgf("error closing object %s", flagObjectID)
-	}
-	storageRoot.Close()
-	if err := writefs.Close(destFS); err != nil {
-		logger.Error().Err(err).Msgf("error closing filesystem '%s'", destFS)
+		return errors.Wrapf(err, "cannot close version writer for object %s", flagObjectID)
 	}
 
 	// Show result status
 	_ = showStatus(logger)
+
+	return nil
 }

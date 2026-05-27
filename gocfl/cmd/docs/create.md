@@ -43,10 +43,12 @@ sequenceDiagram
     
     alt is ZIP
         DC->>VFS: Create(zipFile)
-        DC->>DC: Initialize zipfsw
+        VFS-->>DC: zipWriter
+        DC->>DC: zipfsw.NewFS(zipWriter, closeWriter=true)
     else is Directory
         DC->>VFS: SubCreate(ocflPath)
     end
+    DC-->>DC: destFS
 
     DC->>SR: CreateStorageRoot(destFS, ...)
     SR-->>DC: storageRoot
@@ -63,6 +65,7 @@ sequenceDiagram
     DC->>VW: AddFolder(sourceFS, ...)
     DC->>VW: Close() (Finalize version)
     
+    Note over DC, VFS: Defer blocks execute in reverse order:
     DC->>OBJ: Close() (Flush inventory)
     DC->>SR: Close()
     DC->>VFS: Close(destFS)
@@ -74,45 +77,52 @@ sequenceDiagram
 
 ## Resource Management: Open, Close, and Deferred
 
-The function manages several critical resources. Because `logger.Fatal()` is used for errors (which calls `os.Exit(1)` and skips `defer`), many resources are closed manually in error blocks.
+The function manages several critical resources using `defer`. Since `doCreate` returns an `error` instead of calling `logger.Fatal()`, `defer` blocks are guaranteed to run when the function returns, ensuring resources are closed exactly once.
 
 ```mermaid
 graph TD
-    Start([Start doCreate]) --> OpenDest[Open/Create Destination FS]
-    OpenDest -- Error --> Fatal1[logger.Fatal]
+    Start([Start doCreate]) --> IsZip{is ZIP?}
     
-    OpenDest --> OpenSR[Create StorageRoot]
-    OpenSR -- Error --> CloseFS1[writefs.Close destFS] --> Fatal2[logger.Fatal]
+    IsZip -- Yes --> CreateZip[writefs.Create zipWriter]
+    CreateZip -- Error --> ReturnErrZip[return error]
+    CreateZip --> InitZipFS[zipfsw.NewFS]
+    InitZipFS -- Error --> CloseZipW[Close zipWriter] --> ReturnErrFS1[return error]
+    InitZipFS --> DefFS
     
-    OpenSR --> OpenSub[Open Object Sub-FS]
-    OpenSub -- Error --> CloseSR1[storageRoot.Close] --> CloseFS2[writefs.Close destFS] --> Fatal3[logger.Fatal]
+    IsZip -- No --> SubCreate[writefs.SubCreate destFS]
+    SubCreate -- Error --> ReturnErrFS2[return error]
+    SubCreate --> DefFS
+
+    DefFS[<b>defer</b> writefs.Close destFS] --> OpenSR[Create StorageRoot]
+    OpenSR -- Error --> ReturnErr2[return error]
+    
+    OpenSR --> DefSR[<b>defer</b> storageRoot.Close]
+    DefSR --> OpenSub[Open Object Sub-FS]
+    OpenSub -- Error --> ReturnErr3[return error]
     
     OpenSub --> DefSub[<b>defer</b> closer.Close object sub-FS]
     
     DefSub --> InitObj[Init OCFL Object]
-    InitObj -- Error --> CloseSR2[storageRoot.Close] --> CloseFS3[writefs.Close destFS] --> Fatal4[logger.Fatal]
+    InitObj -- Error --> ReturnErr4[return error]
     
     InitObj --> DefObj[<b>defer</b> o.Close object]
     
     DefObj --> StartUpd[StartUpdate version]
-    StartUpd -- Error --> CloseObj1[o.Close] --> CloseSR3[storageRoot.Close] --> CloseFS4[writefs.Close destFS] --> Fatal5[logger.Fatal]
+    StartUpd -- Error --> ReturnErr5[return error]
     
     StartUpd --> AddFold[AddFolder content]
-    AddFold -- Error --> CloseVW1[versionWriter.Close] --> CloseObj2[o.Close] --> CloseSR4[storageRoot.Close] --> CloseFS5[writefs.Close destFS] --> Fatal6[logger.Fatal]
+    AddFold -- Error --> CloseVW1[versionWriter.Close] --> ReturnErr6[return error]
     
     AddFold --> CloseVW2[versionWriter.Close Success]
-    CloseVW2 -- Error --> CloseObj3[o.Close] --> CloseSR5[storageRoot.Close] --> CloseFS6[writefs.Close destFS] --> Fatal7[logger.Fatal]
+    CloseVW2 -- Error --> ReturnErr7[return error]
     
-    CloseVW2 --> FinalClose[Final Manual Cleanup]
-    
-    subgraph Final Manual Cleanup
-        MCloseObj[o.Close] --> MCloseSR[storageRoot.Close] --> MCloseFS[writefs.Close destFS]
-    end
-    
-    FinalClose --> End([End doCreate])
+    CloseVW2 --> ShowStatus[showStatus]
+    ShowStatus --> End([End doCreate])
 
+    style DefFS fill:#f9f,stroke:#333
+    style DefSR fill:#f9f,stroke:#333
     style DefSub fill:#f9f,stroke:#333
     style DefObj fill:#f9f,stroke:#333
 ```
 
-*Note: `defer` functions are registered but only execute if the function returns normally. In case of `logger.Fatal()`, the manual cleanup in each error block is executed instead.*
+*Note: `defer` functions ensure that resources are cleaned up in the correct order (Last-In-First-Out) when the function returns, whether it's a success or an error.*
