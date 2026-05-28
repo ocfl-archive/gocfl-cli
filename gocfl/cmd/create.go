@@ -6,13 +6,17 @@ import (
 	"io/fs"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"emperror.dev/errors"
+	statickms "github.com/je4/utils/v2/pkg/StaticKMS"
 	"github.com/je4/utils/v2/pkg/checksum"
+	"github.com/je4/utils/v2/pkg/keepass2kms"
 	"github.com/ocfl-archive/filesystem/pkg/appendfs"
 	"github.com/ocfl-archive/filesystem/pkg/writefs"
 	"github.com/ocfl-archive/filesystem/pkg/zipfsw"
+	"github.com/ocfl-archive/filesystem/pkg/zipfswenc"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
 	defaultextensions_storageroot "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/storageroot"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_indexer"
@@ -22,6 +26,7 @@ import (
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/version"
 	"github.com/spf13/cobra"
+	"github.com/tink-crypto/tink-go/v2/core/registry"
 )
 
 var createCmd = &cobra.Command{
@@ -53,9 +58,9 @@ func initCreate() {
 	createCmd.Flags().Bool("encrypt-aes", false, "create encrypted container (only for container target)")
 	createCmd.Flags().String("aes-key", "", "key to use for encrypted container in hex format (64 chars, empty: generate random key)")
 	createCmd.Flags().String("aes-iv", "", "initialisation vector to use for encrypted container in hex format (32 chars, empty: generate random vector)")
-	createCmd.Flags().String("keypass-file", "", "file with keypass2 database")
-	createCmd.Flags().String("keypass-entry", "", "keypass2 entry to use for key encryption")
-	createCmd.Flags().String("keypass-key", "", "key to use for keypass2 database decryption")
+	createCmd.Flags().String("keepass-file", "", "file with keypass2 database")
+	createCmd.Flags().String("keepass-entry", "", "keypass2 entry to use for key encryption")
+	createCmd.Flags().String("keepass-key", "", "key to use for keypass2 database decryption")
 }
 
 func isEmpty(name string) (bool, error) {
@@ -70,6 +75,37 @@ func isEmpty(name string) (bool, error) {
 		return true, nil
 	}
 	return false, err // Either not empty or error, suits both cases
+}
+
+func doCreateConf(cmd *cobra.Command) {
+	if b, ok := getFlagBool(cmd, "encrypt-aes"); ok {
+		conf.AES.Enable = b
+	}
+	if str := getFlagString(cmd, "aes-key"); str != "" {
+		if err := conf.AES.Key.UnmarshalText(([]byte)(str)); err != nil {
+			logger.Error().Err(err).Msg("cannot parse aes-key")
+		}
+	}
+	if str := getFlagString(cmd, "aes-iv"); str != "" {
+		if err := conf.AES.IV.UnmarshalText(([]byte)(str)); err != nil {
+			logger.Error().Err(err).Msg("cannot parse aes-iv")
+		}
+	}
+	if str := getFlagString(cmd, "keepass-file"); str != "" {
+		if err := conf.AES.KeepassFile.UnmarshalText(([]byte)(str)); err != nil {
+			logger.Error().Err(err).Msg("cannot parse keepass-file")
+		}
+	}
+	if str := getFlagString(cmd, "keepass-entry"); str != "" {
+		if err := conf.AES.KeepassEntry.UnmarshalText(([]byte)(str)); err != nil {
+			logger.Error().Err(err).Msg("cannot parse keepass-entry")
+		}
+	}
+	if str := getFlagString(cmd, "keepass-key"); str != "" {
+		if err := conf.AES.KeepassKey.UnmarshalText(([]byte)(str)); err != nil {
+			logger.Error().Err(err).Msg("cannot parse keepass-key")
+		}
+	}
 }
 
 // doCreate is the main function for the 'create' command.
@@ -87,6 +123,7 @@ func doCreate(cmd *cobra.Command, args []string) error {
 	// Update internal configuration based on provided flags
 	doInitConf(cmd)
 	doAddConf(cmd)
+	doCreateConf(cmd)
 
 	ocflPath = writefs.RealPath(vfs, ocflPath)
 	srcPath = writefs.RealPath(vfs, srcPath)
@@ -132,39 +169,89 @@ func doCreate(cmd *cobra.Command, args []string) error {
 		return errors.Wrapf(err, "cannot get filesystem for '%s'", srcPath)
 	}
 
+	var zipWriter io.WriteCloser
 	if isZip {
-		// Create a writer for the ZIP file
-		zipWriter, err := writefs.Create(vfs, ocflPath)
-		if err != nil {
-			return errors.Wrapf(err, "cannot create zip file '%s'", ocflPath)
-		}
-		// Initialize the ZIP filesystem wrapper
-		_destFS, err = zipfsw.NewFS(
-			zipWriter,
-			true, // closeWriter: zipfsw will close zipWriter when closed
-			true, // noCompression: as per requirements or config
-			path.Base(ocflPath),
-			[]checksum.DigestAlgorithm{conf.Init.Digest},
-			func(css map[checksum.DigestAlgorithm]string) error {
-				// Callback to write checksum files after ZIP is closed
-				if css == nil {
-					return errors.Errorf("checksum of '%s' cannot be nil", ocflPath)
+		if conf.AES.Enable {
+			var client registry.KMSClient
+			if conf.AES.Key != "" {
+				logger.Info().Msgf("using static KMS client")
+				client, err = statickms.NewClient(string(conf.AES.Key))
+				if err != nil {
+					return errors.Wrap(err, "cannot create static KMS client")
 				}
-				for alg, digest := range css {
-					if _, err := writefs.WriteFile(vfs, ocflPath+"."+alg.String(), []byte(fmt.Sprintf("%s *%s", digest, path.Base(ocflPath)))); err != nil {
-						logger.Error().Err(err).Msgf("cannot write checksum file '%s.%s'", ocflPath, alg.String())
-					}
+
+			} else {
+				logger.Info().Msgf("using keepass2kms client with file '%s'", conf.AES.KeepassFile)
+				db, err := keepass2kms.LoadKeePassDBFromFile(string(conf.AES.KeepassFile), string(conf.AES.KeepassKey))
+				if err != nil {
+					return errors.Wrapf(err, "cannot load keepass2kms database from file '%s'", conf.AES.KeepassFile)
 				}
-				return nil
-			},
-			logger.Logger(),
-		)
-		if err != nil {
-			// If ZIP FS creation fails, try to close zipWriter if possible
-			if closer, ok := zipWriter.(io.Closer); ok {
-				_ = closer.Close()
+
+				entryPath := conf.AES.KeepassEntry.String()
+				prefix := "keepass2://" + filepath.Base(string(conf.AES.KeepassFile)) + "/"
+				if strings.HasPrefix(entryPath, prefix) {
+					entryPath = entryPath[len(prefix):]
+				}
+
+				entry := keepass2kms.GetEntry(db.Content.Root, entryPath, false)
+				if entry == nil {
+					return errors.Errorf("key %s not found in keepass2kms database '%s'", conf.AES.KeepassEntry, conf.AES.KeepassFile)
+				}
+				key := entry.GetPassword()
+				if len(key) != 32 {
+					return errors.Errorf("key %s in keepass2kms database '%s' has wrong length (expected 32, got %d)", conf.AES.KeepassEntry, conf.AES.KeepassFile, len(key))
+				}
+				key = ""
+				_ = key
+
+				client, err = keepass2kms.NewClient(db, filepath.Base(string(conf.AES.KeepassFile)))
+				if err != nil {
+					return errors.Wrap(err, "cannot create keepass2kms client")
+				}
 			}
-			return errors.Wrapf(err, "cannot create zip filesystem for '%s'", ocflPath)
+			registry.RegisterKMSClient(client)
+			// create encrypted file
+			_destFS, err = zipfswenc.NewFSFileChecksumsEncrypted(
+				vfs,
+				ocflPath,
+				true,
+				[]checksum.DigestAlgorithm{conf.Init.Digest},
+				conf.AES.KeepassEntry.String(),
+				logger.Logger(),
+			)
+			if err != nil {
+				return errors.Wrapf(err, "cannot create encrypted zip file '%s'", ocflPath)
+			}
+		} else {
+			// Create a writer for the ZIP file
+			zipWriter, err = writefs.Create(vfs, ocflPath)
+			_destFS, err = zipfsw.NewFS(
+				zipWriter,
+				true, // closeWriter: zipfsw will close zipWriter when closed
+				true, // noCompression: as per requirements or config
+				path.Base(ocflPath),
+				[]checksum.DigestAlgorithm{conf.Init.Digest},
+				func(css map[checksum.DigestAlgorithm]string) error {
+					// Callback to write checksum files after ZIP is closed
+					if css == nil {
+						return errors.Errorf("checksum of '%s' cannot be nil", ocflPath)
+					}
+					for alg, digest := range css {
+						if _, err := writefs.WriteFile(vfs, ocflPath+"."+alg.String(), []byte(fmt.Sprintf("%s *%s", digest, path.Base(ocflPath)))); err != nil {
+							logger.Error().Err(err).Msgf("cannot write checksum file '%s.%s'", ocflPath, alg.String())
+						}
+					}
+					return nil
+				},
+				logger.Logger(),
+			)
+			if err != nil {
+				// If ZIP FS creation fails, try to close zipWriter if possible
+				if closer, ok := zipWriter.(io.Closer); ok {
+					_ = closer.Close()
+				}
+				return errors.Wrapf(err, "cannot create zip filesystem for '%s'", ocflPath)
+			}
 		}
 	} else {
 		// Regular directory-based filesystem

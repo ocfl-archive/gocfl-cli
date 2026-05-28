@@ -46,6 +46,7 @@ type UpdateConfig struct {
 
 type AESConfig struct {
 	Enable       bool                 `toml:"enable"`
+	Key          configutil.EnvString `toml:"key"`
 	KeepassFile  configutil.EnvString `toml:"keepassfile"`
 	KeepassEntry configutil.EnvString `toml:"keepassentry"`
 	KeepassKey   configutil.EnvString `toml:"keepasskey"`

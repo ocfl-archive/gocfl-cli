@@ -242,12 +242,29 @@ func initializeFSFactory(zipDigests []checksum.DigestAlgorithm, aesConfig *confi
 			if err != nil {
 				return nil, errors.Wrapf(err, "cannot load keepass file '%s'", aesConfig.KeepassFile)
 			}
+
+			entryPath := aesConfig.KeepassEntry.String()
+			prefix := "keepass2://" + filepath.Base(string(aesConfig.KeepassFile)) + "/"
+			if strings.HasPrefix(entryPath, prefix) {
+				entryPath = entryPath[len(prefix):]
+			}
+
+			entry := keepass2kms.GetEntry(db.Content.Root, entryPath, false)
+			if entry == nil {
+				return nil, errors.Errorf("key %s not found in keepass2kms database '%s'", aesConfig.KeepassEntry, aesConfig.KeepassFile)
+			}
+			key := entry.GetPassword()
+			if len(key) != 32 {
+				return nil, errors.Errorf("key %s in keepass2kms database '%s' has wrong length (expected 32, got %d)", aesConfig.KeepassEntry, aesConfig.KeepassFile, len(key))
+			}
+			key = ""
+			_ = key
+
 			client, err := keepass2kms.NewClient(db, filepath.Base(string(aesConfig.KeepassFile)))
 			if err != nil {
 				return nil, errors.Wrap(err, "cannot create keepass2kms client")
 			}
 			registry.RegisterKMSClient(client)
-			// todo: check for existence of key
 
 			if err := fsFactory.Register(zipfsrw.NewCreateFSEncryptedChecksumFunc(noCompression, zipDigests, string(aesConfig.KeepassEntry), logger.Logger()), "\\.zip$", writefs.HighFS); err != nil {
 				return nil, errors.Wrap(err, "cannot register FSEncryptedChecksum")
