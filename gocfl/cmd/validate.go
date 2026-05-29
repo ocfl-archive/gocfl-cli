@@ -4,7 +4,10 @@ import (
 	"io/fs"
 	"os"
 
+	"strings"
+
 	"github.com/ocfl-archive/filesystem/pkg/writefs"
+	"github.com/ocfl-archive/filesystem/pkg/zipfs"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
 	defaultextensions_storageroot "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/storageroot"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl"
@@ -81,15 +84,26 @@ func doValidate(cmd *cobra.Command, args []string) {
 
 	ocflPath = writefs.RealPath(vfs, ocflPath)
 
-	// Prepare access to the OCFL directory
-	destFS, err := writefs.Sub(vfs, ocflPath)
-	if err != nil {
-		logger.Error().Err(err).Msgf("cannot get filesystem for '%s'", ocflPath)
-		return
+	var destFS fs.FS
+	if strings.HasSuffix(strings.ToLower(ocflPath), ".zip") {
+		var err error
+		destFS, err = zipfs.NewFSFile(vfs, ocflPath, logger.Logger())
+		if err != nil {
+			logger.Error().Err(err).Msgf("cannot open zip filesystem for '%s'", ocflPath)
+			return
+		}
+	} else {
+		// Prepare access to the OCFL directory
+		var err error
+		destFS, err = writefs.Sub(vfs, ocflPath)
+		if err != nil {
+			logger.Error().Err(err).Msgf("cannot get filesystem for '%s'", ocflPath)
+			return
+		}
 	}
 	defer func() {
 		if err := writefs.Close(destFS); err != nil {
-			logger.Error().Err(err).Msgf("cannot close filesystem for '%s'", destFS)
+			logger.Error().Err(err).Msgf("cannot close filesystem for '%s'", ocflPath)
 		}
 	}()
 
