@@ -80,7 +80,19 @@ func doInitConfig(cmd *cobra.Command, args []string) {
 	} else {
 		configFolder = args[0]
 	}
-	configFolder = writefs.RealPath(vfs, configFolder)
+	if strings.HasPrefix(configFolder, "~/") {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			logger.Fatal().Err(err).Msg("cannot get home directory")
+		}
+		configFolder = filepath.Join(homeDir, configFolder[2:])
+	}
+	configFolder, err = filepath.Abs(configFolder)
+	if err != nil {
+		logger.Fatal().Err(err).Msgf("cannot get absolute path to config folder '%s'", configFolder)
+	}
+	configFolder = filepath.ToSlash(configFolder)
+	logger.Info().Msgf("Config Folder: %s", configFolder)
 
 	// Update configuration based on flags
 	doInitConfigConf(cmd)
