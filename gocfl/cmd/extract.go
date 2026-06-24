@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path"
+	"strings"
 
 	"emperror.dev/errors"
 	"github.com/ocfl-archive/filesystem/pkg/appendfs"
 	"github.com/ocfl-archive/filesystem/pkg/writefs"
+	"github.com/ocfl-archive/filesystem/pkg/zipfs"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl"
 	inventorytypes "github.com/ocfl-archive/gocfl/v3/pkg/ocfl/inventory"
@@ -63,6 +66,7 @@ func doExtractConf(cmd *cobra.Command) {
 // It initializes the logger, sets up the virtual file system (VFS), loads extension managers,
 // and extracts a specific version of an OCFL object to a target folder.
 func doExtract(cmd *cobra.Command, args []string) {
+	var err error
 	rootPath := args[0]
 	destPath := args[1]
 
@@ -83,10 +87,21 @@ func doExtract(cmd *cobra.Command, args []string) {
 	destPath = writefs.RealPath(vfs, destPath)
 
 	// Prepare source and destination filesystems
-	ocflFS, err := writefs.Sub(vfs, rootPath)
-	if err != nil {
-		logger.Error().Err(err).Msgf("cannot get filesystem for '%s'", rootPath)
-		return
+	var ocflFS fs.FS
+	if strings.ToLower(path.Ext(rootPath)) == ".zip" {
+		zipFS, err := zipfs.NewFSFile(vfs, rootPath, logger.Logger())
+		if err != nil {
+			logger.Error().Err(err).Msgf("cannot open zip filesystem at '%s'", rootPath)
+			return
+		}
+		defer zipFS.Close()
+		ocflFS = zipFS
+	} else {
+		ocflFS, err = writefs.Sub(vfs, rootPath)
+		if err != nil {
+			logger.Error().Err(err).Msgf("cannot open ocfl filesystem at '%s'", rootPath)
+			return
+		}
 	}
 	destFS, err := writefs.SubCreate(vfs, destPath)
 	if err != nil {

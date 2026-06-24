@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path"
 	"strings"
 
 	"emperror.dev/errors"
 	"github.com/ocfl-archive/filesystem/pkg/writefs"
+	"github.com/ocfl-archive/filesystem/pkg/zipfs"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
@@ -63,6 +65,7 @@ func doExtractMetaConf(cmd *cobra.Command) {
 // doExtractMeta is the main function for the 'extractmeta' command.
 // It extracts metadata from an OCFL object and outputs it in JSON format.
 func doExtractMeta(cmd *cobra.Command, args []string) {
+	var err error
 	ocflPath := args[0]
 
 	// Update configuration based on flags
@@ -93,10 +96,21 @@ func doExtractMeta(cmd *cobra.Command, args []string) {
 
 	logger.Info().Msgf("extracting metadata from '%s'", ocflPath)
 
-	ocflFS, err := writefs.Sub(vfs, ocflPath)
-	if err != nil {
-		logger.Error().Err(err).Msgf("cannot open ocfl filesystem at '%s'", ocflPath)
-		return
+	var ocflFS fs.FS
+	if strings.ToLower(path.Ext(ocflPath)) == ".zip" {
+		zipFS, err := zipfs.NewFSFile(vfs, ocflPath, logger.Logger())
+		if err != nil {
+			logger.Error().Err(err).Msgf("cannot open zip filesystem at '%s'", ocflPath)
+			return
+		}
+		defer zipFS.Close()
+		ocflFS = zipFS
+	} else {
+		ocflFS, err = writefs.Sub(vfs, ocflPath)
+		if err != nil {
+			logger.Error().Err(err).Msgf("cannot open ocfl filesystem at '%s'", ocflPath)
+			return
+		}
 	}
 	extensionParams, err := getExtensionParams(cmd)
 	if err != nil {
