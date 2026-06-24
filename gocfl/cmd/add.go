@@ -8,6 +8,7 @@ import (
 
 	"emperror.dev/errors"
 	"github.com/je4/utils/v2/pkg/checksum"
+	configutil "github.com/je4/utils/v2/pkg/config"
 	"github.com/ocfl-archive/filesystem/pkg/appendfs"
 	"github.com/ocfl-archive/filesystem/pkg/writefs"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
@@ -72,7 +73,7 @@ func doAddConf(cmd *cobra.Command) {
 		conf.Add.Message = str
 	}
 	if str := getFlagString(cmd, "default-object-extensions"); str != "" {
-		conf.Add.ObjectExtensionFolder = str
+		conf.Add.ObjectExtensionFolder = configutil.Path(str)
 	}
 	if b, ok := getFlagBool(cmd, "deduplicate"); b {
 		if ok {
@@ -223,7 +224,7 @@ func doAdd(cmd *cobra.Command, args []string) {
 		conf.Add.User.Address,
 		conf.Add.Message,
 		sourceFS,
-		firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)),
+		firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder.String())),
 		area,
 		areaPaths,
 		false,

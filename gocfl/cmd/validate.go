@@ -6,6 +6,7 @@ import (
 
 	"strings"
 
+	configutil "github.com/je4/utils/v2/pkg/config"
 	"github.com/ocfl-archive/filesystem/pkg/writefs"
 	"github.com/ocfl-archive/filesystem/pkg/zipfs"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
@@ -34,7 +35,7 @@ func initValidate() {
 // doValidateConf updates the configuration based on the command line flags.
 func doValidateConf(cmd *cobra.Command) {
 	if str := getFlagString(cmd, "object-path"); str != "" {
-		conf.Validate.ObjectPath = str
+		conf.Validate.ObjectPath = configutil.Path(str)
 	}
 	if str := getFlagString(cmd, "object-id"); str != "" {
 		conf.Validate.ObjectID = str
@@ -59,7 +60,7 @@ func doValidate(cmd *cobra.Command, args []string) {
 	}
 
 	// Load extension manager for storage root
-	storageRootExtensionManager, _, err := ocfl.SetupExtensionManager[storageroot.ExtensionManager](extensionParams, firstOrSecond(conf.Init.StorageRootExtensionFolder == "", (fs.FS)(defaultextensions_storageroot.DefaultStorageRootExtensionFS), os.DirFS(conf.Init.StorageRootExtensionFolder)), logger)
+	storageRootExtensionManager, _, err := ocfl.SetupExtensionManager[storageroot.ExtensionManager](extensionParams, firstOrSecond(conf.Init.StorageRootExtensionFolder == "", (fs.FS)(defaultextensions_storageroot.DefaultStorageRootExtensionFS), os.DirFS(conf.Init.StorageRootExtensionFolder.String())), logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup storage root extension manager")
 		return
@@ -71,7 +72,7 @@ func doValidate(cmd *cobra.Command, args []string) {
 	}()
 
 	// Load extension manager for objects
-	objectExtensionManager, _, err := ocfl.SetupExtensionManager[object.ExtensionManager](extensionParams, firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)), logger)
+	objectExtensionManager, _, err := ocfl.SetupExtensionManager[object.ExtensionManager](extensionParams, firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder.String())), logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup object extension manager")
 		return
@@ -115,7 +116,7 @@ func doValidate(cmd *cobra.Command, args []string) {
 	}
 	defer sr.Close()
 	objectID := conf.Validate.ObjectID
-	objectPath := conf.Validate.ObjectPath
+	objectPath := conf.Validate.ObjectPath.String()
 	if objectID != "" && objectPath != "" {
 		logger.Error().Msg("do not use object-path AND object-id at the same time")
 		return

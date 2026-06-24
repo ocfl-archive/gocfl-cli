@@ -7,6 +7,7 @@ import (
 	"regexp"
 
 	"emperror.dev/errors"
+	configutil "github.com/je4/utils/v2/pkg/config"
 	"github.com/ocfl-archive/filesystem/pkg/writefs"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
@@ -31,7 +32,7 @@ func initTest() {
 // doTestConf updates the configuration based on the command line flags for the 'test' command.
 func doTestConf(cmd *cobra.Command) {
 	if str := getFlagString(cmd, "object-path"); str != "" {
-		conf.Test.ObjectPath = str
+		conf.Test.ObjectPath = configutil.Path(str)
 	}
 }
 
@@ -39,13 +40,13 @@ func doTestConf(cmd *cobra.Command) {
 // It runs validation tests against OCFL test fixtures in a specified folder.
 func doTest(cmd *cobra.Command, args []string) {
 	if len(args) > 0 && len(args[0]) > 0 {
-		conf.Test.FixturePath = args[0]
+		conf.Test.FixturePath = configutil.Path(args[0])
 	}
 
 	// Update configuration based on flags
 	doTestConf(cmd)
 
-	fixturePath := conf.Test.FixturePath
+	fixturePath := conf.Test.FixturePath.String()
 	fixturePath = writefs.RealPath(vfs, fixturePath)
 	logger.Info().Msgf("vfs created : %v", vfs)
 
@@ -71,7 +72,7 @@ func doTest(cmd *cobra.Command, args []string) {
 	}
 	for _, dir := range dirs {
 		folderName := dir.Name()
-		if conf.Test.ObjectPath != "" && folderName != conf.Test.ObjectPath {
+		if conf.Test.ObjectPath != "" && folderName != conf.Test.ObjectPath.String() {
 			logger.Debug().Msgf("ignoring dir '%s'", folderName)
 			continue
 		}

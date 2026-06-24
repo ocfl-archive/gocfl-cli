@@ -6,6 +6,7 @@ import (
 
 	"emperror.dev/errors"
 	"github.com/je4/utils/v2/pkg/checksum"
+	configutil "github.com/je4/utils/v2/pkg/config"
 	"github.com/ocfl-archive/filesystem/pkg/appendfs"
 	"github.com/ocfl-archive/filesystem/pkg/writefs"
 	defaultextensions_storageroot "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/storageroot"
@@ -33,7 +34,7 @@ func initInit() {
 // doInitConf updates the configuration based on the command line flags for the 'init' command.
 func doInitConf(cmd *cobra.Command) {
 	if str := getFlagString(cmd, "default-storageroot-extensions"); str != "" {
-		conf.Init.StorageRootExtensionFolder = str
+		conf.Init.StorageRootExtensionFolder = configutil.Path(str)
 	}
 
 	if str := getFlagString(cmd, "ocfl-version"); str != "" {
@@ -89,7 +90,7 @@ func doInit(cmd *cobra.Command, args []string) {
 	if _, err := CreateStorageRoot(
 		ctx,
 		destFS,
-		firstOrSecond(conf.Init.StorageRootExtensionFolder == "", (fs.FS)(defaultextensions_storageroot.DefaultStorageRootExtensionFS), os.DirFS(conf.Init.StorageRootExtensionFolder)),
+		firstOrSecond(conf.Init.StorageRootExtensionFolder == "", (fs.FS)(defaultextensions_storageroot.DefaultStorageRootExtensionFS), os.DirFS(conf.Init.StorageRootExtensionFolder.String())),
 		version.OCFLVersion(conf.Init.OCFLVersion),
 		conf.Init.Digest,
 		extensionParams, logger,

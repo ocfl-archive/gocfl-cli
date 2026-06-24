@@ -21,14 +21,14 @@ const DefaultPath = "~/gocfl/gocfl.toml"
 
 type InitConfig struct {
 	OCFLVersion                string                   `toml:"ocflversion"`
-	StorageRootExtensionFolder string                   `toml:"storagerootextensions"`
+	StorageRootExtensionFolder configutil.Path          `toml:"storagerootextensions"`
 	Digest                     checksum.DigestAlgorithm `toml:"digest"`
 }
 
 type AddConfig struct {
 	Deduplicate           bool                     `toml:"deduplicate"`
 	NoCompress            bool                     `toml:"nocompress"`
-	ObjectExtensionFolder string                   `toml:"objectextensions"`
+	ObjectExtensionFolder configutil.Path          `toml:"objectextensions"`
 	User                  *UserConfig              `toml:"user"`
 	Digest                checksum.DigestAlgorithm `toml:"digest"`
 	Fixity                []string                 `toml:"fixity"`
@@ -47,51 +47,51 @@ type UpdateConfig struct {
 type AESConfig struct {
 	Enable       bool                 `toml:"enable"`
 	Key          configutil.EnvString `toml:"key"`
-	KeepassFile  configutil.EnvString `toml:"keepassfile"`
+	KeepassFile  configutil.Path      `toml:"keepassfile"`
 	KeepassEntry configutil.EnvString `toml:"keepassentry"`
 	KeepassKey   configutil.EnvString `toml:"keepasskey"`
 	IV           configutil.EnvString `toml:"iv"`
 }
 
 type DisplayConfig struct {
-	Addr      string `toml:"addr"`
-	AddrExt   string `toml:"addrext"`
-	CertFile  string `toml:"certfile"`
-	KeyFile   string `toml:"keyfile"`
-	Templates string `toml:"templates"`
-	Obfuscate bool   `toml:"obfuscate"`
+	Addr      string          `toml:"addr"`
+	AddrExt   string          `toml:"addrext"`
+	CertFile  configutil.Path `toml:"certfile"`
+	KeyFile   configutil.Path `toml:"keyfile"`
+	Templates configutil.Path `toml:"templates"`
+	Obfuscate bool            `toml:"obfuscate"`
 }
 type ExtractConfig struct {
-	Manifest   bool   `toml:"manifest"`
-	Version    string `toml:"version"`
-	ObjectPath string `toml:"objectpath"`
-	ObjectID   string `toml:"objectid"`
-	Area       string `toml:"area"`
+	Manifest   bool            `toml:"manifest"`
+	Version    string          `toml:"version"`
+	ObjectPath configutil.Path `toml:"objectpath"`
+	ObjectID   string          `toml:"objectid"`
+	Area       string          `toml:"area"`
 }
 
 type ValidateConfig struct {
-	ObjectPath string `toml:"objectpath"`
-	ObjectID   string `toml:"objectid"`
+	ObjectPath configutil.Path `toml:"objectpath"`
+	ObjectID   string          `toml:"objectid"`
 }
 
 type ExtractMetaConfig struct {
-	Version    string `toml:"version"`
-	Format     string `toml:"format"`
-	Output     string `toml:"output"`
-	ObjectPath string `toml:"objectpath"`
-	ObjectID   string `toml:"objectid"`
-	Obfuscate  bool   `toml:"obfuscate"`
+	Version    string          `toml:"version"`
+	Format     string          `toml:"format"`
+	Output     string          `toml:"output"`
+	ObjectPath configutil.Path `toml:"objectpath"`
+	ObjectID   string          `toml:"objectid"`
+	Obfuscate  bool            `toml:"obfuscate"`
 }
 
 type StatConfig struct {
-	Info       []string `toml:"info"`
-	ObjectPath string   `toml:"objectpath"`
-	ObjectID   string   `toml:"objectid"`
+	Info       []string        `toml:"info"`
+	ObjectPath configutil.Path `toml:"objectpath"`
+	ObjectID   string          `toml:"objectid"`
 }
 
 type TestConfig struct {
-	FixturePath string `toml:"fixturepath"`
-	ObjectPath  string `toml:"objectpath"`
+	FixturePath configutil.Path `toml:"fixturepath"`
+	ObjectPath  configutil.Path `toml:"objectpath"`
 }
 
 type UserConfig struct {
@@ -107,13 +107,13 @@ type S3Config struct {
 }
 
 type InitConfigConfig struct {
-	ConfigFolder    string `toml:"configfolder"`
-	TOMLFile        string `toml:"tomlfile"`
-	ExtensionFolder string `toml:"extensionfolder"`
-	ScriptFolder    string `toml:"scriptfolder"`
-	FullConfig      bool   `toml:"fullconfig"`
-	Extensions      bool   `toml:"extensions"`
-	Scripts         bool   `toml:"scripts"`
+	ConfigFolder    configutil.Path `toml:"configfolder"`
+	TOMLFile        configutil.Path `toml:"tomlfile"`
+	ExtensionFolder configutil.Path `toml:"extensionfolder"`
+	ScriptFolder    configutil.Path `toml:"scriptfolder"`
+	FullConfig      bool            `toml:"fullconfig"`
+	Extensions      bool            `toml:"extensions"`
+	Scripts         bool            `toml:"scripts"`
 }
 
 type GOCFLConfig struct {
@@ -152,27 +152,23 @@ func LoadGOCFLConfig(filename string) (*GOCFLConfig, error) {
 		return nil, errors.Wrap(err, "error decoding GOCFL default configuration")
 	}
 	if filename == "" {
-		filename, err = util.Fullpath(DefaultPath)
-		if err != nil {
-			return nil, errors.Wrapf(err, "error getting '~/gocfl/gocfl.toml' file path")
-		}
-		if _, err := os.Stat(filename); os.IsNotExist(err) {
-			filename = ""
-		}
+		filename = DefaultPath
 	}
-	if filename != "" {
-		var configData []byte
-		if filename == "internal" {
-			configData, err = fs.ReadFile(internal.InternalFS, "default.toml")
-		} else {
-			configData, err = os.ReadFile(filename)
-		}
+	var configData []byte
+	if filename == "internal" {
+		configData, err = fs.ReadFile(internal.InternalFS, "default.toml")
+	} else {
+		filename, err = util.Fullpath(filename)
 		if err != nil {
-			return nil, errors.Wrapf(err, "error reading configuration file %s", filename)
+			return nil, errors.Wrapf(err, "error getting fullpath for '%s'", filename)
 		}
-		if _, err := toml.Decode(string(configData), conf); err != nil {
-			return nil, errors.Wrapf(err, "error decoding configuration file %s", filename)
-		}
+		configData, err = os.ReadFile(filename)
+	}
+	if err != nil {
+		return nil, errors.Wrapf(err, "error reading configuration file %s", filename)
+	}
+	if _, err := toml.Decode(string(configData), conf); err != nil {
+		return nil, errors.Wrapf(err, "error decoding configuration file %s", filename)
 	}
 	/*
 		if conf.Indexer.Optimize {

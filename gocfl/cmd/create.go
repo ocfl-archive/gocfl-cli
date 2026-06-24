@@ -308,7 +308,7 @@ func doCreate(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create the OCFL storage root
-	extensionFS := firstOrSecond(conf.Init.StorageRootExtensionFolder == "", (fs.FS)(defaultextensions_storageroot.DefaultStorageRootExtensionFS), os.DirFS(conf.Init.StorageRootExtensionFolder))
+	extensionFS := firstOrSecond(conf.Init.StorageRootExtensionFolder == "", (fs.FS)(defaultextensions_storageroot.DefaultStorageRootExtensionFS), os.DirFS(conf.Init.StorageRootExtensionFolder.String()))
 	storageRoot, err := CreateStorageRoot(
 		ctx,
 		destFS,
@@ -342,7 +342,7 @@ func doCreate(cmd *cobra.Command, args []string) error {
 	}()
 
 	// Initialize the OCFL object
-	objectExtensionFS := firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder))
+	objectExtensionFS := firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder.String()))
 	o, err := ocfl.InitObject(ctx, objectFS, objectExtensionFS, storageRoot.GetOCFLVersion(), flagObjectID, storageRoot.GetDigest(), extensionParams, logger)
 	if err != nil {
 		return errors.Wrapf(err, "cannot create object %s", flagObjectID)

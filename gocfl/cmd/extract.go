@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"emperror.dev/errors"
+	configutil "github.com/je4/utils/v2/pkg/config"
 	"github.com/ocfl-archive/filesystem/pkg/appendfs"
 	"github.com/ocfl-archive/filesystem/pkg/writefs"
 	"github.com/ocfl-archive/filesystem/pkg/zipfs"
@@ -41,7 +42,7 @@ func initExtract() {
 // doExtractConf updates the configuration based on the command line flags for the 'extract' command.
 func doExtractConf(cmd *cobra.Command) {
 	if str := getFlagString(cmd, "object-path"); str != "" {
-		conf.Extract.ObjectPath = str
+		conf.Extract.ObjectPath = configutil.Path(str)
 	}
 	if str := getFlagString(cmd, "object-id"); str != "" {
 		conf.Extract.ObjectID = str
@@ -127,7 +128,7 @@ func doExtract(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	objectExtensionManager, _, err := ocfl.SetupExtensionManager[object.ExtensionManager](extensionParams, firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)), logger)
+	objectExtensionManager, _, err := ocfl.SetupExtensionManager[object.ExtensionManager](extensionParams, firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder.String())), logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup object extension manager")
 		return
@@ -157,11 +158,12 @@ func doExtract(cmd *cobra.Command, args []string) {
 		return
 	}
 	if conf.Extract.ObjectID != "" {
-		conf.Extract.ObjectPath, err = sr.IdToFolder(conf.Extract.ObjectID)
+		p, err := sr.IdToFolder(conf.Extract.ObjectID)
 		if err != nil {
 			logger.Error().Err(err).Msgf("cannot get object-path for '%s'", conf.Extract.ObjectID)
 			return
 		}
+		conf.Extract.ObjectPath = configutil.Path(p)
 	}
 
 	destAppendFS, ok := destFS.(appendfs.FS)

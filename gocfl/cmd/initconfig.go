@@ -14,6 +14,7 @@ import (
 	"github.com/ocfl-archive/filesystem/pkg/writefs"
 	"github.com/ocfl-archive/gocfl-cli/internal"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_thumbnail"
+	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/util"
 	"github.com/spf13/cobra"
 )
 
@@ -50,13 +51,13 @@ func initInitConfig() {
 // doInitConfigConf updates the configuration based on the command line flags for the 'initconfig' command.
 func doInitConfigConf(cmd *cobra.Command) {
 	if str := getFlagString(cmd, "toml"); str != "" {
-		conf.InitConfig.TOMLFile = str
+		conf.InitConfig.TOMLFile = configutil.Path(str)
 	}
 	if str := getFlagString(cmd, "extension-folder"); str != "" {
-		conf.InitConfig.ExtensionFolder = str
+		conf.InitConfig.ExtensionFolder = configutil.Path(str)
 	}
 	if str := getFlagString(cmd, "script-folder"); str != "" {
-		conf.InitConfig.ScriptFolder = str
+		conf.InitConfig.ScriptFolder = configutil.Path(str)
 	}
 	if b, ok := getFlagBool(cmd, "fullconfig"); ok {
 		conf.InitConfig.FullConfig = b
@@ -76,20 +77,13 @@ func doInitConfig(cmd *cobra.Command, args []string) {
 	var configFolder string
 	var err error
 	if len(args) == 0 {
-		configFolder = conf.InitConfig.ConfigFolder
+		configFolder = conf.InitConfig.ConfigFolder.String()
 	} else {
 		configFolder = args[0]
 	}
-	if strings.HasPrefix(configFolder, "~/") {
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			logger.Fatal().Err(err).Msg("cannot get home directory")
-		}
-		configFolder = filepath.Join(homeDir, configFolder[2:])
-	}
-	configFolder, err = filepath.Abs(configFolder)
+	configFolder, err = util.Fullpath(configFolder)
 	if err != nil {
-		logger.Fatal().Err(err).Msgf("cannot get absolute path to config folder '%s'", configFolder)
+		logger.Fatal().Err(err).Msgf("cannot get full path to config folder '%s'", configFolder)
 	}
 	configFolder = filepath.ToSlash(configFolder)
 	logger.Info().Msgf("Config Folder: %s", configFolder)
@@ -97,9 +91,9 @@ func doInitConfig(cmd *cobra.Command, args []string) {
 	// Update configuration based on flags
 	doInitConfigConf(cmd)
 
-	var scriptFolder = conf.InitConfig.ScriptFolder
-	var extensionFolder = conf.InitConfig.ExtensionFolder
-	var tomlPath = conf.InitConfig.TOMLFile
+	var scriptFolder = conf.InitConfig.ScriptFolder.String()
+	var extensionFolder = conf.InitConfig.ExtensionFolder.String()
+	var tomlPath = conf.InitConfig.TOMLFile.String()
 	if !filepath.IsAbs(scriptFolder) {
 		scriptFolder = filepath.ToSlash(filepath.Join(configFolder, scriptFolder))
 	}
@@ -173,10 +167,10 @@ func doInitConfig(cmd *cobra.Command, args []string) {
 			logger.Fatal().Err(err).Msg("cannot walk internal:extensions")
 		}
 
-		conf.Init.StorageRootExtensionFolder = filepath.ToSlash(filepath.Join(extensionFolder, "storageroot"))
+		conf.Init.StorageRootExtensionFolder = configutil.Path(filepath.ToSlash(filepath.Join(extensionFolder, "storageroot")))
 		newMiniConfig["init.storagerootextensions"] = conf.Init.StorageRootExtensionFolder
 
-		conf.Add.ObjectExtensionFolder = filepath.ToSlash(filepath.Join(extensionFolder, "object"))
+		conf.Add.ObjectExtensionFolder = configutil.Path(filepath.ToSlash(filepath.Join(extensionFolder, "object")))
 		newMiniConfig["add.objectextensions"] = conf.Add.ObjectExtensionFolder
 	}
 	thumbConf, thumbMiniconfig, err := ext_NNNN_thumbnail.InitConfig(conf.Thumbnail, scriptFolder, logger.Logger())

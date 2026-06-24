@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	configutil "github.com/je4/utils/v2/pkg/config"
 	"github.com/ocfl-archive/filesystem/pkg/writefs"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
 	"github.com/ocfl-archive/gocfl-cli/data/displaydata"
@@ -57,13 +58,13 @@ func doDisplayConf(cmd *cobra.Command) {
 		conf.Display.AddrExt = str
 	}
 	if str := getFlagString(cmd, "display-templates"); str != "" {
-		conf.Display.Templates = str
+		conf.Display.Templates = configutil.Path(str)
 	}
 	if str := getFlagString(cmd, "display-tls-cert"); str != "" {
-		conf.Display.CertFile = str
+		conf.Display.CertFile = configutil.Path(str)
 	}
 	if str := getFlagString(cmd, "display-tls-key"); str != "" {
-		conf.Display.KeyFile = str
+		conf.Display.KeyFile = configutil.Path(str)
 	}
 }
 
@@ -112,7 +113,7 @@ func doDisplay(cmd *cobra.Command, args []string) {
 	}
 	defer storageRoot.Close()
 
-	objectExtensionManager, objectExtensionFactory, err := ocfl.SetupExtensionManager[object.ExtensionManager](extensionParams, firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)), logger)
+	objectExtensionManager, objectExtensionFactory, err := ocfl.SetupExtensionManager[object.ExtensionManager](extensionParams, firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder.String())), logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup object extension manager")
 		return
@@ -133,7 +134,7 @@ func doDisplay(cmd *cobra.Command, args []string) {
 			return
 		}
 	} else {
-		templateFS = os.DirFS(conf.Display.Templates)
+		templateFS = os.DirFS(conf.Display.Templates.String())
 	}
 	srv, err := display.NewServer(storageRoot, objectExtensionFactory, "gocfl", conf.Display.Addr, urlC, displaydata.WebRoot, templateFS, logger, io.Discard)
 	if err != nil {

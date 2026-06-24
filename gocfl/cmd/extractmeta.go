@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"emperror.dev/errors"
+	configutil "github.com/je4/utils/v2/pkg/config"
 	"github.com/ocfl-archive/filesystem/pkg/writefs"
 	"github.com/ocfl-archive/filesystem/pkg/zipfs"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
@@ -40,7 +41,7 @@ func initExtractMeta() {
 // doExtractMetaConf updates the configuration based on the command line flags for the 'extractmeta' command.
 func doExtractMetaConf(cmd *cobra.Command) {
 	if str := getFlagString(cmd, "object-path"); str != "" {
-		conf.ExtractMeta.ObjectPath = str
+		conf.ExtractMeta.ObjectPath = configutil.Path(str)
 	}
 	if str := getFlagString(cmd, "object-id"); str != "" {
 		conf.ExtractMeta.ObjectID = str
@@ -125,7 +126,7 @@ func doExtractMeta(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	objectExtensionManager, _, err := ocfl.SetupExtensionManager[object.ExtensionManager](extensionParams, firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder)), logger)
+	objectExtensionManager, _, err := ocfl.SetupExtensionManager[object.ExtensionManager](extensionParams, firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder.String())), logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup object extension manager")
 		return
@@ -145,14 +146,15 @@ func doExtractMeta(cmd *cobra.Command, args []string) {
 	defer sr.Close()
 	logger.WithVersion(sr.GetOCFLVersion())
 	if oID != "" {
-		oPath, err = sr.IdToFolder(oID)
+		p, err := sr.IdToFolder(oID)
 		if err != nil {
 			logger.Error().Err(err).Msgf("cannot get id folder for '%s'", oID)
 			return
 		}
+		oPath = configutil.Path(p)
 	}
 
-	objPathFS, err := fs.Sub(sr.GetReadFS(), oPath)
+	objPathFS, err := fs.Sub(sr.GetReadFS(), oPath.String())
 	if err != nil {
 		logger.Error().Err(err).Msgf("cannot get subfs for '%s'", oPath)
 		return

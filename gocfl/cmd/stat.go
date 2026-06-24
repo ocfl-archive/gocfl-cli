@@ -7,6 +7,7 @@ import (
 
 	"emperror.dev/emperror"
 	"emperror.dev/errors"
+	configutil "github.com/je4/utils/v2/pkg/config"
 	"github.com/ocfl-archive/filesystem/pkg/appendfs"
 	"github.com/ocfl-archive/filesystem/pkg/writefs"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl"
@@ -39,7 +40,7 @@ func initStat() {
 // doStatConf updates the configuration based on the command line flags for the 'stat' command.
 func doStatConf(cmd *cobra.Command) {
 	if str := getFlagString(cmd, "object-path"); str != "" {
-		conf.Stat.ObjectPath = str
+		conf.Stat.ObjectPath = configutil.Path(str)
 	}
 	if str := getFlagString(cmd, "object-id"); str != "" {
 		conf.Stat.ObjectID = str
@@ -60,7 +61,7 @@ func doStat(cmd *cobra.Command, args []string) {
 	// Update configuration based on flags
 	doStatConf(cmd)
 
-	oPath := conf.Stat.ObjectPath
+	oPath := conf.Stat.ObjectPath.String()
 	oID := conf.Stat.ObjectID
 	if oPath != "" && oID != "" {
 		emperror.Panic(cmd.Help())

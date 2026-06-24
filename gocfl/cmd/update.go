@@ -156,7 +156,7 @@ func doUpdate(cmd *cobra.Command, args []string) {
 	}
 
 	// Setup extension managers for storage root and object
-	_, _, err = ocfl.SetupExtensionManager[storageroot.ExtensionManager](extensionParams, firstOrSecond(conf.Init.StorageRootExtensionFolder == "", (fs.FS)(defaultextensions_storageroot.DefaultStorageRootExtensionFS), os.DirFS(conf.Init.StorageRootExtensionFolder)), logger)
+	_, _, err = ocfl.SetupExtensionManager[storageroot.ExtensionManager](extensionParams, firstOrSecond(conf.Init.StorageRootExtensionFolder == "", (fs.FS)(defaultextensions_storageroot.DefaultStorageRootExtensionFS), os.DirFS(conf.Init.StorageRootExtensionFolder.String())), logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup storage root extension manager")
 		doNotClose = true
