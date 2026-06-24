@@ -6,7 +6,6 @@ import (
 
 	"emperror.dev/errors"
 	"github.com/je4/utils/v2/pkg/checksum"
-	configutil "github.com/je4/utils/v2/pkg/config"
 	"github.com/ocfl-archive/filesystem/pkg/appendfs"
 	"github.com/ocfl-archive/filesystem/pkg/writefs"
 	defaultextensions_storageroot "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/storageroot"
@@ -34,7 +33,10 @@ func initInit() {
 // doInitConf updates the configuration based on the command line flags for the 'init' command.
 func doInitConf(cmd *cobra.Command) {
 	if str := getFlagString(cmd, "default-storageroot-extensions"); str != "" {
-		conf.Init.StorageRootExtensionFolder = configutil.Path(str)
+		if err := conf.Init.StorageRootExtensionFolder.UnmarshalText([]byte(str)); err != nil {
+			logger.Error().Err(err).Msgf("invalid default-storageroot-extensions '%s' for flag 'default-storageroot-extensions' or 'Init.StorageRootExtensionFolder' config file entry", str)
+			return
+		}
 	}
 
 	if str := getFlagString(cmd, "ocfl-version"); str != "" {

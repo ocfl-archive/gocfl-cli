@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"emperror.dev/errors"
-	configutil "github.com/je4/utils/v2/pkg/config"
 	"github.com/ocfl-archive/filesystem/pkg/writefs"
 	"github.com/ocfl-archive/filesystem/pkg/zipfs"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
@@ -41,7 +40,10 @@ func initExtractMeta() {
 // doExtractMetaConf updates the configuration based on the command line flags for the 'extractmeta' command.
 func doExtractMetaConf(cmd *cobra.Command) {
 	if str := getFlagString(cmd, "object-path"); str != "" {
-		conf.ExtractMeta.ObjectPath = configutil.Path(str)
+		if err := conf.ExtractMeta.ObjectPath.UnmarshalText([]byte(str)); err != nil {
+			logger.Error().Err(err).Msgf("invalid object-path '%s' for flag 'object-path' or 'ExtractMeta.ObjectPath' config file entry", str)
+			return
+		}
 	}
 	if str := getFlagString(cmd, "object-id"); str != "" {
 		conf.ExtractMeta.ObjectID = str
@@ -72,7 +74,7 @@ func doExtractMeta(cmd *cobra.Command, args []string) {
 	// Update configuration based on flags
 	doExtractMetaConf(cmd)
 
-	oPath := conf.ExtractMeta.ObjectPath
+	oPath := conf.ExtractMeta.ObjectPath.String()
 	oID := conf.ExtractMeta.ObjectID
 	if oPath != "" && oID != "" {
 		cmd.Help()
@@ -146,15 +148,14 @@ func doExtractMeta(cmd *cobra.Command, args []string) {
 	defer sr.Close()
 	logger.WithVersion(sr.GetOCFLVersion())
 	if oID != "" {
-		p, err := sr.IdToFolder(oID)
+		oPath, err = sr.IdToFolder(oID)
 		if err != nil {
 			logger.Error().Err(err).Msgf("cannot get id folder for '%s'", oID)
 			return
 		}
-		oPath = configutil.Path(p)
 	}
 
-	objPathFS, err := fs.Sub(sr.GetReadFS(), oPath.String())
+	objPathFS, err := fs.Sub(sr.GetReadFS(), oPath)
 	if err != nil {
 		logger.Error().Err(err).Msgf("cannot get subfs for '%s'", oPath)
 		return

@@ -8,7 +8,6 @@ import (
 
 	"emperror.dev/errors"
 	"github.com/je4/utils/v2/pkg/checksum"
-	configutil "github.com/je4/utils/v2/pkg/config"
 	"github.com/ocfl-archive/filesystem/pkg/appendfs"
 	"github.com/ocfl-archive/filesystem/pkg/writefs"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
@@ -73,7 +72,10 @@ func doAddConf(cmd *cobra.Command) {
 		conf.Add.Message = str
 	}
 	if str := getFlagString(cmd, "default-object-extensions"); str != "" {
-		conf.Add.ObjectExtensionFolder = configutil.Path(str)
+		if err := conf.Add.ObjectExtensionFolder.UnmarshalText([]byte(str)); err != nil {
+			_ = cmd.Help()
+			cobra.CheckErr(errors.Errorf("invalid default-object-extensions '%s' for flag 'default-object-extensions' or 'Add.ObjectExtensionFolder' config file entry", str))
+		}
 	}
 	if b, ok := getFlagBool(cmd, "deduplicate"); b {
 		if ok {

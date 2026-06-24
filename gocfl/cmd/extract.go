@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"emperror.dev/errors"
-	configutil "github.com/je4/utils/v2/pkg/config"
 	"github.com/ocfl-archive/filesystem/pkg/appendfs"
 	"github.com/ocfl-archive/filesystem/pkg/writefs"
 	"github.com/ocfl-archive/filesystem/pkg/zipfs"
@@ -42,7 +41,10 @@ func initExtract() {
 // doExtractConf updates the configuration based on the command line flags for the 'extract' command.
 func doExtractConf(cmd *cobra.Command) {
 	if str := getFlagString(cmd, "object-path"); str != "" {
-		conf.Extract.ObjectPath = configutil.Path(str)
+		if err := conf.Extract.ObjectPath.UnmarshalText([]byte(str)); err != nil {
+			logger.Error().Err(err).Msgf("invalid object-path '%s' for flag 'object-path' or 'Extract.ObjectPath' config file entry", str)
+			return
+		}
 	}
 	if str := getFlagString(cmd, "object-id"); str != "" {
 		conf.Extract.ObjectID = str
@@ -163,7 +165,10 @@ func doExtract(cmd *cobra.Command, args []string) {
 			logger.Error().Err(err).Msgf("cannot get object-path for '%s'", conf.Extract.ObjectID)
 			return
 		}
-		conf.Extract.ObjectPath = configutil.Path(p)
+		if err := conf.Extract.ObjectPath.UnmarshalText([]byte(p)); err != nil {
+			logger.Error().Err(err).Msgf("invalid object-path '%s' for flag 'object-path' or 'Extract.ObjectPath' config file entry", p)
+			return
+		}
 	}
 
 	destAppendFS, ok := destFS.(appendfs.FS)

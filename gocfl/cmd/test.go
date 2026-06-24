@@ -7,7 +7,6 @@ import (
 	"regexp"
 
 	"emperror.dev/errors"
-	configutil "github.com/je4/utils/v2/pkg/config"
 	"github.com/ocfl-archive/filesystem/pkg/writefs"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
@@ -32,7 +31,10 @@ func initTest() {
 // doTestConf updates the configuration based on the command line flags for the 'test' command.
 func doTestConf(cmd *cobra.Command) {
 	if str := getFlagString(cmd, "object-path"); str != "" {
-		conf.Test.ObjectPath = configutil.Path(str)
+		if err := conf.Test.ObjectPath.UnmarshalText([]byte(str)); err != nil {
+			logger.Error().Err(err).Msgf("invalid object-path '%s' for flag 'object-path' or 'Test.ObjectPath' config file entry", str)
+			return
+		}
 	}
 }
 
@@ -40,7 +42,10 @@ func doTestConf(cmd *cobra.Command) {
 // It runs validation tests against OCFL test fixtures in a specified folder.
 func doTest(cmd *cobra.Command, args []string) {
 	if len(args) > 0 && len(args[0]) > 0 {
-		conf.Test.FixturePath = configutil.Path(args[0])
+		if err := conf.Test.FixturePath.UnmarshalText([]byte(args[0])); err != nil {
+			logger.Error().Err(err).Msgf("invalid fixture-path '%s' for flag 'fixture-path' or 'Test.FixturePath' config file entry", args[0])
+			return
+		}
 	}
 
 	// Update configuration based on flags

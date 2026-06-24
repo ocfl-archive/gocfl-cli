@@ -6,7 +6,6 @@ import (
 
 	"strings"
 
-	configutil "github.com/je4/utils/v2/pkg/config"
 	"github.com/ocfl-archive/filesystem/pkg/writefs"
 	"github.com/ocfl-archive/filesystem/pkg/zipfs"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
@@ -35,7 +34,10 @@ func initValidate() {
 // doValidateConf updates the configuration based on the command line flags.
 func doValidateConf(cmd *cobra.Command) {
 	if str := getFlagString(cmd, "object-path"); str != "" {
-		conf.Validate.ObjectPath = configutil.Path(str)
+		if err := conf.Validate.ObjectPath.UnmarshalText([]byte(str)); err != nil {
+			logger.Error().Err(err).Msgf("invalid object-path '%s' for flag 'object-path' or 'Validate.ObjectPath' config file entry", str)
+			return
+		}
 	}
 	if str := getFlagString(cmd, "object-id"); str != "" {
 		conf.Validate.ObjectID = str

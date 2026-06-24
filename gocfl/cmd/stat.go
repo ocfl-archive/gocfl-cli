@@ -7,7 +7,6 @@ import (
 
 	"emperror.dev/emperror"
 	"emperror.dev/errors"
-	configutil "github.com/je4/utils/v2/pkg/config"
 	"github.com/ocfl-archive/filesystem/pkg/appendfs"
 	"github.com/ocfl-archive/filesystem/pkg/writefs"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl"
@@ -40,7 +39,10 @@ func initStat() {
 // doStatConf updates the configuration based on the command line flags for the 'stat' command.
 func doStatConf(cmd *cobra.Command) {
 	if str := getFlagString(cmd, "object-path"); str != "" {
-		conf.Stat.ObjectPath = configutil.Path(str)
+		if err := conf.Stat.ObjectPath.UnmarshalText([]byte(str)); err != nil {
+			logger.Error().Err(err).Msgf("invalid object-path '%s' for flag 'object-path' or 'Stat.ObjectPath' config file entry", str)
+			return
+		}
 	}
 	if str := getFlagString(cmd, "object-id"); str != "" {
 		conf.Stat.ObjectID = str

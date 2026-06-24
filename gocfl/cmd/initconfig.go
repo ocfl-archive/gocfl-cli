@@ -51,13 +51,22 @@ func initInitConfig() {
 // doInitConfigConf updates the configuration based on the command line flags for the 'initconfig' command.
 func doInitConfigConf(cmd *cobra.Command) {
 	if str := getFlagString(cmd, "toml"); str != "" {
-		conf.InitConfig.TOMLFile = configutil.Path(str)
+		if err := conf.InitConfig.TOMLFile.UnmarshalText([]byte(str)); err != nil {
+			logger.Error().Err(err).Msgf("invalid toml '%s' for flag 'toml' or 'InitConfig.TOMLFile' config file entry", str)
+			return
+		}
 	}
 	if str := getFlagString(cmd, "extension-folder"); str != "" {
-		conf.InitConfig.ExtensionFolder = configutil.Path(str)
+		if err := conf.InitConfig.ExtensionFolder.UnmarshalText([]byte(str)); err != nil {
+			logger.Error().Err(err).Msgf("invalid extension-folder '%s' for flag 'extension-folder' or 'InitConfig.ExtensionFolder' config file entry", str)
+			return
+		}
 	}
 	if str := getFlagString(cmd, "script-folder"); str != "" {
-		conf.InitConfig.ScriptFolder = configutil.Path(str)
+		if err := conf.InitConfig.ScriptFolder.UnmarshalText([]byte(str)); err != nil {
+			logger.Error().Err(err).Msgf("invalid script-folder '%s' for flag 'script-folder' or 'InitConfig.ScriptFolder' config file entry", str)
+			return
+		}
 	}
 	if b, ok := getFlagBool(cmd, "fullconfig"); ok {
 		conf.InitConfig.FullConfig = b
@@ -167,10 +176,16 @@ func doInitConfig(cmd *cobra.Command, args []string) {
 			logger.Fatal().Err(err).Msg("cannot walk internal:extensions")
 		}
 
-		conf.Init.StorageRootExtensionFolder = configutil.Path(filepath.ToSlash(filepath.Join(extensionFolder, "storageroot")))
+		if err := conf.Init.StorageRootExtensionFolder.UnmarshalText([]byte(filepath.ToSlash(filepath.Join(extensionFolder, "storageroot")))); err != nil {
+			logger.Error().Err(err).Msgf("invalid storagerootextensions '%s' for flag 'storagerootextensions' or 'Init.StorageRootExtensionFolder' config file entry", filepath.ToSlash(filepath.Join(extensionFolder, "storageroot")))
+			return
+		}
 		newMiniConfig["init.storagerootextensions"] = conf.Init.StorageRootExtensionFolder
 
-		conf.Add.ObjectExtensionFolder = configutil.Path(filepath.ToSlash(filepath.Join(extensionFolder, "object")))
+		if err := conf.Add.ObjectExtensionFolder.UnmarshalText([]byte(filepath.ToSlash(filepath.Join(extensionFolder, "object")))); err != nil {
+			logger.Error().Err(err).Msgf("invalid objectextensions '%s' for flag 'objectextensions' or 'Add.ObjectExtensionFolder' config file entry", filepath.ToSlash(filepath.Join(extensionFolder, "object")))
+			return
+		}
 		newMiniConfig["add.objectextensions"] = conf.Add.ObjectExtensionFolder
 	}
 	thumbConf, thumbMiniconfig, err := ext_NNNN_thumbnail.InitConfig(conf.Thumbnail, scriptFolder, logger.Logger())

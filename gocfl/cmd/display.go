@@ -10,7 +10,6 @@ import (
 	"syscall"
 	"time"
 
-	configutil "github.com/je4/utils/v2/pkg/config"
 	"github.com/ocfl-archive/filesystem/pkg/writefs"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
 	"github.com/ocfl-archive/gocfl-cli/data/displaydata"
@@ -58,13 +57,22 @@ func doDisplayConf(cmd *cobra.Command) {
 		conf.Display.AddrExt = str
 	}
 	if str := getFlagString(cmd, "display-templates"); str != "" {
-		conf.Display.Templates = configutil.Path(str)
+		if err := conf.Display.Templates.UnmarshalText([]byte(str)); err != nil {
+			logger.Error().Err(err).Msgf("invalid display-templates '%s' for flag 'display-templates' or 'Display.Templates' config file entry", str)
+			return
+		}
 	}
 	if str := getFlagString(cmd, "display-tls-cert"); str != "" {
-		conf.Display.CertFile = configutil.Path(str)
+		if err := conf.Display.CertFile.UnmarshalText([]byte(str)); err != nil {
+			logger.Error().Err(err).Msgf("invalid display-tls-cert '%s' for flag 'display-tls-cert' or 'Display.CertFile' config file entry", str)
+			return
+		}
 	}
 	if str := getFlagString(cmd, "display-tls-key"); str != "" {
-		conf.Display.KeyFile = configutil.Path(str)
+		if err := conf.Display.KeyFile.UnmarshalText([]byte(str)); err != nil {
+			logger.Error().Err(err).Msgf("invalid display-tls-key '%s' for flag 'display-tls-key' or 'Display.KeyFile' config file entry", str)
+			return
+		}
 	}
 }
 
