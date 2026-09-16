@@ -15,6 +15,7 @@ import (
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_thumbnail"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/util"
 	"github.com/ocfl-archive/indexer/v3/pkg/indexer"
+	"github.com/rs/zerolog/log"
 )
 
 const DefaultPath = "~/gocfl/gocfl.toml"
@@ -165,10 +166,12 @@ func LoadGOCFLConfig(filename string) (*GOCFLConfig, error) {
 		configData, err = os.ReadFile(filename)
 	}
 	if err != nil {
-		return nil, errors.Wrapf(err, "error reading configuration file %s", filename)
-	}
-	if _, err := toml.Decode(string(configData), conf); err != nil {
-		return nil, errors.Wrapf(err, "error decoding configuration file %s", filename)
+		log.Error().Msgf("error reading configuration file %s", filename)
+		//return nil, errors.Wrapf(err, "error reading configuration file %s", filename)
+	} else {
+		if _, err := toml.Decode(string(configData), conf); err != nil {
+			return nil, errors.Wrapf(err, "error decoding configuration file %s", filename)
+		}
 	}
 	/*
 		if conf.Indexer.Optimize {
