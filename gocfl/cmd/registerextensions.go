@@ -11,6 +11,7 @@ import (
 	_ "github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_0009_digest_algorithms"
 	_ "github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_0011_direct_clean_path_layout"
 	_ "github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_content_subpath"
+	_ "github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_direct_path_layout"
 	_ "github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_filesystem"
 	_ "github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_indexer"
 	_ "github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_metafile"
