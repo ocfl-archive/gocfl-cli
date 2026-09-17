@@ -58,9 +58,12 @@ type Server struct {
 	httpObjectFS     http.FileSystem
 	extensionFactory extensiontypes.Factory[objecttypes.ExtensionManager]
 	objectFS         fs.FS
+	reportfile       string
+	id               string
+	HTTPAddr         string
 }
 
-func NewServer(storageRoot storageroot.StorageRoot, extensionFactory extensiontypes.Factory[objecttypes.ExtensionManager], service, addr string, urlExt *url.URL, dataFS fs.FS, templateFS fs.FS, log ocfllogger.OCFLLogger, accessLog io.Writer) (*Server, error) {
+func NewServer(storageRoot storageroot.StorageRoot, extensionFactory extensiontypes.Factory[objecttypes.ExtensionManager], service, addr string, urlExt *url.URL, dataFS, templateFS fs.FS, report, id string, log ocfllogger.OCFLLogger, accessLog io.Writer) (*Server, error) {
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot split address %s", addr)
@@ -77,6 +80,8 @@ func NewServer(storageRoot storageroot.StorageRoot, extensionFactory extensionty
 		log:              log,
 		accessLog:        accessLog,
 		storageRoot:      storageRoot,
+		reportfile:       report,
+		id:               id,
 	}
 
 	return srv, nil
@@ -145,22 +150,35 @@ func (s *Server) ListenAndServe(cert, key string) (err error) {
 		Handler: route.Handler(),
 	}
 
+	var tlsCert *tls.Certificate
 	if cert == "auto" || key == "auto" {
 		s.log.Info().Msg("generating new certificate")
-		cert, err := dcert.DefaultCertificate()
+		tlsCert, err = dcert.DefaultCertificate()
 		if err != nil {
 			return errors.Wrap(err, "cannot generate default certificate")
 		}
-		s.srv.TLSConfig = &tls.Config{Certificates: []tls.Certificate{*cert}}
-		fmt.Printf("starting gocfl viewer at %v - https://%s:%v/", s.urlExt.String(), s.host, s.port)
-		return errors.WithStack(s.srv.ListenAndServeTLS("", ""))
-	} else if cert != "" && key != "" {
-		fmt.Printf("starting gocfl viewer at %v - https://%s:%v/", s.urlExt.String(), s.host, s.port)
-		return errors.WithStack(s.srv.ListenAndServeTLS(cert, key))
-	} else {
-		fmt.Printf("starting gocfl viewer at %v - http://%s:%v/", s.urlExt.String(), s.host, s.port)
-		return errors.WithStack(s.srv.ListenAndServe())
 	}
+	proto := "http"
+	if tlsCert != nil || (cert != "" && key != "") {
+		proto = "https"
+	}
+	s.HTTPAddr = fmt.Sprintf("%s://%s:%s", proto, s.host, s.port)
+	fmt.Printf("starting gocfl viewer at %v - %s/\n", s.urlExt.String(), s.HTTPAddr)
+	if tlsCert != nil {
+		s.srv.TLSConfig = &tls.Config{Certificates: []tls.Certificate{*tlsCert}}
+		if err := s.srv.ListenAndServeTLS("", ""); !errors.Is(err, http.ErrServerClosed) {
+			s.log.Error().Err(err).Msgf("server on %s exited with error", s.srv.Addr)
+		}
+	} else if cert != "" && key != "" {
+		if err := s.srv.ListenAndServeTLS(cert, key); !errors.Is(err, http.ErrServerClosed) {
+			s.log.Error().Err(err).Msgf("server on %s exited with error", s.srv.Addr)
+		}
+	} else {
+		if err := s.srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+			s.log.Error().Err(err).Msgf("server on %s exited with error", s.srv.Addr)
+		}
+	}
+	return nil
 }
 
 func (s *Server) downloadExtFile(c *gin.Context) {

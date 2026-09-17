@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"context"
+	"encoding/base64"
+	"fmt"
 	"io"
 	"io/fs"
 	"net/url"
@@ -10,8 +12,11 @@ import (
 	"path"
 	"strings"
 	"syscall"
-	"time"
 
+	"emperror.dev/errors"
+	iop "github.com/chromedp/cdproto/io"
+	"github.com/chromedp/cdproto/page"
+	"github.com/chromedp/chromedp"
 	"github.com/ocfl-archive/filesystem/pkg/writefs"
 	"github.com/ocfl-archive/filesystem/pkg/zipfs"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
@@ -49,6 +54,9 @@ func initDisplay() {
 	displayCmd.Flags().StringP("display-templates", "t", "", "path to templates")
 	displayCmd.Flags().StringP("display-tls-cert", "c", "", "path to tls certificate")
 	displayCmd.Flags().StringP("display-tls-key", "k", "", "path to tls certificate key")
+	displayCmd.Flags().StringP("display-fullreport", "r", "", "path to pdf file with full report")
+	displayCmd.Flags().StringP("display-id", "i", "", "id of the report to display")
+	displayCmd.MarkFlagsRequiredTogether("display-fullreport", "display-id")
 }
 
 // doDisplayConf updates the configuration based on the command line flags for the 'display' command.
@@ -77,6 +85,16 @@ func doDisplayConf(cmd *cobra.Command) {
 			return
 		}
 	}
+	if str := getFlagString(cmd, "display-fullreport"); str != "" {
+		if err := conf.Display.Report.UnmarshalText([]byte(str)); err != nil {
+			logger.Error().Err(err).Msgf("invalid display-fullreport '%s' for flag 'display-fullreport' or 'Display.Report' config file entry", str)
+			return
+		}
+	}
+	if str := getFlagString(cmd, "display-id"); str != "" {
+		conf.Display.Id = str
+	}
+
 }
 
 // doDisplay is the main function for the 'display' command.
@@ -159,7 +177,7 @@ func doDisplay(cmd *cobra.Command, args []string) {
 	} else {
 		templateFS = os.DirFS(conf.Display.Templates.String())
 	}
-	srv, err := display.NewServer(storageRoot, objectExtensionFactory, "gocfl", conf.Display.Addr, urlC, displaydata.WebRoot, templateFS, logger, io.Discard)
+	srv, err := display.NewServer(storageRoot, objectExtensionFactory, "gocfl", conf.Display.Addr, urlC, displaydata.WebRoot, templateFS, conf.Display.Report.String(), conf.Display.Id, logger, io.Discard)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot create server")
 		return
@@ -171,32 +189,91 @@ func doDisplay(cmd *cobra.Command, args []string) {
 			return
 		}
 	}()
+	defer srv.Shutdown(context.Background())
+	if conf.Display.Report == "" {
+		done := make(chan os.Signal, 1)
+		signal.Notify(done, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
+		fmt.Println("press ctrl+c to stop server")
+		s0 := <-done
+		fmt.Println("got signal:", s0)
+		return
+	}
+	opts := append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.Flag("headless", true),
+		chromedp.Flag("no-sandbox", true), // Wichtig für manche Linux-User/Root-Modi
+		chromedp.Flag("disable-gpu", true),
+	)
+	allocCtx, cancelAlloc := chromedp.NewExecAllocator(context.Background(), opts...)
+	defer cancelAlloc()
 
-	end := make(chan bool, 1)
+	// Kontext mit Allocator erstellen
+	ctx, cancelCtx := chromedp.NewContext(allocCtx)
+	defer cancelCtx()
 
-	// process waiting for interrupt signal (TERM or KILL)
-	go func() {
-		sigint := make(chan os.Signal, 1)
+	u, err := url.JoinPath(srv.HTTPAddr, "/object/id", conf.Display.Id, "/report")
+	if err != nil {
+		logger.Error().Err(err).Msg("Fehler beim Erstellen der URL")
+		return
+	}
+	u += "?full&polyfilled=false"
 
-		// interrupt signal sent from terminal
-		signal.Notify(sigint, os.Interrupt)
+	if err := chromedp.Run(ctx,
+		chromedp.Navigate(u),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			p := page.PrintToPDF().
+				WithPrintBackground(true).
+				WithPaperWidth(8.27).
+				WithPaperHeight(11.69).
+				WithTransferMode(page.PrintToPDFTransferModeReturnAsStream)
 
-		signal.Notify(sigint, syscall.SIGTERM)
-		signal.Notify(sigint, syscall.SIGKILL)
+			_, streamID, err := p.Do(ctx)
+			if err != nil {
+				logger.Error().Err(err).Msg("Fehler beim Erstellen des PDFs")
+				return err
+			}
+			defer iop.Close(streamID).Do(context.Background())
 
-		<-sigint
+			// 2. Ausgabedatei erstellen
+			file, err := os.Create(conf.Display.Report.String())
+			if err != nil {
+				logger.Error().Err(err).Msgf("Fehler beim Erstellen der Ausgabedatei %s", conf.Display.Report.String())
+				return errors.Wrapf(err, "Fehler beim Erstellen der Ausgabedatei %s", conf.Display.Report.String())
+			}
+			defer file.Close()
+			for {
+				data, eof, err := iop.Read(streamID).Do(ctx)
+				if err != nil {
+					logger.Error().Err(err).Msg("Fehler beim Lesen des PDFs")
+					return errors.Wrap(err, "Fehler beim Lesen des PDFs")
+				}
 
-		// We received an interrupt signal, shut down.
-		logger.Info().Msg("interrupt signal received")
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
+				if len(data) > 0 {
+					// WICHTIG: DevTools liefert Stream-Daten base64-kodiert aus!
+					decoded := make([]byte, base64.StdEncoding.DecodedLen(len(data)))
+					n, err := base64.StdEncoding.Decode(decoded, []byte(data))
+					if err != nil {
+						logger.Error().Err(err).Msg("Fehler beim Decodieren der base64-Daten")
+						return errors.Wrap(err, "Fehler beim Decodieren der base64-Daten")
+					}
+					if _, err := file.Write(decoded[:n]); err != nil {
+						logger.Error().Err(err).Msg("Fehler beim Schreiben des PDFs")
+						return errors.Wrap(err, "Fehler beim Schreiben des PDFs")
+					}
+				}
 
-		srv.Shutdown(ctx)
+				if eof {
+					break
+				}
+			}
+			return file.Sync()
+		}),
+	); err != nil {
+		logger.Error().Err(err).Msg("Fehler beim Erstellen des PDFs")
+		return
+	}
 
-		end <- true
-	}()
+	logger.Info().Msgf("PDF %s erfolgreich erstellt!", conf.Display.Report.String())
 
-	<-end
 	logger.Info().Msg("server stopped")
 
 }

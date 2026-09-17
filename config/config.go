@@ -61,6 +61,8 @@ type DisplayConfig struct {
 	KeyFile   configutil.Path `toml:"keyfile"`
 	Templates configutil.Path `toml:"templates"`
 	Obfuscate bool            `toml:"obfuscate"`
+	Report    configutil.Path `toml:"report"`
+	Id        string          `toml:"id"`
 }
 type ExtractConfig struct {
 	Manifest   bool            `toml:"manifest"`
