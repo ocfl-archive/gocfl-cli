@@ -268,7 +268,7 @@ func doDisplay(cmd *cobra.Command, args []string) {
 			return file.Sync()
 		}),
 	); err != nil {
-		logger.Error().Err(err).Msg("Fehler beim Erstellen des PDFs")
+		logger.Error().Err(err).Msgf("Fehler beim Erstellen des PDFs - %s", u)
 		return
 	}
 
