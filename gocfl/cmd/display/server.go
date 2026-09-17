@@ -997,6 +997,7 @@ func (s *Server) report(c *gin.Context) {
 		return
 	}
 	full := c.DefaultQuery("full", "none") != "none"
+	not_polyfilled := c.DefaultQuery("polyfilled", "none") == "false"
 
 	if s.object != nil && s.object.GetID() == iop.ID {
 		if s.metadata == nil {
@@ -1281,6 +1282,7 @@ func (s *Server) report(c *gin.Context) {
 		"avLength":       fmtDuration(time.Duration(int64(videoSecs) * int64(time.Second))),
 		"tree":           flatTree,
 		"full":           full,
+		"polyfilled":     !not_polyfilled,
 	}
 
 	c.HTML(http.StatusOK, "report.gohtml", gin.H(params))

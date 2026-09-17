@@ -2,7 +2,9 @@
 <html>
 <head>
     <title>gocfl - report</title>
+    {{- if $data.polyfilled }}
     <script src="../../../../static/js/paged.polyfill.js"></script>
+    {{- end }}
     <link href="../../../../static/css/interface.css" rel="stylesheet" type="text/css" />
     <style>
         @page:first {
