@@ -228,7 +228,7 @@ func doDisplay(cmd *cobra.Command, args []string) {
 
 			_, streamID, err := p.Do(ctx)
 			if err != nil {
-				logger.Error().Err(err).Msg("Fehler beim Erstellen des PDFs")
+				logger.Error().Err(err).Msgf("Fehler beim Erstellen des PDFs - %s", u)
 				return err
 			}
 			defer iop.Close(streamID).Do(context.Background())
