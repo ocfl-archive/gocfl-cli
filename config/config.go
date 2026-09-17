@@ -18,7 +18,9 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const DefaultPath = "~/gocfl/gocfl.toml"
+//const DefaultPath = "~/gocfl/gocfl.toml"
+
+var DefaultPath = []string{"~/gocfl/gocfl.toml", "/etc/gocfl.toml", "/opt/gocfl/gocfl.toml"}
 
 type InitConfig struct {
 	OCFLVersion                string                   `toml:"ocflversion"`
@@ -155,7 +157,16 @@ func LoadGOCFLConfig(filename string) (*GOCFLConfig, error) {
 		return nil, errors.Wrap(err, "error decoding GOCFL default configuration")
 	}
 	if filename == "" {
-		filename = DefaultPath
+		for _, def := range DefaultPath {
+			full, err := util.Fullpath(def)
+			if err == nil {
+				if _, err := os.Stat(full); err == nil {
+					filename = full
+					break
+				}
+			}
+		}
+
 	}
 	var configData []byte
 	if filename == "internal" {
