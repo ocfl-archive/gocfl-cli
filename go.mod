@@ -10,18 +10,19 @@ require (
 	github.com/chromedp/cdproto v0.0.0-20260912003405-686a5c723acc
 	github.com/chromedp/chromedp v0.16.0
 	github.com/davidbyttow/govips/v2 v2.18.0
-	github.com/dustin/go-humanize v1.0.1
+	github.com/dustin/go-humanize v1.1.0
 	github.com/gin-contrib/multitemplate v1.1.3
 	github.com/gin-gonic/gin v1.12.0
 	github.com/je4/utils/v2 v2.0.71
 	github.com/ocfl-archive/error v1.0.5
 	github.com/ocfl-archive/filesystem v1.0.15
-	github.com/ocfl-archive/gocfl-extensions v0.0.0-20260918125516-07c4541b2db8
-	github.com/ocfl-archive/gocfl/v3 v3.0.11
+	github.com/ocfl-archive/gocfl-extensions v0.0.0-20260919153922-478c465ca66c
+	github.com/ocfl-archive/gocfl/v3 v3.0.12
 	github.com/ocfl-archive/indexer/v3 v3.0.44
 	github.com/rs/zerolog v1.35.1
 	github.com/shirou/gopsutil/v4 v4.26.8
 	github.com/spf13/cobra v1.10.2
+	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.12.1
 	github.com/tink-crypto/tink-go/v2 v2.8.0
 	gitlab.switch.ch/ub-unibas/go-ublogger/v2 v2.0.1
@@ -116,7 +117,6 @@ require (
 	github.com/smallstep/certinfo v1.17.0 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
-	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/tamerh/xml-stream-parser v1.5.0 // indirect
 	github.com/tamerh/xpath v1.0.0 // indirect
 	github.com/telkomdev/go-stash v1.0.6 // indirect
@@ -146,8 +146,8 @@ require (
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260911204522-f61a6ca850bd // indirect
-	google.golang.org/grpc v1.83.2 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260918162117-cecb64721679 // indirect
+	google.golang.org/grpc v1.84.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/ini.v1 v1.67.3 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
