@@ -180,7 +180,7 @@ func LoadGOCFLConfig(filename string) (*GOCFLConfig, error) {
 	}
 	if err != nil {
 		log.Error().Msgf("error reading configuration file %s", filename)
-		//return nil, errors.Wrapf(err, "error reading configuration file %s", filename)
+		return nil, errors.Wrapf(err, "error reading configuration file %s", filename)
 	} else {
 		if _, err := toml.Decode(string(configData), conf); err != nil {
 			return nil, errors.Wrapf(err, "error decoding configuration file %s", filename)
