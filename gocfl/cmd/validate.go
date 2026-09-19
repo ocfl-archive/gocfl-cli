@@ -3,9 +3,9 @@ package cmd
 import (
 	"io/fs"
 	"os"
-
 	"strings"
 
+	"emperror.dev/errors"
 	"github.com/ocfl-archive/filesystem/pkg/writefs"
 	"github.com/ocfl-archive/filesystem/pkg/zipfs"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
@@ -23,7 +23,7 @@ var validateCmd = &cobra.Command{
 	//Long:    "an utterly useless command for testing",
 	Example: "gocfl validate ./archive.zip",
 	Args:    cobra.ExactArgs(1),
-	Run:     doValidate,
+	RunE:    doValidate,
 }
 
 func initValidate() {
@@ -32,40 +32,43 @@ func initValidate() {
 }
 
 // doValidateConf updates the configuration based on the command line flags.
-func doValidateConf(cmd *cobra.Command) {
+func doValidateConf(cmd *cobra.Command) error {
 	if str := getFlagString(cmd, "object-path"); str != "" {
 		if err := conf.Validate.ObjectPath.UnmarshalText([]byte(str)); err != nil {
 			logger.Error().Err(err).Msgf("invalid object-path '%s' for flag 'object-path' or 'Validate.ObjectPath' config file entry", str)
-			return
+			return errors.Wrapf(err, "invalid object-path '%s'", str)
 		}
 	}
 	if str := getFlagString(cmd, "object-id"); str != "" {
 		conf.Validate.ObjectID = str
 	}
+	return nil
 }
 
 // doValidate is the main function for the 'validate' command.
 // It initializes the logger, loads extension managers for storage root and objects,
 // sets up the virtual file system (VFS), and performs the actual validation.
-func doValidate(cmd *cobra.Command, args []string) {
+func doValidate(cmd *cobra.Command, args []string) error {
 	ocflPath := args[0]
 
 	// Update configuration based on flags
-	doValidateConf(cmd)
+	if err := doValidateConf(cmd); err != nil {
+		return err
+	}
 
 	logger.Info().Msgf("validating '%s'", ocflPath)
 
 	extensionParams, err := getExtensionParams(cmd)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot get extension params")
-		return
+		return errors.Wrap(err, "cannot get extension params")
 	}
 
 	// Load extension manager for storage root
 	storageRootExtensionManager, _, err := ocfl.SetupExtensionManager[storageroot.ExtensionManager](extensionParams, firstOrSecond(conf.Init.StorageRootExtensionFolder == "", (fs.FS)(defaultextensions_storageroot.DefaultStorageRootExtensionFS), os.DirFS(conf.Init.StorageRootExtensionFolder.String())), logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup storage root extension manager")
-		return
+		return errors.Wrap(err, "cannot setup storage root extension manager")
 	}
 	defer func() {
 		if err := storageRootExtensionManager.Terminate(); err != nil {
@@ -77,11 +80,11 @@ func doValidate(cmd *cobra.Command, args []string) {
 	objectExtensionManager, _, err := ocfl.SetupExtensionManager[object.ExtensionManager](extensionParams, firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder.String())), logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup object extension manager")
-		return
+		return errors.Wrap(err, "cannot setup object extension manager")
 	}
 	defer func() {
 		if err := objectExtensionManager.Terminate(); err != nil {
-			logger.Error().Err(err).Msg("cannot terminate storage root extension manager")
+			logger.Error().Err(err).Msg("cannot terminate object extension manager")
 		}
 	}()
 
@@ -93,7 +96,7 @@ func doValidate(cmd *cobra.Command, args []string) {
 		destFS, err = zipfs.NewFSFile(vfs, ocflPath, logger.Logger())
 		if err != nil {
 			logger.Error().Err(err).Msgf("cannot open zip filesystem for '%s'", ocflPath)
-			return
+			return errors.Wrapf(err, "cannot open zip filesystem for '%s'", ocflPath)
 		}
 	} else {
 		// Prepare access to the OCFL directory
@@ -101,7 +104,7 @@ func doValidate(cmd *cobra.Command, args []string) {
 		destFS, err = writefs.Sub(vfs, ocflPath)
 		if err != nil {
 			logger.Error().Err(err).Msgf("cannot get filesystem for '%s'", ocflPath)
-			return
+			return errors.Wrapf(err, "cannot get filesystem for '%s'", ocflPath)
 		}
 	}
 	defer func() {
@@ -114,21 +117,21 @@ func doValidate(cmd *cobra.Command, args []string) {
 	sr, err := ocfl.LoadStorageRoot(ctx, destFS, nil, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storageroot")
-		return
+		return errors.Wrap(err, "cannot load storageroot")
 	}
 	defer sr.Close()
 	objectID := conf.Validate.ObjectID
 	objectPath := conf.Validate.ObjectPath.String()
 	if objectID != "" && objectPath != "" {
 		logger.Error().Msg("do not use object-path AND object-id at the same time")
-		return
+		return errors.New("do not use object-path AND object-id at the same time")
 	}
 
 	// If no specific object ID or path was specified, validate the entire storage root
 	if objectID == "" && objectPath == "" {
 		if err := sr.Check(); err != nil {
 			logger.Error().Err(err).Msg("ocfl not valid")
-			return
+			return errors.Wrap(err, "ocfl not valid")
 		}
 	} else {
 		// Validation of a single object
@@ -137,20 +140,20 @@ func doValidate(cmd *cobra.Command, args []string) {
 			objectPath, err = sr.IdToFolder(objectID)
 			if err != nil {
 				logger.Error().Err(err).Msgf("cannot get object-path for '%s'", objectID)
-				return
+				return errors.Wrapf(err, "cannot get object-path for '%s'", objectID)
 			}
 		}
 		// Create sub-filesystem for the object
 		objFsys, err := writefs.Sub(sr.GetReadFS(), objectPath)
 		if err != nil {
 			logger.Error().Err(err).Msgf("cannot open filesystem for '%s'", objectPath)
-			return
+			return errors.Wrapf(err, "cannot open filesystem for '%s'", objectPath)
 		}
 		// Load object
 		obj, err := ocfl.LoadObject(ctx, objFsys, nil, logger)
 		if err != nil {
 			logger.Error().Err(err).Msgf("cannot open object for '%s'", objectPath)
-			return
+			return errors.Wrapf(err, "cannot open object for '%s'", objectPath)
 		}
 		defer obj.Close()
 		// Get checker for the object and execute validation
@@ -158,9 +161,12 @@ func doValidate(cmd *cobra.Command, args []string) {
 		defer checker.Close()
 		if err := checker.Validate(); err != nil {
 			logger.Error().Err(err).Msgf("ocfl object '%s' not valid", objectPath)
-			return
+			return errors.Wrapf(err, "ocfl object '%s' not valid", objectPath)
 		}
 
 	}
-	_ = showStatus(logger)
+	if showStatus(logger) {
+		return errors.New("validation failed")
+	}
+	return nil
 }

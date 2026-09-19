@@ -25,6 +25,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 const LOGFORMAT = `%{time:2006-01-02T15:04:05.000} %{shortpkg}::%{longfunc} [%{shortfile}] > %{level:.5s} - %{message}`
@@ -138,6 +139,16 @@ func GetLogger() ocfllogger.OCFLLogger {
 	return logger
 }
 
+func resetCmdFlags(cmd *cobra.Command) {
+	cmd.Flags().VisitAll(func(f *pflag.Flag) {
+		_ = f.Value.Set(f.DefValue)
+		f.Changed = false
+	})
+	for _, subCmd := range cmd.Commands() {
+		resetCmdFlags(subCmd)
+	}
+}
+
 func ResetForTest() {
 	initOnce = sync.Once{}
 	ErrorFactory = archiveerror.NewFactory("gocfl")
@@ -146,6 +157,8 @@ func ResetForTest() {
 		_ = closer.Close()
 	}
 	closers = nil
+	conf = &config.GOCFLConfig{}
+	resetCmdFlags(rootCmd)
 }
 
 var rootCmd = &cobra.Command{

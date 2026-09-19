@@ -35,7 +35,7 @@ var displayCmd = &cobra.Command{
 	//Long:    "an utterly useless command for testing",
 	Example: "gocfl display ./archive.zip",
 	Args:    cobra.MinimumNArgs(1),
-	Run:     doDisplay,
+	RunE:    doDisplay,
 }
 
 /*
@@ -60,7 +60,7 @@ func initDisplay() {
 }
 
 // doDisplayConf updates the configuration based on the command line flags for the 'display' command.
-func doDisplayConf(cmd *cobra.Command) {
+func doDisplayConf(cmd *cobra.Command) error {
 	if str := getFlagString(cmd, "display-addr"); str != "" {
 		conf.Display.Addr = str
 	}
@@ -70,40 +70,42 @@ func doDisplayConf(cmd *cobra.Command) {
 	if str := getFlagString(cmd, "display-templates"); str != "" {
 		if err := conf.Display.Templates.UnmarshalText([]byte(str)); err != nil {
 			logger.Error().Err(err).Msgf("invalid display-templates '%s' for flag 'display-templates' or 'Display.Templates' config file entry", str)
-			return
+			return errors.Wrapf(err, "invalid display-templates '%s'", str)
 		}
 	}
 	if str := getFlagString(cmd, "display-tls-cert"); str != "" {
 		if err := conf.Display.CertFile.UnmarshalText([]byte(str)); err != nil {
 			logger.Error().Err(err).Msgf("invalid display-tls-cert '%s' for flag 'display-tls-cert' or 'Display.CertFile' config file entry", str)
-			return
+			return errors.Wrapf(err, "invalid display-tls-cert '%s'", str)
 		}
 	}
 	if str := getFlagString(cmd, "display-tls-key"); str != "" {
 		if err := conf.Display.KeyFile.UnmarshalText([]byte(str)); err != nil {
 			logger.Error().Err(err).Msgf("invalid display-tls-key '%s' for flag 'display-tls-key' or 'Display.KeyFile' config file entry", str)
-			return
+			return errors.Wrapf(err, "invalid display-tls-key '%s'", str)
 		}
 	}
 	if str := getFlagString(cmd, "display-fullreport"); str != "" {
 		if err := conf.Display.Report.UnmarshalText([]byte(str)); err != nil {
 			logger.Error().Err(err).Msgf("invalid display-fullreport '%s' for flag 'display-fullreport' or 'Display.Report' config file entry", str)
-			return
+			return errors.Wrapf(err, "invalid display-fullreport '%s'", str)
 		}
 	}
 	if str := getFlagString(cmd, "display-id"); str != "" {
 		conf.Display.Id = str
 	}
-
+	return nil
 }
 
 // doDisplay is the main function for the 'display' command.
 // It starts a web server to display the content of an OCFL structure.
-func doDisplay(cmd *cobra.Command, args []string) {
+func doDisplay(cmd *cobra.Command, args []string) error {
 	ocflPath := args[0]
 
 	// Update configuration based on flags
-	doDisplayConf(cmd)
+	if err := doDisplayConf(cmd); err != nil {
+		return err
+	}
 
 	logger.Info().Msgf("opening '%s'", ocflPath)
 
@@ -115,7 +117,7 @@ func doDisplay(cmd *cobra.Command, args []string) {
 		zipFS, err := zipfs.NewFSFile(vfs, ocflPath, logger.Logger())
 		if err != nil {
 			logger.Error().Err(err).Msgf("cannot open zip filesystem at '%s'", ocflPath)
-			return
+			return errors.Wrapf(err, "cannot open zip filesystem at '%s'", ocflPath)
 		}
 		defer zipFS.Close()
 		destFS = zipFS
@@ -124,7 +126,7 @@ func doDisplay(cmd *cobra.Command, args []string) {
 		destFS, err = writefs.Sub(vfs, ocflPath)
 		if err != nil {
 			logger.Error().Err(err).Msgf("cannot get filesystem for '%s'", ocflPath)
-			return
+			return errors.Wrapf(err, "cannot get filesystem for '%s'", ocflPath)
 		}
 		defer func() {
 			if err := writefs.Close(destFS); err != nil {
@@ -136,32 +138,32 @@ func doDisplay(cmd *cobra.Command, args []string) {
 	extensionParams, err := getExtensionParams(cmd)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot get extension params")
-		return
+		return errors.Wrap(err, "cannot get extension params")
 	}
 
 	// Setup extension managers for storage root and object
 	_, _, err = ocfl.SetupExtensionManager[storageroot.ExtensionManager](extensionParams, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup storage root extension manager")
-		return
+		return errors.Wrap(err, "cannot setup storage root extension manager")
 	}
 
 	// Load storage root in read-only mode
 	storageRoot, err := ocfl.LoadStorageRoot(ctx, destFS, nil, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storage root")
-		return
+		return errors.Wrap(err, "cannot load storage root")
 	}
 	defer storageRoot.Close()
 
 	objectExtensionManager, objectExtensionFactory, err := ocfl.SetupExtensionManager[object.ExtensionManager](extensionParams, firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder.String())), logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup object extension manager")
-		return
+		return errors.Wrap(err, "cannot setup object extension manager")
 	}
 	defer func() {
 		if err := objectExtensionManager.Terminate(); err != nil {
-			logger.Error().Err(err).Msg("cannot terminate storage root extension manager")
+			logger.Error().Err(err).Msg("cannot terminate object extension manager")
 		}
 	}()
 
@@ -172,7 +174,7 @@ func doDisplay(cmd *cobra.Command, args []string) {
 		templateFS, err = writefs.Sub(displaydata.TemplateRoot, "templates")
 		if err != nil {
 			logger.Error().Err(err).Msg("cannot get templates")
-			return
+			return errors.Wrap(err, "cannot get templates")
 		}
 	} else {
 		templateFS = os.DirFS(conf.Display.Templates.String())
@@ -180,7 +182,7 @@ func doDisplay(cmd *cobra.Command, args []string) {
 	srv, err := display.NewServer(storageRoot, objectExtensionFactory, "gocfl", conf.Display.Addr, urlC, displaydata.WebRoot, templateFS, conf.Display.Report.String(), conf.Display.Id, logger, io.Discard)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot create server")
-		return
+		return errors.Wrap(err, "cannot create server")
 	}
 
 	go func() {
@@ -196,7 +198,7 @@ func doDisplay(cmd *cobra.Command, args []string) {
 		fmt.Println("press ctrl+c to stop server")
 		s0 := <-done
 		fmt.Println("got signal:", s0)
-		return
+		return nil
 	}
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
 		chromedp.Flag("headless", true),
@@ -213,7 +215,7 @@ func doDisplay(cmd *cobra.Command, args []string) {
 	u, err := url.JoinPath(srv.HTTPAddr, "/object/id", conf.Display.Id, "/report")
 	if err != nil {
 		logger.Error().Err(err).Msg("Fehler beim Erstellen der URL")
-		return
+		return errors.Wrap(err, "Fehler beim Erstellen der URL")
 	}
 	u += "?full&polyfilled=false"
 
@@ -269,11 +271,10 @@ func doDisplay(cmd *cobra.Command, args []string) {
 		}),
 	); err != nil {
 		logger.Error().Err(err).Msgf("Fehler beim Erstellen des PDFs - %s", u)
-		return
+		return errors.Wrapf(err, "Fehler beim Erstellen des PDFs - %s", u)
 	}
 
 	logger.Info().Msgf("PDF %s erfolgreich erstellt!", conf.Display.Report.String())
-
 	logger.Info().Msg("server stopped")
-
+	return nil
 }

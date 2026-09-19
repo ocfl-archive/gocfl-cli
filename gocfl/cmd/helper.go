@@ -305,11 +305,11 @@ func initializeFSFactory(zipDigests []checksum.DigestAlgorithm, aesConfig *confi
 	return fsFactory, nil
 }
 
-func showStatus(logger ocfllogger.OCFLLogger) error {
+func showStatus(logger ocfllogger.OCFLLogger) bool {
 	contextString := ""
 	errs := 0
 	for _, err := range logger.ValidationErrors() {
-		if err.Code[0] == 'E' {
+		if err.Code.IsError() {
 			errs++
 		}
 		if err.Context != contextString {
@@ -324,7 +324,7 @@ func showStatus(logger ocfllogger.OCFLLogger) error {
 	} else {
 		fmt.Printf("\nno errors found\n")
 	}
-	return nil
+	return errs > 0
 }
 
 func addObjectByPath(

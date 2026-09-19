@@ -20,7 +20,7 @@ var initCmd = &cobra.Command{
 	Long:    "initializes an empty ocfl structure",
 	Example: "gocfl init ./archive.zip",
 	Args:    cobra.ExactArgs(1),
-	Run:     doInit,
+	RunE:    doInit,
 }
 
 func initInit() {
@@ -31,11 +31,11 @@ func initInit() {
 }
 
 // doInitConf updates the configuration based on the command line flags for the 'init' command.
-func doInitConf(cmd *cobra.Command) {
+func doInitConf(cmd *cobra.Command) error {
 	if str := getFlagString(cmd, "default-storageroot-extensions"); str != "" {
 		if err := conf.Init.StorageRootExtensionFolder.UnmarshalText([]byte(str)); err != nil {
 			logger.Error().Err(err).Msgf("invalid default-storageroot-extensions '%s' for flag 'default-storageroot-extensions' or 'Init.StorageRootExtensionFolder' config file entry", str)
-			return
+			return errors.Wrapf(err, "invalid default-storageroot-extensions '%s'", str)
 		}
 	}
 
@@ -46,20 +46,24 @@ func doInitConf(cmd *cobra.Command) {
 	if str := getFlagString(cmd, "digest"); str != "" {
 		conf.Init.Digest = checksum.DigestAlgorithm(str)
 	}
-	if _, err := checksum.GetHash(conf.Init.Digest); err != nil {
-		_ = cmd.Help()
-		cobra.CheckErr(errors.Errorf("invalid digest '%s' for flag 'digest' or 'Init.DigestAlgorithm' config file entry", conf.Init.Digest))
+	if conf.Init.Digest != "" {
+		if _, err := checksum.GetHash(conf.Init.Digest); err != nil {
+			_ = cmd.Help()
+			return errors.Errorf("invalid digest '%s' for flag 'digest' or 'Init.DigestAlgorithm' config file entry", conf.Init.Digest)
+		}
 	}
-
+	return nil
 }
 
 // doInit is the main function for the 'init' command.
 // It initializes a new, empty OCFL storage root at the specified path.
-func doInit(cmd *cobra.Command, args []string) {
+func doInit(cmd *cobra.Command, args []string) error {
 	ocflPath := args[0]
 
 	// Update configuration based on flags
-	doInitConf(cmd)
+	if err := doInitConf(cmd); err != nil {
+		return err
+	}
 
 	logger.Info().Msgf("creating '%s'", ocflPath)
 
@@ -69,12 +73,12 @@ func doInit(cmd *cobra.Command, args []string) {
 	_destFS, err := writefs.SubCreate(vfs, ocflPath)
 	if err != nil {
 		logger.Error().Err(err).Msgf("cannot get filesystem for '%s'", ocflPath)
-		return
+		return errors.Wrapf(err, "cannot get filesystem for '%s'", ocflPath)
 	}
 	destFS, ok := _destFS.(appendfs.FS)
 	if !ok {
 		logger.Error().Msgf("filesystem for '%s' is not writable", ocflPath)
-		return
+		return errors.Errorf("filesystem for '%s' is not writable", ocflPath)
 	}
 	defer func() {
 		if err := writefs.Close(destFS); err != nil {
@@ -85,7 +89,7 @@ func doInit(cmd *cobra.Command, args []string) {
 	extensionParams, err := getExtensionParams(cmd)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot get extension params")
-		return
+		return errors.Wrap(err, "cannot get extension params")
 	}
 
 	// Create the storage root
@@ -97,12 +101,12 @@ func doInit(cmd *cobra.Command, args []string) {
 		conf.Init.Digest,
 		extensionParams, logger,
 	); err != nil {
-		if err := writefs.Close(destFS); err != nil {
-			logger.Error().Err(err).Msgf("cannot close filesystem '%s'", destFS)
-		}
 		logger.Error().Err(err).Msgf("cannot create new storageroot")
-		return
+		return errors.Wrap(err, "cannot create new storageroot")
 	}
 
-	_ = showStatus(logger)
+	if showStatus(logger) {
+		return errors.New("init failed")
+	}
+	return nil
 }

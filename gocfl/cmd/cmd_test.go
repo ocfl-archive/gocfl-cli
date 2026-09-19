@@ -285,4 +285,360 @@ func TestAll(t *testing.T) {
 		})
 		require.NoError(t, root.Execute(), "stat zip object Execute() failed")
 	})
+
+	t.Run("validate valid dir", func(t *testing.T) {
+		ResetForTest()
+		root := GetRootCmd()
+		root.SetArgs([]string{
+			"validate", ocflPath,
+			"--log-level", "DEBUG",
+			"--config", "internal",
+		})
+		require.NoError(t, root.Execute(), "validate valid dir failed")
+
+		ResetForTest()
+		root = GetRootCmd()
+		root.SetArgs([]string{
+			"validate", ocflPath,
+			"--log-level", "DEBUG",
+			"--config", "internal",
+			"--object-id", "test-obj-001",
+		})
+		require.NoError(t, root.Execute(), "validate valid object failed")
+	})
+
+	t.Run("validate conflicting flags", func(t *testing.T) {
+		ResetForTest()
+		root := GetRootCmd()
+		root.SetArgs([]string{
+			"validate", ocflPath,
+			"--log-level", "DEBUG",
+			"--config", "internal",
+			"--object-id", "test-obj-001",
+			"--object-path", "dummy",
+		})
+		require.Error(t, root.Execute(), "validate with conflicting flags should fail")
+	})
+
+	t.Run("validate invalid ocfl structure returns error", func(t *testing.T) {
+		invalidDir, err := os.MkdirTemp("", "gocfl_test_invalid")
+		require.NoError(t, err)
+		defer os.RemoveAll(invalidDir)
+		invalidDir = filepath.ToSlash(invalidDir)
+
+		// Create an OCFL root and add an object
+		ResetForTest()
+		root := GetRootCmd()
+		root.SetArgs([]string{
+			"init", invalidDir,
+			"--log-level", "DEBUG",
+			"--config", "internal",
+		})
+		require.NoError(t, root.Execute())
+
+		ResetForTest()
+		root = GetRootCmd()
+		root.SetArgs([]string{
+			"add", invalidDir, sourceDir,
+			"--log-level", "DEBUG",
+			"--config", "internal",
+			"--object-id", "test-obj-invalid",
+			"--message", "initial add",
+			"--user-name", "John Doe",
+			"--user-address", "john@doe.com",
+		})
+		require.NoError(t, root.Execute())
+
+		// Corrupt the object by writing invalid content to inventory.json
+		found := false
+		err = filepath.WalkDir(invalidDir, func(p string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if !d.IsDir() && d.Name() == "inventory.json" {
+				found = true
+				_ = os.WriteFile(p, []byte("{\"invalid\": \"json\"}"), 0644)
+			}
+			return nil
+		})
+		require.NoError(t, err)
+		require.True(t, found, "inventory.json should be found and corrupted")
+
+		// Validate the specific object - should return error
+		ResetForTest()
+		root = GetRootCmd()
+		root.SetArgs([]string{
+			"validate", invalidDir,
+			"--log-level", "DEBUG",
+			"--config", "internal",
+			"--object-id", "test-obj-invalid",
+		})
+		require.Error(t, root.Execute(), "validate on corrupted object should return error")
+
+		// Corrupt the storage root by removing the namaste file
+		namasteFile := filepath.Join(invalidDir, "0=ocfl_1.1")
+		require.NoError(t, os.Remove(namasteFile))
+
+		// Validate the storage root - should return error
+		ResetForTest()
+		root = GetRootCmd()
+		root.SetArgs([]string{
+			"validate", invalidDir,
+			"--log-level", "DEBUG",
+			"--config", "internal",
+		})
+		require.Error(t, root.Execute(), "validate on corrupted storage root should return error")
+	})
+
+	t.Run("validate corrupted content file returns validation failed error", func(t *testing.T) {
+		corruptedDir, err := os.MkdirTemp("", "gocfl_test_corrupted_content")
+		require.NoError(t, err)
+		defer os.RemoveAll(corruptedDir)
+		corruptedDir = filepath.ToSlash(corruptedDir)
+
+		// Create an OCFL root and add an object
+		ResetForTest()
+		root := GetRootCmd()
+		root.SetArgs([]string{
+			"init", corruptedDir,
+			"--log-level", "DEBUG",
+			"--config", "internal",
+		})
+		require.NoError(t, root.Execute())
+
+		ResetForTest()
+		root = GetRootCmd()
+		root.SetArgs([]string{
+			"add", corruptedDir, sourceDir,
+			"--log-level", "DEBUG",
+			"--config", "internal",
+			"--object-id", "test-obj-tampered",
+			"--message", "initial add",
+			"--user-name", "John Doe",
+			"--user-address", "john@doe.com",
+		})
+		require.NoError(t, root.Execute())
+
+		// Tamper with a payload file inside v1/content
+		tampered := false
+		err = filepath.WalkDir(corruptedDir, func(p string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if !d.IsDir() && strings.HasSuffix(p, "new_file.txt") {
+				tampered = true
+				_ = os.WriteFile(p, []byte("tampered content that invalidates digest"), 0644)
+			}
+			return nil
+		})
+		require.NoError(t, err)
+		require.True(t, tampered, "payload file new_file.txt should be found and modified")
+
+		// Validate object specifically - should return error
+		ResetForTest()
+		root = GetRootCmd()
+		root.SetArgs([]string{
+			"validate", corruptedDir,
+			"--log-level", "DEBUG",
+			"--config", "internal",
+			"--object-id", "test-obj-tampered",
+		})
+		execErr := root.Execute()
+		require.Error(t, execErr, "validate on tampered object should fail")
+		require.Contains(t, execErr.Error(), "validation failed")
+	})
+
+	t.Run("validate config preservation", func(t *testing.T) {
+		ResetForTest()
+		// Simulate pre-configured ObjectID from config
+		conf.Validate.ObjectID = "test-obj-001"
+		root := GetRootCmd()
+		root.SetArgs([]string{
+			"validate", ocflPath,
+			"--log-level", "DEBUG",
+			"--config", "internal",
+		})
+		require.NoError(t, root.Execute(), "validate should preserve preset ObjectID from config")
+
+		// Verify that CLI flag overrides preset ObjectID in config
+		ResetForTest()
+		conf.Validate.ObjectID = "non-existent-obj-id"
+		root = GetRootCmd()
+		root.SetArgs([]string{
+			"validate", ocflPath,
+			"--log-level", "DEBUG",
+			"--config", "internal",
+			"--object-id", "test-obj-001",
+		})
+		require.NoError(t, root.Execute(), "validate flag should override preset ObjectID from config")
+	})
+
+	t.Run("add error cases", func(t *testing.T) {
+		// Missing required flags
+		ResetForTest()
+		root := GetRootCmd()
+		root.SetArgs([]string{
+			"add", ocflPath, sourceDir,
+			"--config", "internal",
+		})
+		require.Error(t, root.Execute(), "add without required flags should fail")
+
+		// Non-existent source dir
+		ResetForTest()
+		root = GetRootCmd()
+		root.SetArgs([]string{
+			"add", ocflPath, "C:/non_existent_dir_xyz_123",
+			"--config", "internal",
+			"--object-id", "test-obj-new",
+			"--message", "add msg",
+			"--user-name", "John",
+			"--user-address", "john@test.com",
+		})
+		require.Error(t, root.Execute(), "add with non-existent source dir should fail")
+
+		// Adding already existing object
+		ResetForTest()
+		root = GetRootCmd()
+		root.SetArgs([]string{
+			"add", ocflPath, sourceDir,
+			"--config", "internal",
+			"--object-id", "test-obj-001",
+			"--message", "add msg",
+			"--user-name", "John",
+			"--user-address", "john@test.com",
+		})
+		require.Error(t, root.Execute(), "adding already existing object id should fail")
+	})
+
+	t.Run("update error cases", func(t *testing.T) {
+		// Updating non-existent object
+		ResetForTest()
+		root := GetRootCmd()
+		root.SetArgs([]string{
+			"update", ocflPath, sourceDir,
+			"--config", "internal",
+			"--object-id", "non-existent-obj-id-999",
+			"--message", "update msg",
+			"--user-name", "John",
+			"--user-address", "john@test.com",
+		})
+		require.Error(t, root.Execute(), "updating non-existent object should fail")
+
+		// Invalid digest
+		ResetForTest()
+		root = GetRootCmd()
+		root.SetArgs([]string{
+			"update", ocflPath, sourceDir,
+			"--config", "internal",
+			"--object-id", "test-obj-001",
+			"--message", "update msg",
+			"--user-name", "John",
+			"--user-address", "john@test.com",
+			"--digest", "invalid_digest_alg",
+		})
+		require.Error(t, root.Execute(), "update with invalid digest should fail")
+	})
+
+	t.Run("stat error cases", func(t *testing.T) {
+		// Conflicting flags
+		ResetForTest()
+		root := GetRootCmd()
+		root.SetArgs([]string{
+			"stat", ocflPath,
+			"--config", "internal",
+			"--object-id", "test-obj-001",
+			"--object-path", "dummy-path",
+		})
+		require.Error(t, root.Execute(), "stat with conflicting flags should fail")
+
+		// Invalid stat-info
+		ResetForTest()
+		root = GetRootCmd()
+		root.SetArgs([]string{
+			"stat", ocflPath,
+			"--config", "internal",
+			"--stat-info", "invalid_stat_field",
+		})
+		require.Error(t, root.Execute(), "stat with invalid stat-info should fail")
+	})
+
+	t.Run("extract error cases", func(t *testing.T) {
+		// Conflicting flags
+		targetDir, err := os.MkdirTemp("", "gocfl_test_extract_err")
+		require.NoError(t, err)
+		defer os.RemoveAll(targetDir)
+		targetDir = filepath.ToSlash(targetDir)
+
+		ResetForTest()
+		root := GetRootCmd()
+		root.SetArgs([]string{
+			"extract", ocflPath, targetDir,
+			"--config", "internal",
+			"--object-id", "test-obj-001",
+			"--object-path", "dummy-path",
+		})
+		require.Error(t, root.Execute(), "extract with conflicting flags should fail")
+
+		// Non-empty target folder
+		dummyFile := filepath.Join(targetDir, "existing.txt")
+		require.NoError(t, os.WriteFile(dummyFile, []byte("existing"), 0644))
+
+		ResetForTest()
+		root = GetRootCmd()
+		root.SetArgs([]string{
+			"extract", ocflPath, targetDir,
+			"--config", "internal",
+			"--object-id", "test-obj-001",
+		})
+		require.Error(t, root.Execute(), "extract into non-empty target dir should fail")
+	})
+
+	t.Run("extractmeta error cases", func(t *testing.T) {
+		// Conflicting flags
+		ResetForTest()
+		root := GetRootCmd()
+		root.SetArgs([]string{
+			"extractmeta", ocflPath,
+			"--config", "internal",
+			"--object-id", "test-obj-001",
+			"--object-path", "dummy-path",
+		})
+		require.Error(t, root.Execute(), "extractmeta with conflicting flags should fail")
+
+		// Missing both object-id and object-path
+		ResetForTest()
+		root = GetRootCmd()
+		root.SetArgs([]string{
+			"extractmeta", ocflPath,
+			"--config", "internal",
+		})
+		require.Error(t, root.Execute(), "extractmeta without object-id or object-path should fail")
+
+		// Invalid format
+		ResetForTest()
+		root = GetRootCmd()
+		root.SetArgs([]string{
+			"extractmeta", ocflPath,
+			"--config", "internal",
+			"--object-id", "test-obj-001",
+			"--format", "xml_invalid",
+		})
+		require.Error(t, root.Execute(), "extractmeta with invalid format should fail")
+	})
+
+	t.Run("init error cases", func(t *testing.T) {
+		dummyInitDir, err := os.MkdirTemp("", "gocfl_test_init_err")
+		require.NoError(t, err)
+		defer os.RemoveAll(dummyInitDir)
+		dummyInitDir = filepath.ToSlash(dummyInitDir)
+
+		ResetForTest()
+		root := GetRootCmd()
+		root.SetArgs([]string{
+			"init", dummyInitDir,
+			"--config", "internal",
+			"--digest", "invalid_digest_name",
+		})
+		require.Error(t, root.Execute(), "init with invalid digest should fail")
+	})
 }

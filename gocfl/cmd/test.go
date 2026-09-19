@@ -21,7 +21,7 @@ var testCmd = &cobra.Command{
 	Long:    "check gocfl against folder with test fixtures. Every folder contains one fixture object. If folder name starts with validation codes it's checked, whether they are found.",
 	Example: "gocfl test <path to ocfl test fixtures>",
 	Args:    cobra.MaximumNArgs(1),
-	Run:     doTest,
+	RunE:    doTest,
 }
 
 func initTest() {
@@ -29,27 +29,30 @@ func initTest() {
 }
 
 // doTestConf updates the configuration based on the command line flags for the 'test' command.
-func doTestConf(cmd *cobra.Command) {
+func doTestConf(cmd *cobra.Command) error {
 	if str := getFlagString(cmd, "object-path"); str != "" {
 		if err := conf.Test.ObjectPath.UnmarshalText([]byte(str)); err != nil {
 			logger.Error().Err(err).Msgf("invalid object-path '%s' for flag 'object-path' or 'Test.ObjectPath' config file entry", str)
-			return
+			return errors.Wrapf(err, "invalid object-path '%s'", str)
 		}
 	}
+	return nil
 }
 
 // doTest is the main function for the 'test' command.
 // It runs validation tests against OCFL test fixtures in a specified folder.
-func doTest(cmd *cobra.Command, args []string) {
+func doTest(cmd *cobra.Command, args []string) error {
 	if len(args) > 0 && len(args[0]) > 0 {
 		if err := conf.Test.FixturePath.UnmarshalText([]byte(args[0])); err != nil {
 			logger.Error().Err(err).Msgf("invalid fixture-path '%s' for flag 'fixture-path' or 'Test.FixturePath' config file entry", args[0])
-			return
+			return errors.Wrapf(err, "invalid fixture-path '%s'", args[0])
 		}
 	}
 
 	// Update configuration based on flags
-	doTestConf(cmd)
+	if err := doTestConf(cmd); err != nil {
+		return err
+	}
 
 	fixturePath := conf.Test.FixturePath.String()
 	fixturePath = writefs.RealPath(vfs, fixturePath)
@@ -60,20 +63,20 @@ func doTest(cmd *cobra.Command, args []string) {
 	extensionParams, err := getExtensionParams(cmd)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot get extension params")
-		return
+		return errors.Wrap(err, "cannot get extension params")
 	}
 
 	// Setup object extension manager
 	_, _, err = ocfl.SetupExtensionManager[object.ExtensionManager](extensionParams, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup object extension manager")
-		return
+		return errors.Wrap(err, "cannot setup object extension manager")
 	}
 
 	dirs, err := fs.ReadDir(vfs, fixturePath)
 	if err != nil {
 		logger.Error().Err(err).Msgf("cannot read dir '%s'", fixturePath)
-		return
+		return errors.Wrapf(err, "cannot read dir '%s'", fixturePath)
 	}
 	for _, dir := range dirs {
 		folderName := dir.Name()
@@ -152,6 +155,7 @@ func doTest(cmd *cobra.Command, args []string) {
 		}
 		logger.ClearValidationErrors()
 	}
+	return nil
 }
 
 var folderErrorRegexp = regexp.MustCompile(`^((?:[EW]\d{3}_)+)`)

@@ -27,7 +27,7 @@ var extractCmd = &cobra.Command{
 	//Long:    "an utterly useless command for testing",
 	Example: "gocfl extract ./archive.zip /tmp/archive",
 	Args:    cobra.MinimumNArgs(2),
-	Run:     doExtract,
+	RunE:    doExtract,
 }
 
 func initExtract() {
@@ -39,20 +39,18 @@ func initExtract() {
 }
 
 // doExtractConf updates the configuration based on the command line flags for the 'extract' command.
-func doExtractConf(cmd *cobra.Command) {
+func doExtractConf(cmd *cobra.Command) error {
 	if str := getFlagString(cmd, "object-path"); str != "" {
 		if err := conf.Extract.ObjectPath.UnmarshalText([]byte(str)); err != nil {
 			logger.Error().Err(err).Msgf("invalid object-path '%s' for flag 'object-path' or 'Extract.ObjectPath' config file entry", str)
-			return
+			return errors.Wrapf(err, "invalid object-path '%s'", str)
 		}
 	}
 	if str := getFlagString(cmd, "object-id"); str != "" {
 		conf.Extract.ObjectID = str
 	}
-	if b, ok := getFlagBool(cmd, "with-manifest"); b {
-		if ok {
-			conf.Extract.Manifest = b
-		}
+	if b, ok := getFlagBool(cmd, "with-manifest"); ok {
+		conf.Extract.Manifest = b
 	}
 	if str := getFlagString(cmd, "version"); str != "" {
 		conf.Extract.Version = str
@@ -63,25 +61,26 @@ func doExtractConf(cmd *cobra.Command) {
 	if conf.Extract.Version == "" {
 		conf.Extract.Version = "latest"
 	}
+	return nil
 }
 
 // doExtract is the main function for the 'extract' command.
 // It initializes the logger, sets up the virtual file system (VFS), loads extension managers,
 // and extracts a specific version of an OCFL object to a target folder.
-func doExtract(cmd *cobra.Command, args []string) {
-	var err error
+func doExtract(cmd *cobra.Command, args []string) error {
 	rootPath := args[0]
 	destPath := args[1]
 
 	// Update configuration based on flags
-	doExtractConf(cmd)
+	if err := doExtractConf(cmd); err != nil {
+		return err
+	}
 
-	oPath := conf.Extract.ObjectPath
+	oPath := conf.Extract.ObjectPath.String()
 	oID := conf.Extract.ObjectID
 	if oPath != "" && oID != "" {
-		cmd.Help()
-		cobra.CheckErr(errors.New("do not use object-path AND object-id at the same time"))
-		return
+		_ = cmd.Help()
+		return errors.New("do not use object-path AND object-id at the same time")
 	}
 
 	logger.Info().Msgf("extracting '%s'", rootPath)
@@ -95,21 +94,22 @@ func doExtract(cmd *cobra.Command, args []string) {
 		zipFS, err := zipfs.NewFSFile(vfs, rootPath, logger.Logger())
 		if err != nil {
 			logger.Error().Err(err).Msgf("cannot open zip filesystem at '%s'", rootPath)
-			return
+			return errors.Wrapf(err, "cannot open zip filesystem at '%s'", rootPath)
 		}
 		defer zipFS.Close()
 		ocflFS = zipFS
 	} else {
+		var err error
 		ocflFS, err = writefs.Sub(vfs, rootPath)
 		if err != nil {
 			logger.Error().Err(err).Msgf("cannot open ocfl filesystem at '%s'", rootPath)
-			return
+			return errors.Wrapf(err, "cannot open ocfl filesystem at '%s'", rootPath)
 		}
 	}
 	destFS, err := writefs.SubCreate(vfs, destPath)
 	if err != nil {
 		logger.Error().Err(err).Msgf("cannot get filesystem for '%s'", destPath)
-		return
+		return errors.Wrapf(err, "cannot get filesystem for '%s'", destPath)
 	}
 	defer func() {
 		if err := writefs.Close(destFS); err != nil {
@@ -120,24 +120,24 @@ func doExtract(cmd *cobra.Command, args []string) {
 	extensionParams, err := getExtensionParams(cmd)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot get extension params")
-		return
+		return errors.Wrap(err, "cannot get extension params")
 	}
 
 	// Setup extension managers for storage root and object
 	_, _, err = ocfl.SetupExtensionManager[storageroot.ExtensionManager](extensionParams, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup storage root extension manager")
-		return
+		return errors.Wrap(err, "cannot setup storage root extension manager")
 	}
 
 	objectExtensionManager, _, err := ocfl.SetupExtensionManager[object.ExtensionManager](extensionParams, firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder.String())), logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup object extension manager")
-		return
+		return errors.Wrap(err, "cannot setup object extension manager")
 	}
 	defer func() {
 		if err := objectExtensionManager.Terminate(); err != nil {
-			logger.Error().Err(err).Msg("cannot terminate storage root extension manager")
+			logger.Error().Err(err).Msg("cannot terminate object extension manager")
 		}
 	}()
 
@@ -145,43 +145,52 @@ func doExtract(cmd *cobra.Command, args []string) {
 	sr, err := ocfl.LoadStorageRoot(ctx, ocflFS, nil, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storage root")
-		return
+		return errors.Wrap(err, "cannot load storage root")
 	}
 	defer sr.Close()
 
 	dirs, err := fs.ReadDir(destFS, ".")
 	if err != nil {
 		logger.Error().Err(err).Msgf("cannot read target folder '%v'", destFS)
-		return
+		return errors.Wrapf(err, "cannot read target folder '%v'", destFS)
 	}
 	if len(dirs) > 0 {
 		fmt.Printf("target folder '%s' is not empty\n", destFS)
 		logger.Debug().Msgf("target folder '%s' is not empty", destFS)
-		return
+		return errors.Errorf("target folder '%s' is not empty", destPath)
 	}
 	if conf.Extract.ObjectID != "" {
 		p, err := sr.IdToFolder(conf.Extract.ObjectID)
 		if err != nil {
 			logger.Error().Err(err).Msgf("cannot get object-path for '%s'", conf.Extract.ObjectID)
-			return
+			return errors.Wrapf(err, "cannot get object-path for '%s'", conf.Extract.ObjectID)
 		}
 		if err := conf.Extract.ObjectPath.UnmarshalText([]byte(p)); err != nil {
 			logger.Error().Err(err).Msgf("invalid object-path '%s' for flag 'object-path' or 'Extract.ObjectPath' config file entry", p)
-			return
+			return errors.Wrapf(err, "invalid object-path '%s'", p)
 		}
 	}
 
 	destAppendFS, ok := destFS.(appendfs.FS)
 	if !ok {
-		logger.Error().Err(err).Msgf("filesystem for '%s' is not writeable", destFS)
-		return
+		logger.Error().Msgf("filesystem for '%s' is not writeable", destFS)
+		return errors.Errorf("filesystem for '%s' is not writeable", destPath)
+	}
+
+	var objFS fs.FS = ocflFS
+	if conf.Extract.ObjectPath.String() != "" {
+		objFS, err = writefs.Sub(sr.GetReadFS(), conf.Extract.ObjectPath.String())
+		if err != nil {
+			logger.Error().Err(err).Msgf("cannot get subfs for '%s'", conf.Extract.ObjectPath)
+			return errors.Wrapf(err, "cannot get subfs for '%s'", conf.Extract.ObjectPath)
+		}
 	}
 
 	// Perform the extraction
-	obj, err := ocfl.LoadObject(context.Background(), ocflFS, extensionParams, logger)
+	obj, err := ocfl.LoadObject(context.Background(), objFS, extensionParams, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load object")
-		return
+		return errors.Wrap(err, "cannot load object")
 	}
 	defer obj.Close()
 	extractor := obj.GetExtractor()
@@ -195,8 +204,11 @@ func doExtract(cmd *cobra.Command, args []string) {
 		); err != nil {
 		fmt.Printf("cannot extract storage root: %v\n", err)
 		logger.Error().Err(err).Msg("cannot extract storage root")
-		return
+		return errors.Wrap(err, "cannot extract storage root")
 	}
 	fmt.Printf("extraction done without errors\n")
-	_ = showStatus(logger)
+	if showStatus(logger) {
+		return errors.New("extract failed")
+	}
+	return nil
 }

@@ -6,7 +6,6 @@ import (
 	"os"
 	"strings"
 
-	"emperror.dev/emperror"
 	"emperror.dev/errors"
 	"github.com/ocfl-archive/filesystem/pkg/writefs"
 	"github.com/ocfl-archive/filesystem/pkg/zipfs"
@@ -23,7 +22,7 @@ var statCmd = &cobra.Command{
 	//Long:    "an utterly useless command for testing",
 	Example: "gocfl stat ./archive.zip",
 	Args:    cobra.MinimumNArgs(1),
-	Run:     doStat,
+	RunE:    doStat,
 }
 
 func initStat() {
@@ -38,11 +37,11 @@ func initStat() {
 }
 
 // doStatConf updates the configuration based on the command line flags for the 'stat' command.
-func doStatConf(cmd *cobra.Command) {
+func doStatConf(cmd *cobra.Command) error {
 	if str := getFlagString(cmd, "object-path"); str != "" {
 		if err := conf.Stat.ObjectPath.UnmarshalText([]byte(str)); err != nil {
 			logger.Error().Err(err).Msgf("invalid object-path '%s' for flag 'object-path' or 'Stat.ObjectPath' config file entry", str)
-			return
+			return errors.Wrapf(err, "invalid object-path '%s'", str)
 		}
 	}
 	if str := getFlagString(cmd, "object-id"); str != "" {
@@ -54,22 +53,24 @@ func doStatConf(cmd *cobra.Command) {
 			conf.Stat.Info = append(conf.Stat.Info, strings.ToLower(strings.TrimSpace(s)))
 		}
 	}
+	return nil
 }
 
 // doStat is the main function for the 'stat' command.
 // It retrieves and displays statistics for an OCFL structure or a specific object within it.
-func doStat(cmd *cobra.Command, args []string) {
+func doStat(cmd *cobra.Command, args []string) error {
 	ocflPath := args[0]
 
 	// Update configuration based on flags
-	doStatConf(cmd)
+	if err := doStatConf(cmd); err != nil {
+		return err
+	}
 
 	oPath := conf.Stat.ObjectPath.String()
 	oID := conf.Stat.ObjectID
 	if oPath != "" && oID != "" {
-		emperror.Panic(cmd.Help())
-		cobra.CheckErr(errors.New("do not use object-path AND object-id at the same time"))
-		return
+		_ = cmd.Help()
+		return errors.New("do not use object-path AND object-id at the same time")
 	}
 
 	statInfo := []object.StatInfo{}
@@ -83,8 +84,8 @@ func doStat(cmd *cobra.Command, args []string) {
 			}
 		}
 		if !found {
-			emperror.Panic(cmd.Help())
-			cobra.CheckErr(errors.Errorf("--stat-info invalid value '%s' ", statInfoString))
+			_ = cmd.Help()
+			return errors.Errorf("--stat-info invalid value '%s'", statInfoString)
 		}
 	}
 
@@ -98,7 +99,7 @@ func doStat(cmd *cobra.Command, args []string) {
 		destFS, err = zipfs.NewFSFile(vfs, ocflPath, logger.Logger())
 		if err != nil {
 			logger.Error().Err(err).Msgf("cannot open zip filesystem for '%s'", ocflPath)
-			return
+			return errors.Wrapf(err, "cannot open zip filesystem for '%s'", ocflPath)
 		}
 	} else {
 		// Prepare access to the OCFL directory
@@ -106,7 +107,7 @@ func doStat(cmd *cobra.Command, args []string) {
 		destFS, err = writefs.Sub(vfs, ocflPath)
 		if err != nil {
 			logger.Error().Err(err).Msgf("cannot get filesystem for '%s'", ocflPath)
-			return
+			return errors.Wrapf(err, "cannot get filesystem for '%s'", ocflPath)
 		}
 	}
 	defer func() {
@@ -118,27 +119,30 @@ func doStat(cmd *cobra.Command, args []string) {
 	extensionParams, err := getExtensionParams(cmd)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot get extension params")
-		return
+		return errors.Wrap(err, "cannot get extension params")
 	}
 
 	// Setup extension manager for storage root
 	_, _, err = ocfl.SetupExtensionManager[storageroot.ExtensionManager](extensionParams, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup storage root extension manager")
-		return
+		return errors.Wrap(err, "cannot setup storage root extension manager")
 	}
 
 	// Load the storage root
 	storageRoot, err := ocfl.LoadStorageRoot(ctx, destFS, nil, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storage root")
-		return
+		return errors.Wrap(err, "cannot load storage root")
 	}
 	defer storageRoot.Close()
 
 	if err := storageRoot.Stat(os.Stdout, oPath, oID, statInfo); err != nil {
 		logger.Error().Err(err).Msg("cannot get statistics")
-		return
+		return errors.Wrap(err, "cannot get statistics")
 	}
-	_ = showStatus(logger)
+	if showStatus(logger) {
+		return errors.New("stat failed")
+	}
+	return nil
 }

@@ -26,7 +26,7 @@ var updateCmd = &cobra.Command{
 	Long:    "opens an existing ocfl structure and updates an object. if an object with the given id does not exist, an error is produced",
 	Example: "gocfl update ./archive.zip /tmp/testdata -u 'Jane Doe' -a 'mailto:user@domain' -m 'initial add' -object-id 'id:abc123'",
 	Args:    cobra.MinimumNArgs(2),
-	Run:     doUpdate,
+	RunE:    doUpdate,
 }
 
 func initUpdate() {
@@ -44,7 +44,7 @@ func initUpdate() {
 }
 
 // doUpdateConf updates the configuration based on the command line flags for the 'update' command.
-func doUpdateConf(cmd *cobra.Command) {
+func doUpdateConf(cmd *cobra.Command) error {
 	if str := getFlagString(cmd, "user-name"); str != "" {
 		conf.Update.User.Name = str
 	}
@@ -62,42 +62,43 @@ func doUpdateConf(cmd *cobra.Command) {
 	}
 	if _, err := checksum.GetHash(conf.Update.Digest); err != nil {
 		_ = cmd.Help()
-		cobra.CheckErr(errors.Errorf("invalid digest '%s' for flag 'digest' or 'Init.DigestAlgorithm' config file entry", conf.Add.Digest))
+		return errors.Errorf("invalid digest '%s' for flag 'digest' or 'Update.Digest' config file entry", conf.Update.Digest)
 	}
-	if b, ok := getFlagBool(cmd, "no-deduplicate"); b {
-		if ok {
-			conf.Update.Deduplicate = !b
-		}
+	if b, ok := getFlagBool(cmd, "no-deduplicate"); ok {
+		conf.Update.Deduplicate = !b
 	}
-	if b, ok := getFlagBool(cmd, "no-compress"); b {
-		if ok {
-			conf.Update.NoCompress = b
-		}
+	if b, ok := getFlagBool(cmd, "no-compress"); ok {
+		conf.Update.NoCompress = b
 	}
-	if b, ok := getFlagBool(cmd, "echo"); b {
-		if ok {
-			conf.Update.Echo = b
-		}
+	if b, ok := getFlagBool(cmd, "echo"); ok {
+		conf.Update.Echo = b
 	}
-
+	return nil
 }
 
 // doUpdate is the main function for the 'update' command.
 // It opens an existing OCFL structure and updates an existing object with new content.
-func doUpdate(cmd *cobra.Command, args []string) {
+func doUpdate(cmd *cobra.Command, args []string) error {
+	if err := cmd.ValidateRequiredFlags(); err != nil {
+		return errors.WithStack(err)
+	}
+
 	ocflPath := args[0]
 	srcPath := args[1]
 
 	// Update configuration based on flags
-	doUpdateConf(cmd)
+	if err := doUpdateConf(cmd); err != nil {
+		return err
+	}
 
 	var localCache bool
 
 	fmt.Printf("opening '%s'\n", ocflPath)
 	logger.Info().Msgf("opening '%s'", ocflPath)
 
-	if _, err := os.Stat(srcPath); err != nil {
-		logger.Fatal().Err(err).Msgf("cannot stat '%s'", srcPath)
+	if _, err := fs.Stat(vfs, srcPath); err != nil {
+		logger.Error().Err(err).Msgf("cannot stat '%s'", srcPath)
+		return errors.Wrapf(err, "cannot stat '%s'", srcPath)
 	}
 
 	ocflPath = writefs.RealPath(vfs, ocflPath)
@@ -106,24 +107,22 @@ func doUpdate(cmd *cobra.Command, args []string) {
 	// Prepare source and destination filesystems
 	sourceFS, err := writefs.Sub(vfs, srcPath)
 	if err != nil {
-		logger.Fatal().Err(err).Msgf("cannot get filesystem for '%s'", srcPath)
+		logger.Error().Err(err).Msgf("cannot get filesystem for '%s'", srcPath)
+		return errors.Wrapf(err, "cannot get filesystem for '%s'", srcPath)
 	}
 	_destFS, err := writefs.Sub(vfs, ocflPath)
 	if err != nil {
-		logger.Fatal().Err(err).Msgf("cannot get filesystem for '%s'", ocflPath)
+		logger.Error().Err(err).Msgf("cannot get filesystem for '%s'", ocflPath)
+		return errors.Wrapf(err, "cannot get filesystem for '%s'", ocflPath)
 	}
 	destFS, ok := _destFS.(appendfs.FS)
 	if !ok {
-		logger.Fatal().Msgf("filesystem for '%s' is not writable", ocflPath)
+		logger.Error().Msgf("filesystem for '%s' is not writable", ocflPath)
+		return errors.Errorf("filesystem for '%s' is not writable", ocflPath)
 	}
-	var doNotClose = false
 	defer func() {
-		if doNotClose {
-			logger.Fatal().Msgf("filesystem '%s' not closed", destFS)
-		} else {
-			if err := writefs.Close(destFS); err != nil {
-				logger.Fatal().Err(err).Msgf("error closing filesystem '%s'", destFS)
-			}
+		if err := writefs.Close(destFS); err != nil {
+			logger.Error().Err(err).Msgf("error closing filesystem '%s'", destFS)
 		}
 	}()
 
@@ -140,8 +139,8 @@ func doUpdate(cmd *cobra.Command, args []string) {
 		}
 		areaPaths[matches[1]], err = writefs.Sub(vfs, matches[2])
 		if err != nil {
-			doNotClose = true
-			logger.Fatal().Err(err).Msgf("cannot get filesystem for '%s'", args[i])
+			logger.Error().Err(err).Msgf("cannot get filesystem for '%s'", args[i])
+			return errors.Wrapf(err, "cannot get filesystem for '%s'", args[i])
 		}
 	}
 
@@ -152,36 +151,39 @@ func doUpdate(cmd *cobra.Command, args []string) {
 
 	extensionParams, err := getExtensionParams(cmd)
 	if err != nil {
-		logger.Fatal().Err(err).Msg("cannot get extension params")
+		logger.Error().Err(err).Msg("cannot get extension params")
+		return errors.Wrap(err, "cannot get extension params")
 	}
 
 	// Setup extension managers for storage root and object
-	_, _, err = ocfl.SetupExtensionManager[storageroot.ExtensionManager](extensionParams, firstOrSecond(conf.Init.StorageRootExtensionFolder == "", (fs.FS)(defaultextensions_storageroot.DefaultStorageRootExtensionFS), os.DirFS(conf.Init.StorageRootExtensionFolder.String())), logger)
+	storageRootExtensionManager, _, err := ocfl.SetupExtensionManager[storageroot.ExtensionManager](extensionParams, firstOrSecond(conf.Init.StorageRootExtensionFolder == "", (fs.FS)(defaultextensions_storageroot.DefaultStorageRootExtensionFS), os.DirFS(conf.Init.StorageRootExtensionFolder.String())), logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup storage root extension manager")
-		doNotClose = true
-		return
+		return errors.Wrap(err, "cannot setup storage root extension manager")
 	}
+	defer func() {
+		if err := storageRootExtensionManager.Terminate(); err != nil {
+			logger.Error().Err(err).Msg("cannot terminate storage root extension manager")
+		}
+	}()
 
 	// Load the storage root
 	storageRoot, err := ocfl.LoadStorageRoot(ctx, destFS, extensionParams, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storage root")
-		doNotClose = true
-		return
+		return errors.Wrap(err, "cannot load storage root")
 	}
 	defer storageRoot.Close()
 
 	exists, err := storageRoot.ObjectExists(flagObjectID)
 	if err != nil {
 		logger.Error().Err(err).Msgf("cannot check for object '%s'", flagObjectID)
-		doNotClose = true
-		return
+		return errors.Wrapf(err, "cannot check for object '%s'", flagObjectID)
 	}
 	if !exists {
-		fmt.Printf("Object '%s' does not exists, exiting", flagObjectID)
-		doNotClose = true
-		return
+		fmt.Printf("Object '%s' does not exists, exiting\n", flagObjectID)
+		logger.Error().Msgf("object '%s' does not exist", flagObjectID)
+		return errors.Errorf("object '%s' does not exist", flagObjectID)
 	}
 
 	// Add/Update the object in the storage root
@@ -204,8 +206,10 @@ func doUpdate(cmd *cobra.Command, args []string) {
 	)
 	if err != nil {
 		logger.Error().Err(err).Msgf("cannot write content to storageroot filesystem '%s'", destFS)
-		doNotClose = true
+		return errors.Wrapf(err, "cannot write content to storageroot filesystem '%s'", destFS)
 	}
-	_ = showStatus(logger)
-
+	if showStatus(logger) {
+		return errors.New("update failed")
+	}
+	return nil
 }

@@ -77,35 +77,41 @@ func isEmpty(name string) (bool, error) {
 	return false, err // Either not empty or error, suits both cases
 }
 
-func doCreateConf(cmd *cobra.Command) {
+func doCreateConf(cmd *cobra.Command) error {
 	if b, ok := getFlagBool(cmd, "encrypt-aes"); ok {
 		conf.AES.Enable = b
 	}
 	if str := getFlagString(cmd, "aes-key"); str != "" {
 		if err := conf.AES.Key.UnmarshalText(([]byte)(str)); err != nil {
 			logger.Error().Err(err).Msg("cannot parse aes-key")
+			return errors.Wrapf(err, "cannot parse aes-key")
 		}
 	}
 	if str := getFlagString(cmd, "aes-iv"); str != "" {
 		if err := conf.AES.IV.UnmarshalText(([]byte)(str)); err != nil {
 			logger.Error().Err(err).Msg("cannot parse aes-iv")
+			return errors.Wrapf(err, "cannot parse aes-iv")
 		}
 	}
 	if str := getFlagString(cmd, "keepass-file"); str != "" {
 		if err := conf.AES.KeepassFile.UnmarshalText(([]byte)(str)); err != nil {
 			logger.Error().Err(err).Msg("cannot parse keepass-file")
+			return errors.Wrapf(err, "cannot parse keepass-file")
 		}
 	}
 	if str := getFlagString(cmd, "keepass-entry"); str != "" {
 		if err := conf.AES.KeepassEntry.UnmarshalText(([]byte)(str)); err != nil {
 			logger.Error().Err(err).Msg("cannot parse keepass-entry")
+			return errors.Wrapf(err, "cannot parse keepass-entry")
 		}
 	}
 	if str := getFlagString(cmd, "keepass-key"); str != "" {
 		if err := conf.AES.KeepassKey.UnmarshalText(([]byte)(str)); err != nil {
 			logger.Error().Err(err).Msg("cannot parse keepass-key")
+			return errors.Wrapf(err, "cannot parse keepass-key")
 		}
 	}
+	return nil
 }
 
 // doCreate is the main function for the 'create' command.
@@ -121,9 +127,15 @@ func doCreate(cmd *cobra.Command, args []string) error {
 	srcPath := args[1]
 
 	// Update internal configuration based on provided flags
-	doInitConf(cmd)
-	doAddConf(cmd)
-	doCreateConf(cmd)
+	if err := doInitConf(cmd); err != nil {
+		return err
+	}
+	if err := doAddConf(cmd); err != nil {
+		return err
+	}
+	if err := doCreateConf(cmd); err != nil {
+		return err
+	}
 
 	ocflPath = writefs.RealPath(vfs, ocflPath)
 	srcPath = writefs.RealPath(vfs, srcPath)
@@ -382,7 +394,9 @@ func doCreate(cmd *cobra.Command, args []string) error {
 	}
 
 	// Show result status
-	_ = showStatus(logger)
+	if showStatus(logger) {
+		return errors.New("create failed")
+	}
 
 	return nil
 }

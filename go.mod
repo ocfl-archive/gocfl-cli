@@ -17,7 +17,7 @@ require (
 	github.com/ocfl-archive/error v1.0.5
 	github.com/ocfl-archive/filesystem v1.0.15
 	github.com/ocfl-archive/gocfl-extensions v0.0.0-20260918125516-07c4541b2db8
-	github.com/ocfl-archive/gocfl/v3 v3.0.10
+	github.com/ocfl-archive/gocfl/v3 v3.0.11
 	github.com/ocfl-archive/indexer/v3 v3.0.44
 	github.com/rs/zerolog v1.35.1
 	github.com/shirou/gopsutil/v4 v4.26.8

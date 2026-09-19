@@ -25,7 +25,7 @@ var extractMetaCmd = &cobra.Command{
 	//Long:    "an utterly useless command for testing",
 	Example: "gocfl extractmeta ./archive.zip --output-json ./archive_meta.json",
 	Args:    cobra.ExactArgs(1),
-	Run:     doExtractMeta,
+	RunE:    doExtractMeta,
 }
 
 func initExtractMeta() {
@@ -38,11 +38,11 @@ func initExtractMeta() {
 }
 
 // doExtractMetaConf updates the configuration based on the command line flags for the 'extractmeta' command.
-func doExtractMetaConf(cmd *cobra.Command) {
+func doExtractMetaConf(cmd *cobra.Command) error {
 	if str := getFlagString(cmd, "object-path"); str != "" {
 		if err := conf.ExtractMeta.ObjectPath.UnmarshalText([]byte(str)); err != nil {
 			logger.Error().Err(err).Msgf("invalid object-path '%s' for flag 'object-path' or 'ExtractMeta.ObjectPath' config file entry", str)
-			return
+			return errors.Wrapf(err, "invalid object-path '%s'", str)
 		}
 	}
 	if str := getFlagString(cmd, "object-id"); str != "" {
@@ -63,34 +63,33 @@ func doExtractMetaConf(cmd *cobra.Command) {
 	if b, ok := getFlagBool(cmd, "obfuscate"); ok {
 		conf.ExtractMeta.Obfuscate = b
 	}
+	return nil
 }
 
 // doExtractMeta is the main function for the 'extractmeta' command.
 // It extracts metadata from an OCFL object and outputs it in JSON format.
-func doExtractMeta(cmd *cobra.Command, args []string) {
-	var err error
+func doExtractMeta(cmd *cobra.Command, args []string) error {
 	ocflPath := args[0]
 
 	// Update configuration based on flags
-	doExtractMetaConf(cmd)
+	if err := doExtractMetaConf(cmd); err != nil {
+		return err
+	}
 
 	oPath := conf.ExtractMeta.ObjectPath.String()
 	oID := conf.ExtractMeta.ObjectID
 	if oPath != "" && oID != "" {
-		cmd.Help()
-		cobra.CheckErr(errors.New("do not use object-path AND object-id at the same time"))
-		return
+		_ = cmd.Help()
+		return errors.New("do not use object-path AND object-id at the same time")
 	}
 	if oPath == "" && oID == "" {
-		cmd.Help()
-		cobra.CheckErr(errors.New("must specify either object-id or object-path"))
-		return
+		_ = cmd.Help()
+		return errors.New("must specify either object-id or object-path")
 	}
 	format := strings.ToLower(conf.ExtractMeta.Format)
 	if format != "json" && format != "human" {
-		cmd.Help()
-		cobra.CheckErr(errors.Errorf("invalid format '%s' for flag 'format' or 'Format' config file entry", format))
-		return
+		_ = cmd.Help()
+		return errors.Errorf("invalid format '%s' for flag 'format' or 'Format' config file entry", format)
 	}
 	output := conf.ExtractMeta.Output
 
@@ -104,38 +103,39 @@ func doExtractMeta(cmd *cobra.Command, args []string) {
 		zipFS, err := zipfs.NewFSFile(vfs, ocflPath, logger.Logger())
 		if err != nil {
 			logger.Error().Err(err).Msgf("cannot open zip filesystem at '%s'", ocflPath)
-			return
+			return errors.Wrapf(err, "cannot open zip filesystem at '%s'", ocflPath)
 		}
 		defer zipFS.Close()
 		ocflFS = zipFS
 	} else {
+		var err error
 		ocflFS, err = writefs.Sub(vfs, ocflPath)
 		if err != nil {
 			logger.Error().Err(err).Msgf("cannot open ocfl filesystem at '%s'", ocflPath)
-			return
+			return errors.Wrapf(err, "cannot open ocfl filesystem at '%s'", ocflPath)
 		}
 	}
 	extensionParams, err := getExtensionParams(cmd)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot get extension params")
-		return
+		return errors.Wrap(err, "cannot get extension params")
 	}
 
 	// Setup extension managers for storage root and object
 	_, _, err = ocfl.SetupExtensionManager[storageroot.ExtensionManager](extensionParams, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup storage root extension manager")
-		return
+		return errors.Wrap(err, "cannot setup storage root extension manager")
 	}
 
 	objectExtensionManager, _, err := ocfl.SetupExtensionManager[object.ExtensionManager](extensionParams, firstOrSecond(conf.Add.ObjectExtensionFolder == "", (fs.FS)(defaultextensions_object.DefaultObjectExtensionFS), os.DirFS(conf.Add.ObjectExtensionFolder.String())), logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot setup object extension manager")
-		return
+		return errors.Wrap(err, "cannot setup object extension manager")
 	}
 	defer func() {
 		if err := objectExtensionManager.Terminate(); err != nil {
-			logger.Error().Err(err).Msg("cannot terminate storage root extension manager")
+			logger.Error().Err(err).Msg("cannot terminate object extension manager")
 		}
 	}()
 
@@ -143,27 +143,28 @@ func doExtractMeta(cmd *cobra.Command, args []string) {
 	sr, err := ocfl.LoadStorageRoot(ctx, ocflFS, nil, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storage root")
-		return
+		return errors.Wrap(err, "cannot load storage root")
 	}
 	defer sr.Close()
 	logger.WithVersion(sr.GetOCFLVersion())
 	if oID != "" {
+		var err error
 		oPath, err = sr.IdToFolder(oID)
 		if err != nil {
 			logger.Error().Err(err).Msgf("cannot get id folder for '%s'", oID)
-			return
+			return errors.Wrapf(err, "cannot get id folder for '%s'", oID)
 		}
 	}
 
 	objPathFS, err := fs.Sub(sr.GetReadFS(), oPath)
 	if err != nil {
 		logger.Error().Err(err).Msgf("cannot get subfs for '%s'", oPath)
-		return
+		return errors.Wrapf(err, "cannot get subfs for '%s'", oPath)
 	}
 	obj, err := ocfl.LoadObject(ctx, objPathFS, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load object")
-		return
+		return errors.Wrap(err, "cannot load object")
 	}
 	defer obj.Close()
 	extractor := obj.GetExtractor()
@@ -172,13 +173,13 @@ func doExtractMeta(cmd *cobra.Command, args []string) {
 	if err != nil {
 		fmt.Printf("cannot extract metadata from storage root: %v\n", err)
 		logger.Error().Err(err).Msg("cannot extract metadata from storage root")
-		return
+		return errors.Wrap(err, "cannot extract metadata from storage root")
 	}
 	if conf.ExtractMeta.Obfuscate {
 		if err := metadata.Obfuscate(); err != nil {
 			fmt.Printf("cannot obfuscate metadata: %v\n", err)
 			logger.Error().Err(err).Msg("cannot obfuscate metadata")
-			return
+			return errors.Wrap(err, "cannot obfuscate metadata")
 		}
 	}
 
@@ -190,7 +191,7 @@ func doExtractMeta(cmd *cobra.Command, args []string) {
 		if err != nil {
 			fmt.Printf("cannot marshal metadata\n")
 			logger.Error().Err(err).Msg("cannot marshal metadata")
-			return
+			return errors.Wrap(err, "cannot marshal metadata")
 		}
 	}
 
@@ -198,16 +199,19 @@ func doExtractMeta(cmd *cobra.Command, args []string) {
 		if err := os.WriteFile(output, outputBytes, 0644); err != nil {
 			fmt.Printf("cannot write to file '%s'\n", output)
 			logger.Error().Err(err).Msgf("cannot write to file '%s'", output)
-			return
+			return errors.Wrapf(err, "cannot write to file '%s'", output)
 		}
 	} else {
 		if _, err := os.Stdout.Write(outputBytes); err != nil {
 			fmt.Printf("cannot write to standard output\n")
 			logger.Error().Err(err).Msg("cannot write to standard output")
-			return
+			return errors.Wrap(err, "cannot write to standard output")
 		}
 		fmt.Print("\n")
 	}
 	fmt.Printf("metadata extraction done without errors\n")
-	_ = showStatus(logger)
+	if showStatus(logger) {
+		return errors.New("extractmeta failed")
+	}
+	return nil
 }

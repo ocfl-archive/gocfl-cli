@@ -3,7 +3,6 @@ package cmd
 import (
 	"io"
 	"io/fs"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -36,7 +35,7 @@ var initConfigCmd = &cobra.Command{
 	//Long:    "an utterly useless command for testing",
 	Example: "gocfl initconfig",
 	Args:    cobra.MaximumNArgs(1),
-	Run:     doInitConfig,
+	RunE:    doInitConfig,
 }
 
 func initInitConfig() {
@@ -49,23 +48,23 @@ func initInitConfig() {
 }
 
 // doInitConfigConf updates the configuration based on the command line flags for the 'initconfig' command.
-func doInitConfigConf(cmd *cobra.Command) {
+func doInitConfigConf(cmd *cobra.Command) error {
 	if str := getFlagString(cmd, "toml"); str != "" {
 		if err := conf.InitConfig.TOMLFile.UnmarshalText([]byte(str)); err != nil {
 			logger.Error().Err(err).Msgf("invalid toml '%s' for flag 'toml' or 'InitConfig.TOMLFile' config file entry", str)
-			return
+			return errors.Wrapf(err, "invalid toml '%s'", str)
 		}
 	}
 	if str := getFlagString(cmd, "extension-folder"); str != "" {
 		if err := conf.InitConfig.ExtensionFolder.UnmarshalText([]byte(str)); err != nil {
 			logger.Error().Err(err).Msgf("invalid extension-folder '%s' for flag 'extension-folder' or 'InitConfig.ExtensionFolder' config file entry", str)
-			return
+			return errors.Wrapf(err, "invalid extension-folder '%s'", str)
 		}
 	}
 	if str := getFlagString(cmd, "script-folder"); str != "" {
 		if err := conf.InitConfig.ScriptFolder.UnmarshalText([]byte(str)); err != nil {
 			logger.Error().Err(err).Msgf("invalid script-folder '%s' for flag 'script-folder' or 'InitConfig.ScriptFolder' config file entry", str)
-			return
+			return errors.Wrapf(err, "invalid script-folder '%s'", str)
 		}
 	}
 	if b, ok := getFlagBool(cmd, "fullconfig"); ok {
@@ -77,12 +76,12 @@ func doInitConfigConf(cmd *cobra.Command) {
 	if b, ok := getFlagBool(cmd, "scripts"); ok {
 		conf.InitConfig.Scripts = b
 	}
-
+	return nil
 }
 
 // doInitConfig is the main function for the 'initconfig' command.
 // It stores the current configuration of gocfl in TOML format and optionally extracts extension templates and scripts.
-func doInitConfig(cmd *cobra.Command, args []string) {
+func doInitConfig(cmd *cobra.Command, args []string) error {
 	var configFolder string
 	var err error
 	if len(args) == 0 {
@@ -92,13 +91,16 @@ func doInitConfig(cmd *cobra.Command, args []string) {
 	}
 	configFolder, err = util.Fullpath(configFolder)
 	if err != nil {
-		logger.Fatal().Err(err).Msgf("cannot get full path to config folder '%s'", configFolder)
+		logger.Error().Err(err).Msgf("cannot get full path to config folder '%s'", configFolder)
+		return errors.Wrapf(err, "cannot get full path to config folder '%s'", configFolder)
 	}
 	configFolder = filepath.ToSlash(configFolder)
 	logger.Info().Msgf("Config Folder: %s", configFolder)
 
 	// Update configuration based on flags
-	doInitConfigConf(cmd)
+	if err := doInitConfigConf(cmd); err != nil {
+		return err
+	}
 
 	var scriptFolder = conf.InitConfig.ScriptFolder.String()
 	var extensionFolder = conf.InitConfig.ExtensionFolder.String()
@@ -130,11 +132,13 @@ func doInitConfig(cmd *cobra.Command, args []string) {
 
 	if conf.InitConfig.Extensions {
 		if err := os.MkdirAll(extensionFolder, 0755); err != nil {
-			logger.Fatal().Err(err).Msgf("cannot create extension folder: %s", extensionFolder)
+			logger.Error().Err(err).Msgf("cannot create extension folder: %s", extensionFolder)
+			return errors.Wrapf(err, "cannot create extension folder: %s", extensionFolder)
 		}
 		extFS, err := writefs.Sub(internal.InternalFS, "extensions")
 		if err != nil {
-			logger.Fatal().Err(err).Msg("cannot create subfs for internal:extensions")
+			logger.Error().Err(err).Msg("cannot create subfs for internal:extensions")
+			return errors.Wrap(err, "cannot create subfs for internal:extensions")
 		}
 		if err := fs.WalkDir(extFS, ".", func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
@@ -173,24 +177,26 @@ func doInitConfig(cmd *cobra.Command, args []string) {
 			}
 			return nil
 		}); err != nil {
-			logger.Fatal().Err(err).Msg("cannot walk internal:extensions")
+			logger.Error().Err(err).Msg("cannot walk internal:extensions")
+			return errors.Wrap(err, "cannot walk internal:extensions")
 		}
 
 		if err := conf.Init.StorageRootExtensionFolder.UnmarshalText([]byte(filepath.ToSlash(filepath.Join(extensionFolder, "storageroot")))); err != nil {
 			logger.Error().Err(err).Msgf("invalid storagerootextensions '%s' for flag 'storagerootextensions' or 'Init.StorageRootExtensionFolder' config file entry", filepath.ToSlash(filepath.Join(extensionFolder, "storageroot")))
-			return
+			return errors.Wrapf(err, "invalid storagerootextensions '%s'", filepath.ToSlash(filepath.Join(extensionFolder, "storageroot")))
 		}
 		newMiniConfig["init.storagerootextensions"] = conf.Init.StorageRootExtensionFolder
 
 		if err := conf.Add.ObjectExtensionFolder.UnmarshalText([]byte(filepath.ToSlash(filepath.Join(extensionFolder, "object")))); err != nil {
 			logger.Error().Err(err).Msgf("invalid objectextensions '%s' for flag 'objectextensions' or 'Add.ObjectExtensionFolder' config file entry", filepath.ToSlash(filepath.Join(extensionFolder, "object")))
-			return
+			return errors.Wrapf(err, "invalid objectextensions '%s'", filepath.ToSlash(filepath.Join(extensionFolder, "object")))
 		}
 		newMiniConfig["add.objectextensions"] = conf.Add.ObjectExtensionFolder
 	}
 	thumbConf, thumbMiniconfig, err := ext_NNNN_thumbnail.InitConfig(conf.Thumbnail, scriptFolder, logger.Logger())
 	if err != nil {
-		logger.Fatal().Err(err).Msg("cannot init thumbnail")
+		logger.Error().Err(err).Msg("cannot init thumbnail")
+		return errors.Wrap(err, "cannot init thumbnail")
 	}
 	for k, v := range thumbMiniconfig {
 		newMiniConfig["thumbnail."+k] = v
@@ -198,11 +204,13 @@ func doInitConfig(cmd *cobra.Command, args []string) {
 
 	conf.Thumbnail = thumbConf
 	if err := os.MkdirAll(filepath.Dir(tomlPath), 0755); err != nil {
-		logger.Fatal().Err(err).Msgf("cannot create thumbnail directory: %s", filepath.Dir(tomlPath))
+		logger.Error().Err(err).Msgf("cannot create thumbnail directory: %s", filepath.Dir(tomlPath))
+		return errors.Wrapf(err, "cannot create thumbnail directory: %s", filepath.Dir(tomlPath))
 	}
 	fp, err := os.Create(tomlPath)
 	if err != nil {
-		log.Fatalf("cannot create config file: %v", err)
+		logger.Error().Err(err).Msgf("cannot create config file: %v", err)
+		return errors.Wrapf(err, "cannot create config file: %s", tomlPath)
 	}
 	defer func(fp *os.File) {
 		err := fp.Close()
@@ -217,15 +225,18 @@ func doInitConfig(cmd *cobra.Command, args []string) {
 	if conf.InitConfig.FullConfig {
 		buf, err = toml.Marshal(conf)
 		if err != nil {
-			logger.Fatal().Msgf("cannot encode config: %v", err)
+			logger.Error().Err(err).Msgf("cannot encode config: %v", err)
+			return errors.Wrapf(err, "cannot encode config")
 		}
 	} else {
 		buf, err = toml.Marshal(miniConfig)
 		if err != nil {
-			logger.Fatal().Msgf("cannot encode config: %v", err)
+			logger.Error().Err(err).Msgf("cannot encode config: %v", err)
+			return errors.Wrapf(err, "cannot encode config")
 		}
 	}
 	if err := os.WriteFile(tomlPath, buf, 0644); err != nil {
-		cobra.CheckErr(errors.Errorf("cannot write config file: %v", err))
+		return errors.Wrapf(err, "cannot write config file: %s", tomlPath)
 	}
+	return nil
 }
