@@ -1,7 +1,8 @@
 package cmd
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"io/fs"
 	"os"
@@ -187,7 +188,7 @@ func doExtractMeta(cmd *cobra.Command, args []string) error {
 	if format == "human" {
 		outputBytes = []byte(metadata.String())
 	} else {
-		outputBytes, err = json.MarshalIndent(metadata, "", "  ")
+		outputBytes, err = json.Marshal(metadata, jsontext.WithIndent("  "))
 		if err != nil {
 			fmt.Printf("cannot marshal metadata\n")
 			logger.Error().Err(err).Msg("cannot marshal metadata")

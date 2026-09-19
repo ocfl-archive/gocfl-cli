@@ -3,7 +3,8 @@ package display
 import (
 	"context"
 	"crypto/tls"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"html/template"
 	"io"
@@ -437,7 +438,7 @@ func (s *Server) detail(c *gin.Context) {
 						efe.Size = humanize.Bytes(uint64(fs.Meta.Size))
 						efe.Attr = fs.Meta.Attr
 						efe.OS = fs.Meta.OS
-						sys, _ := json.MarshalIndent(fs.Meta.SystemStat, "", "  ")
+						sys, _ := json.Marshal(fs.Meta.SystemStat, jsontext.WithIndent("  "))
 						efe.Sys = string(sys)
 						break
 					}
@@ -454,7 +455,7 @@ func (s *Server) detail(c *gin.Context) {
 	}
 
 	if extIndexer != nil {
-		iData, err := json.MarshalIndent(extIndexer.Metadata, "", "  ")
+		iData, err := json.Marshal(extIndexer.Metadata, jsontext.WithIndent("  "))
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot marshal indexer metadata for object %s", s.object.GetID()).Error()})
 			return
