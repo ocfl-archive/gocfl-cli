@@ -217,4 +217,72 @@ func TestAll(t *testing.T) {
 
 		t.Logf("Updated Metadata content (v2):\n%s", metaDataStrV2)
 	})
+
+	t.Run("stat dir", func(t *testing.T) {
+		ResetForTest()
+		root := GetRootCmd()
+		root.SetArgs([]string{
+			"stat", ocflPath,
+			"--log-level", "DEBUG",
+			"--config", "internal",
+		})
+		require.NoError(t, root.Execute(), "stat dir Execute() failed")
+
+		ResetForTest()
+		root = GetRootCmd()
+		root.SetArgs([]string{
+			"stat", ocflPath,
+			"--log-level", "DEBUG",
+			"--config", "internal",
+			"--object-id", "test-obj-001",
+		})
+		require.NoError(t, root.Execute(), "stat dir object Execute() failed")
+	})
+
+	t.Run("create and stat zip", func(t *testing.T) {
+		zipPath := path.Join(filepath.ToSlash(tempDir), "test_archive.zip")
+		ResetForTest()
+		root := GetRootCmd()
+		root.SetArgs([]string{
+			"create", zipPath, sourceDir,
+			"--log-level", "DEBUG",
+			"--config", "internal",
+			"--object-id", "test-obj-zip",
+			"--message", "initial zip add",
+			"--user-name", "John Doe",
+			"--user-address", "john@doe.com",
+		})
+		require.NoError(t, root.Execute(), "create zip Execute() failed")
+
+		// Validate zip
+		ResetForTest()
+		root = GetRootCmd()
+		root.SetArgs([]string{
+			"validate", zipPath,
+			"--log-level", "DEBUG",
+			"--config", "internal",
+		})
+		require.NoError(t, root.Execute(), "validate zip Execute() failed")
+
+		// Stat zip storage root
+		ResetForTest()
+		root = GetRootCmd()
+		root.SetArgs([]string{
+			"stat", zipPath,
+			"--log-level", "DEBUG",
+			"--config", "internal",
+		})
+		require.NoError(t, root.Execute(), "stat zip Execute() failed")
+
+		// Stat zip object
+		ResetForTest()
+		root = GetRootCmd()
+		root.SetArgs([]string{
+			"stat", zipPath,
+			"--log-level", "DEBUG",
+			"--config", "internal",
+			"--object-id", "test-obj-zip",
+		})
+		require.NoError(t, root.Execute(), "stat zip object Execute() failed")
+	})
 }
