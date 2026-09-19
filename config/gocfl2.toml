@@ -81,7 +81,7 @@ Mime = "application/xml"
 Enabled=true
 #Signature = "/usr/share/siegfried/default.sig"
 #Signature = "file://C:/Users/micro/siegfried/default.sig"
-Signature = "internal:/siegfried/default.sig"
+Signature = "internal"
 
 # mapping of pronom id to mimetype if not found in siegfried
 [Indexer.Siegfried.MimeMap]
