@@ -2,16 +2,19 @@ package cmd
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/base64"
 	"fmt"
 	"io"
 	"io/fs"
+	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
 	"path"
 	"strings"
 	"syscall"
+	"time"
 
 	"emperror.dev/errors"
 	iop "github.com/chromedp/cdproto/io"
@@ -212,13 +215,37 @@ func doDisplay(cmd *cobra.Command, args []string) error {
 	ctx, cancelCtx := chromedp.NewContext(allocCtx)
 	defer cancelCtx()
 
-	u, err := url.JoinPath(srv.HTTPAddr, "/object/id", conf.Display.Id, "/report")
+	baseURL := srv.GetHTTPAddr()
+	if conf.Display.AddrExt != "" {
+		baseURL = conf.Display.AddrExt
+	}
+
+	// Wait for server readiness
+	pingURL, errPing := url.JoinPath(srv.GetHTTPAddr(), "/ping")
+	if errPing == nil {
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		client := &http.Client{Transport: tr, Timeout: 500 * time.Millisecond}
+		for i := 0; i < 50; i++ {
+			resp, err := client.Get(pingURL)
+			if err == nil {
+				resp.Body.Close()
+				if resp.StatusCode == http.StatusOK {
+					break
+				}
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+	}
+
+	u, err := url.JoinPath(baseURL, "/object/id", conf.Display.Id, "/report")
 	if err != nil {
 		logger.Error().Err(err).Msg("Fehler beim Erstellen der URL")
 		return errors.Wrap(err, "Fehler beim Erstellen der URL")
 	}
 	u += "?full&polyfilled=false"
-	logger.Info().Msgf("Navigiere zu %s - %s", srv.HTTPAddr, u)
+	logger.Info().Msgf("Navigiere zu %s - %s", baseURL, u)
 
 	if err := chromedp.Run(ctx,
 		chromedp.Navigate(u),

@@ -70,6 +70,16 @@ func NewServer(storageRoot storageroot.StorageRoot, extensionFactory extensionty
 		return nil, errors.Wrapf(err, "cannot split address %s", addr)
 	}
 
+	scheme := "http"
+	if urlExt != nil && urlExt.Scheme != "" {
+		scheme = urlExt.Scheme
+	}
+	displayHost := host
+	if displayHost == "" || displayHost == "0.0.0.0" {
+		displayHost = "localhost"
+	}
+	httpAddr := fmt.Sprintf("%s://%s:%s", scheme, displayHost, port)
+
 	srv := &Server{
 		extensionFactory: extensionFactory,
 		service:          service,
@@ -83,6 +93,7 @@ func NewServer(storageRoot storageroot.StorageRoot, extensionFactory extensionty
 		storageRoot:      storageRoot,
 		reportfile:       report,
 		id:               id,
+		HTTPAddr:         httpAddr,
 	}
 
 	return srv, nil
@@ -163,7 +174,11 @@ func (s *Server) ListenAndServe(cert, key string) (err error) {
 	if tlsCert != nil || (cert != "" && key != "") {
 		proto = "https"
 	}
-	s.HTTPAddr = fmt.Sprintf("%s://%s:%s", proto, s.host, s.port)
+	displayHost := s.host
+	if displayHost == "" || displayHost == "0.0.0.0" {
+		displayHost = "localhost"
+	}
+	s.HTTPAddr = fmt.Sprintf("%s://%s:%s", proto, displayHost, s.port)
 	fmt.Printf("starting gocfl viewer at %v - %s/\n", s.urlExt.String(), s.HTTPAddr)
 	if tlsCert != nil {
 		s.srv.TLSConfig = &tls.Config{Certificates: []tls.Certificate{*tlsCert}}
@@ -1319,4 +1334,12 @@ func fmtDuration(d time.Duration) string {
 
 func (s *Server) Shutdown(ctx context.Context) error {
 	return errors.WithStack(s.srv.Shutdown(ctx))
+}
+
+func (s *Server) GetHTTPAddr() string {
+	return s.HTTPAddr
+}
+
+func (s *Server) GetAddr() string {
+	return s.HTTPAddr
 }
