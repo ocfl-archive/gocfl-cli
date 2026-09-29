@@ -218,6 +218,7 @@ func doDisplay(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "Fehler beim Erstellen der URL")
 	}
 	u += "?full&polyfilled=false"
+	logger.Info().Msgf("Navigiere zu %s - %s", srv.HTTPAddr, u)
 
 	if err := chromedp.Run(ctx,
 		chromedp.Navigate(u),
