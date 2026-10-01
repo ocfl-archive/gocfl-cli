@@ -134,7 +134,9 @@
 
             <div class="container px-4 py-5" id="featured-3">
                 <h2 class="pb-2 border-bottom">Statistics</h2>
-                <div class="row g-4 py-5 row-cols-1 row-cols-lg-3">
+                {{ if gt (len .areaStats) 1 }}
+                <h3 class="mt-4">Total</h3>
+                <div class="row g-4 py-3 row-cols-1 row-cols-lg-3">
                     <div class="col">
                         <div class="card mb-4 rounded-3 shadow-sm">
                             <div class="card-header py-3">
@@ -191,6 +193,130 @@
                     {{ end }}
 
                 </div>
+                {{ end }}
+
+                {{ range $area := .areaStats }}
+                <div class="mt-4">
+                    {{ if or (gt (len $root.areaStats) 1) $area.Name }}
+                    <h3 class="h4">
+                        Area: {{ if $area.Name }}{{ $area.Name }}{{ else }}Default Area{{ end }}
+                        {{ if $area.Description }}<small class="text-muted fs-6">({{ $area.Description }}{{ if $area.Path }}, <code>{{ $area.Path }}</code>{{ end }})</small>{{ else if $area.Path }}<small class="text-muted fs-6">(<code>{{ $area.Path }}</code>)</small>{{ end }}
+                    </h3>
+                    {{ end }}
+                    <div class="row g-4 py-3 row-cols-1 row-cols-lg-3">
+                        <div class="col">
+                            <div class="card mb-4 rounded-3 shadow-sm">
+                                <div class="card-header py-3">
+                                    <h4 class="my-0 fw-normal">Quantities</h4>
+                                </div>
+                                <div class="card-body">
+                                    <p>Number of Files: {{ $area.NumFiles }}</p>
+                                    <p>Number of different Files: {{ $area.DifferentFiles }}</p>
+                                    {{ if $area.SizeStr }}<p>Size of Data: {{ $area.SizeStr }}</p>{{ end }}
+                                    {{ if $area.NoSizeFiles }}<p>Files without size data: {{ $area.NoSizeFiles }}</p>{{ end }}
+                                </div>
+                            </div>
+                        </div>
+
+                        {{ if $area.Pronoms }}
+                        <div class="col">
+                            <div class="card mb-4 rounded-3 shadow-sm">
+                                <div class="card-header py-3">
+                                    <h4 class="my-0 fw-normal">Pronoms</h4>
+                                </div>
+                                <div class="card-body">
+                                    <ul class="list-group">
+                                        {{ range $pronom, $count := $area.Pronoms }}
+                                        <li class="list-group-item d-flex align-items-start">
+                                            <span class="badge bg-primary rounded-pill">{{ $count }}</span>&nbsp;
+                                            <a href="https://www.nationalarchives.gov.uk/PRONOM/{{ $pronom }}" target="_blank">{{ $pronom }}</a>
+                                        </li>
+                                        {{ end }}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        {{ end }}
+
+                        {{ if $area.MimeTypes }}
+                        <div class="col">
+                            <div class="card mb-4 rounded-3 shadow-sm">
+                                <div class="card-header py-3">
+                                    <h4 class="my-0 fw-normal">Mimetypes</h4>
+                                </div>
+                                <div class="card-body">
+                                    <ul class="list-group">
+                                        {{ range $mime, $count := $area.MimeTypes }}
+                                            <li class="list-group-item d-flex align-items-start">
+                                                <span class="badge bg-primary rounded-pill">{{ $count }}</span>&nbsp;
+                                                {{ $mime }}
+                                            </li>
+                                        {{ end }}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        {{ end }}
+                    </div>
+                </div>
+                {{ else }}
+                <div class="row g-4 py-3 row-cols-1 row-cols-lg-3">
+                    <div class="col">
+                        <div class="card mb-4 rounded-3 shadow-sm">
+                            <div class="card-header py-3">
+                                <h4 class="my-0 fw-normal">Quantities</h4>
+                            </div>
+                            <div class="card-body">
+                                <p>Number of Files: {{ .numFiles }}</p>
+                                <p>Number of different Files: {{ .differentFiles }}</p>
+                                {{ if .size }}<p>Size of Data: {{ .size }}</p>{{ end }}
+                                {{ if .noSizeFiles }}<p>Files without size data: {{ .noSizeFiles }}</p>{{ end }}
+                            </div>
+                        </div>
+                    </div>
+
+                    {{ if .pronoms }}
+                    <div class="col">
+                        <div class="card mb-4 rounded-3 shadow-sm">
+                            <div class="card-header py-3">
+                                <h4 class="my-0 fw-normal">Pronoms</h4>
+                            </div>
+                            <div class="card-body">
+                                <ul class="list-group">
+                                    {{ range $pronom, $count := .pronoms }}
+                                    <li class="list-group-item d-flex align-items-start">
+                                        <span class="badge bg-primary rounded-pill">{{ $count }}</span>&nbsp;
+                                        <a href="https://www.nationalarchives.gov.uk/PRONOM/{{ $pronom }}" target="_blank">{{ $pronom }}</a>
+                                    </li>
+                                    {{ end }}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    {{ end }}
+
+
+                    {{ if .mimeTypes }}
+                    <div class="col">
+                        <div class="card mb-4 rounded-3 shadow-sm">
+                            <div class="card-header py-3">
+                                <h4 class="my-0 fw-normal">Mimetypes</h4>
+                            </div>
+                            <div class="card-body">
+                                <ul class="list-group">
+                                    {{ range $mime, $count := .mimeTypes }}
+                                        <li class="list-group-item d-flex align-items-start">
+                                            <span class="badge bg-primary rounded-pill">{{ $count }}</span>&nbsp;
+                                            {{ $mime }}
+                                        </li>
+                                    {{ end }}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    {{ end }}
+                </div>
+                {{ end }}
             </div>
         </div>
     </main>

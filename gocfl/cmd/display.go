@@ -186,7 +186,7 @@ func doDisplay(cmd *cobra.Command, args []string) error {
 	} else {
 		templateFS = os.DirFS(conf.Display.Templates.String())
 	}
-	srv, err := display.NewServer(storageRoot, objectExtensionFactory, "gocfl", conf.Display.Addr, urlC, displaydata.WebRoot, templateFS, conf.Display.Report.String(), conf.Display.Id, logger, io.Discard)
+	srv, err := display.NewServer(storageRoot, objectExtensionFactory, "gocfl", conf.Display.Addr, urlC, displaydata.WebRoot, templateFS, conf.Display.Report.String(), conf.Display.Id, conf.Display.ReportAreas, logger, io.Discard)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot create server")
 		return errors.Wrap(err, "cannot create server")
