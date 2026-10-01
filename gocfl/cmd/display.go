@@ -58,7 +58,7 @@ func initDisplay() {
 	displayCmd.Flags().StringP("display-tls-cert", "c", "", "path to tls certificate")
 	displayCmd.Flags().StringP("display-tls-key", "k", "", "path to tls certificate key")
 	displayCmd.Flags().StringP("display-fullreport", "r", "", "path to pdf file with full report")
-	displayCmd.Flags().StringArray("display-reportareas", []string{}, "list of areas to include in the report")
+	displayCmd.Flags().StringSlice("display-reportareas", []string{}, "list of areas to include in the report")
 	displayCmd.Flags().StringP("display-id", "i", "", "id of the report to display")
 	displayCmd.MarkFlagsRequiredTogether("display-fullreport", "display-id")
 }
@@ -98,7 +98,7 @@ func doDisplayConf(cmd *cobra.Command) error {
 	if str := getFlagString(cmd, "display-id"); str != "" {
 		conf.Display.Id = str
 	}
-	if strs := GetFlagStringArray(cmd, "display-reportareas"); len(strs) != 0 {
+	if strs := GetFlagStringSlice(cmd, "display-reportareas"); len(strs) != 0 {
 		conf.Display.ReportAreas = strs
 	}
 	return nil
