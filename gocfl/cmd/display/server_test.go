@@ -269,3 +269,245 @@ func TestServer_DisplayObjectRoute_NoSubPathExtension(t *testing.T) {
 	require.NotContains(t, body, "Default Area")
 	require.NotContains(t, body, "<h3>Total</h3>")
 }
+
+func TestReportTemplate_AreaStats(t *testing.T) {
+	funcMap := sprig.FuncMap()
+	funcMap["basename"] = func(str string) string { return filepath.Base(str) }
+	funcMap["PathEscape"] = func(str string) string { return url.PathEscape(str) }
+	funcMap["humanizeBytes"] = func(size uint64) string { return humanize.Bytes(size) }
+	funcMap["humanizeTime"] = func(t time.Time) string { return t.Format("2006-01-02 15:04:05") }
+
+	tpl, err := template.New("report.gohtml").Funcs(funcMap).ParseFS(displaydata.TemplateRoot, "templates/report.gohtml")
+	require.NoError(t, err)
+
+	areaStats := []*AreaReportStats{
+		{
+			Name:           "master",
+			Path:           "data/master",
+			Description:    "Master TIFFs",
+			NumFiles:       10,
+			DifferentFiles: 10,
+			Size:           50000000,
+			SizeStr:        "50 MB",
+			AVLength:       "0:00:00",
+			MimeTypes:      map[string]*MimeCount{"image/tiff": {SizeStr: "50 MB", Size: 50000000, Count: 10}},
+			Pronoms:        map[string]*MimeCount{"fmt/353": {SizeStr: "50 MB", Size: 50000000, Count: 10}},
+		},
+		{
+			Name:           "derivatives",
+			Path:           "data/derivatives",
+			Description:    "Web Derivatives",
+			NumFiles:       10,
+			DifferentFiles: 10,
+			Size:           2000000,
+			SizeStr:        "2.0 MB",
+			AVLength:       "0:00:00",
+			MimeTypes:      map[string]*MimeCount{"image/jpeg": {SizeStr: "2.0 MB", Size: 2000000, Count: 10}},
+			Pronoms:        map[string]*MimeCount{"fmt/43": {SizeStr: "2.0 MB", Size: 2000000, Count: 10}},
+		},
+	}
+
+	params := map[string]any{
+		"objectpath":     "test/path",
+		"gocfl":          "gocfl",
+		"id":             "test-obj-report",
+		"versions":       map[string]any{},
+		"differentFiles": 20,
+		"numFiles":       20,
+		"size":           uint64(52000000),
+		"noSizeFiles":    0,
+		"mimeTypes": map[string]*MimeCount{
+			"image/tiff": {SizeStr: "50 MB", Size: 50000000, Count: 10},
+			"image/jpeg": {SizeStr: "2.0 MB", Size: 2000000, Count: 10},
+		},
+		"pronoms": map[string]*MimeCount{
+			"fmt/353": {SizeStr: "50 MB", Size: 50000000, Count: 10},
+			"fmt/43":  {SizeStr: "2.0 MB", Size: 2000000, Count: 10},
+		},
+		"areaStats":   areaStats,
+		"reportAreas": []string{"master"},
+		"files":       map[string]*inventory.FileMetadata{},
+		"info":        map[string]any{},
+		"avLength":    "0:00:00",
+		"tree":        []*flatEdge{},
+		"full":        false,
+		"polyfilled":  false,
+	}
+
+	var buf bytes.Buffer
+	err = tpl.Execute(&buf, params)
+	require.NoError(t, err)
+
+	htmlOut := buf.String()
+	require.Contains(t, htmlOut, "Inhaltsübersicht / Content Overview")
+	require.Contains(t, htmlOut, "Gesamt / Total")
+	require.Contains(t, htmlOut, "Master TIFFs")
+	require.Contains(t, htmlOut, "Web Derivatives")
+	require.Contains(t, htmlOut, "50 MB")
+	require.Contains(t, htmlOut, "2.0 MB")
+	require.Contains(t, htmlOut, "Gelistete Bereiche / Listed Areas")
+	require.Contains(t, htmlOut, "master")
+}
+
+func TestServer_ReportRoute_AreaStatsAndFiltering(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	mt := multitemplate.New()
+	funcMap := sprig.FuncMap()
+	funcMap["basename"] = func(str string) string { return filepath.Base(str) }
+	funcMap["PathEscape"] = func(str string) string { return url.PathEscape(str) }
+	funcMap["humanizeBytes"] = func(size uint64) string { return humanize.Bytes(size) }
+	funcMap["humanizeTime"] = func(t time.Time) string { return t.Format("2006-01-02 15:04:05") }
+
+	tpl, err := template.New("report.gohtml").Funcs(funcMap).ParseFS(displaydata.TemplateRoot, "templates/report.gohtml")
+	require.NoError(t, err)
+	mt.Add("report.gohtml", tpl)
+	r.HTMLRender = mt
+
+	srv := &Server{
+		templateFS:  displaydata.TemplateRoot,
+		reportAreas: []string{"master"},
+		metadata: &inventory.Metadata{
+			ID:   "test-report-obj",
+			Head: inventory.NewVersionNumber().WithString("v1"),
+			Extension: map[string]any{
+				ext_NNNN_content_subpath.ContentSubPathName: map[string]ext_NNNN_content_subpath.ContentSubPathEntry{
+					"master":      {Path: "data/master", Description: "Master Files"},
+					"derivatives": {Path: "data/derivatives", Description: "Derivative Files"},
+				},
+			},
+			Files: map[string]*inventory.FileMetadata{
+				"hash1": {
+					InternalName: []string{"v1/content/data/master/file1.tif"},
+					VersionName: map[string][]string{
+						"v1": {"data/master/file1.tif"},
+					},
+					Extension: map[string]any{
+						ext_NNNN_content_subpath.ContentSubPathName: []string{"master"},
+						ext_NNNN_indexer.IndexerName: &indexer.ResultV2{
+							Size:     1000,
+							Mimetype: "image/tiff",
+							Pronom:   "fmt/353",
+						},
+					},
+				},
+				"hash2": {
+					InternalName: []string{"v1/content/data/derivatives/file1.jpg"},
+					VersionName: map[string][]string{
+						"v1": {"data/derivatives/file1.jpg"},
+					},
+					Extension: map[string]any{
+						ext_NNNN_content_subpath.ContentSubPathName: []string{"derivatives"},
+						ext_NNNN_indexer.IndexerName: &indexer.ResultV2{
+							Size:     200,
+							Mimetype: "image/jpeg",
+							Pronom:   "fmt/43",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	r.GET("/object/id/:id/report", srv.report)
+
+	req := httptest.NewRequest(http.MethodGet, "/object/id/test-report-obj/report?full=true", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	body := w.Body.String()
+
+	// Inhaltsübersicht has all areas
+	require.Contains(t, body, "Master Files")
+	require.Contains(t, body, "Derivative Files")
+
+	// Notice for listed areas
+	require.Contains(t, body, "Gelistete Bereiche / Listed Areas")
+	require.Contains(t, body, "master")
+
+	// Verzeichnisstruktur and Dateidetails only contain files matching reportAreas ("master")
+	require.Contains(t, body, "data/master/file1.tif")
+	require.NotContains(t, body, "data/derivatives/file1.jpg")
+	require.NotContains(t, body, "file1.jpg")
+	require.Contains(t, body, "image/tiff")
+}
+
+func TestServer_ReportRoute_EmptyReportAreas(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	mt := multitemplate.New()
+	funcMap := sprig.FuncMap()
+	funcMap["basename"] = func(str string) string { return filepath.Base(str) }
+	funcMap["PathEscape"] = func(str string) string { return url.PathEscape(str) }
+	funcMap["humanizeBytes"] = func(size uint64) string { return humanize.Bytes(size) }
+	funcMap["humanizeTime"] = func(t time.Time) string { return t.Format("2006-01-02 15:04:05") }
+
+	tpl, err := template.New("report.gohtml").Funcs(funcMap).ParseFS(displaydata.TemplateRoot, "templates/report.gohtml")
+	require.NoError(t, err)
+	mt.Add("report.gohtml", tpl)
+	r.HTMLRender = mt
+
+	srv := &Server{
+		templateFS:  displaydata.TemplateRoot,
+		reportAreas: []string{},
+		metadata: &inventory.Metadata{
+			ID:   "test-report-obj-all",
+			Head: inventory.NewVersionNumber().WithString("v1"),
+			Extension: map[string]any{
+				ext_NNNN_content_subpath.ContentSubPathName: map[string]ext_NNNN_content_subpath.ContentSubPathEntry{
+					"master":      {Path: "data/master", Description: "Master Files"},
+					"derivatives": {Path: "data/derivatives", Description: "Derivative Files"},
+				},
+			},
+			Files: map[string]*inventory.FileMetadata{
+				"hash1": {
+					InternalName: []string{"v1/content/data/master/file1.tif"},
+					VersionName: map[string][]string{
+						"v1": {"data/master/file1.tif"},
+					},
+					Extension: map[string]any{
+						ext_NNNN_content_subpath.ContentSubPathName: []string{"master"},
+						ext_NNNN_indexer.IndexerName: &indexer.ResultV2{
+							Size:     1000,
+							Mimetype: "image/tiff",
+							Pronom:   "fmt/353",
+						},
+					},
+				},
+				"hash2": {
+					InternalName: []string{"v1/content/data/derivatives/file1.jpg"},
+					VersionName: map[string][]string{
+						"v1": {"data/derivatives/file1.jpg"},
+					},
+					Extension: map[string]any{
+						ext_NNNN_content_subpath.ContentSubPathName: []string{"derivatives"},
+						ext_NNNN_indexer.IndexerName: &indexer.ResultV2{
+							Size:     200,
+							Mimetype: "image/jpeg",
+							Pronom:   "fmt/43",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	r.GET("/object/id/:id/report", srv.report)
+
+	req := httptest.NewRequest(http.MethodGet, "/object/id/test-report-obj-all/report?full=true", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	body := w.Body.String()
+
+	// Notice says Alle / All
+	require.Contains(t, body, "Gelistete Bereiche / Listed Areas: Alle / All")
+
+	// Both files in tree and dateidetails
+	require.Contains(t, body, "data/master/file1.tif")
+	require.Contains(t, body, "data/derivatives/file1.jpg")
+	require.Contains(t, body, "image/tiff")
+	require.Contains(t, body, "image/jpeg")
+}

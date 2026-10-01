@@ -891,6 +891,60 @@ type AreaStats struct {
 	Pronoms        map[string]int `json:"pronoms"`
 }
 
+type MimeCount struct {
+	SizeStr string `json:"sizeStr"`
+	Size    uint64 `json:"size"`
+	Count   int    `json:"count"`
+}
+
+type flatEdge struct {
+	Left  int
+	Right int
+	Name  string
+}
+
+type AreaReportStats struct {
+	Name           string `json:"name"`
+	Path           string `json:"path"`
+	Description    string `json:"description"`
+	NumFiles       int    `json:"numFiles"`
+	DifferentFiles int    `json:"differentFiles"`
+	Size           uint64 `json:"size"`
+	SizeStr        string `json:"sizeStr"`
+	NoSizeFiles    int    `json:"noSizeFiles"`
+	AVLength       string `json:"avLength"`
+	videoSecs      uint
+	MimeTypes      map[string]*MimeCount `json:"mimeTypes"`
+	Pronoms        map[string]*MimeCount `json:"pronoms"`
+}
+
+func fileMatchesAreas(file *inventory.FileMetadata, reportAreas []string) bool {
+	if len(reportAreas) == 0 {
+		return true
+	}
+	var fileAreas []string
+	if _subpath, ok := file.Extension[ext_NNNN_content_subpath.ContentSubPathName]; ok {
+		if fa, ok := _subpath.([]string); ok {
+			fileAreas = fa
+		} else if anyAreas, ok := _subpath.([]any); ok {
+			for _, a := range anyAreas {
+				if s, ok := a.(string); ok {
+					fileAreas = append(fileAreas, s)
+				}
+			}
+		}
+	}
+	if len(fileAreas) == 0 {
+		fileAreas = []string{""}
+	}
+	for _, fa := range fileAreas {
+		if slices.Contains(reportAreas, fa) {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *Server) displayObject(c *gin.Context) {
 
 	if s.metadata == nil {
@@ -1151,8 +1205,8 @@ func (s *Server) report(c *gin.Context) {
 	full := c.DefaultQuery("full", "none") != "none"
 	not_polyfilled := c.DefaultQuery("polyfilled", "none") == "false"
 
-	if s.object != nil && s.object.GetID() == iop.ID {
-		if s.metadata == nil {
+	if (s.object != nil && s.object.GetID() == iop.ID) || (s.metadata != nil && s.metadata.ID == iop.ID) {
+		if s.metadata == nil && s.object != nil {
 			extractor := s.object.GetExtractor()
 			s.metadata, err = extractor.GetMetadata()
 			_ = extractor.Close()
@@ -1161,7 +1215,7 @@ func (s *Server) report(c *gin.Context) {
 				return
 			}
 		}
-	} else {
+	} else if s.storageRoot != nil {
 		folder, err := s.storageRoot.IdToFolder(iop.ID)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errors.Wrapf(err, "cannot get folder for object %s", iop.ID)})
@@ -1192,19 +1246,46 @@ func (s *Server) report(c *gin.Context) {
 		return
 	}
 
-	extManager := s.object.GetExtensionManager()
-	inv := s.object.GetInventory()
-
-	type mimeCount struct {
-		SizeStr string
-		Size    uint64
-		Count   int
+	var extManager objecttypes.ExtensionManager
+	var inv inventory.Inventory
+	if s.object != nil {
+		extManager = s.object.GetExtensionManager()
+		inv = s.object.GetInventory()
 	}
+
+	var subPaths = map[string]ext_NNNN_content_subpath.ContentSubPathEntry{}
+	if mExtensions, ok := s.metadata.Extension.(map[string]any); ok {
+		if _subpathMeta, ok := mExtensions[ext_NNNN_content_subpath.ContentSubPathName]; ok {
+			if subPathMeta, ok := _subpathMeta.(map[string]ext_NNNN_content_subpath.ContentSubPathEntry); ok {
+				for k, v := range subPathMeta {
+					subPaths[k] = v
+				}
+			} else if subPathMap, ok := _subpathMeta.(map[string]any); ok {
+				for k, v := range subPathMap {
+					if entry, ok := v.(ext_NNNN_content_subpath.ContentSubPathEntry); ok {
+						subPaths[k] = entry
+					}
+				}
+			}
+		}
+	}
+
+	var areaStatsMap = make(map[string]*AreaReportStats)
+	for k, v := range subPaths {
+		areaStatsMap[k] = &AreaReportStats{
+			Name:        k,
+			Path:        v.Path,
+			Description: v.Description,
+			MimeTypes:   make(map[string]*MimeCount),
+			Pronoms:     make(map[string]*MimeCount),
+		}
+	}
+
 	var numFiles int
 	var size uint64
 	var noSizeFiles int
-	var mimeTypes = make(map[string]*mimeCount)
-	var pronoms = make(map[string]*mimeCount)
+	var mimeTypes = make(map[string]*MimeCount)
+	var pronoms = make(map[string]*MimeCount)
 	var videoSecs uint
 	for _, v := range s.metadata.Files {
 		numFiles += len(v.InternalName)
@@ -1214,46 +1295,132 @@ func (s *Server) report(c *gin.Context) {
 		var idx *indexer.ResultV2
 		var ok bool
 		var sizeDone bool
+		var fileSize uint64
+		var fileVideoSecs uint
+		var mimeType string
+		var pronom string
+		var areas = []string{}
+
 		if _fs != nil {
 			if fs, ok = _fs.(map[string]any); ok {
 				if fs["size"] != nil {
-					size += fs["size"].(uint64)
+					fileSize = fs["size"].(uint64)
 					sizeDone = true
+				}
+			}
+		}
+		if _subpath, ok := v.Extension[ext_NNNN_content_subpath.ContentSubPathName]; ok {
+			if areas, ok = _subpath.([]string); !ok {
+				if anyAreas, ok := _subpath.([]any); ok {
+					for _, a := range anyAreas {
+						if s, ok := a.(string); ok {
+							areas = append(areas, s)
+						}
+					}
+				} else {
+					areas = []string{}
 				}
 			}
 		}
 		if _idx != nil {
 			if idx, ok = _idx.(*indexer.ResultV2); ok {
-				size += idx.Size
-				videoSecs += idx.Duration
+				fileSize += idx.Size
+				fileVideoSecs = idx.Duration
 				if idx.Size > 0 {
 					sizeDone = true
 				}
-				if idx.Mimetype != "" {
-					if _, ok := mimeTypes[idx.Mimetype]; !ok {
-						mimeTypes[idx.Mimetype] = &mimeCount{
-							SizeStr: "",
-							Size:    0,
-							Count:   0,
-						}
-					}
-					mimeTypes[idx.Mimetype].Count++
-					mimeTypes[idx.Mimetype].Size += idx.Size
-				}
-				if idx.Pronom != "" {
-					if _, ok := pronoms[idx.Pronom]; !ok {
-						pronoms[idx.Pronom] = &mimeCount{
-							Size:  0,
-							Count: 0,
-						}
-					}
-					pronoms[idx.Pronom].Count++
-					pronoms[idx.Pronom].Size += idx.Size
-				}
+				mimeType = idx.Mimetype
+				pronom = idx.Pronom
 			}
 		}
-		if !sizeDone {
+		if sizeDone {
+			size += fileSize
+		} else {
 			noSizeFiles++
+		}
+		videoSecs += fileVideoSecs
+		if mimeType != "" {
+			if _, ok := mimeTypes[mimeType]; !ok {
+				mimeTypes[mimeType] = &MimeCount{
+					SizeStr: "",
+					Size:    0,
+					Count:   0,
+				}
+			}
+			mimeTypes[mimeType].Count++
+			if idx != nil {
+				mimeTypes[mimeType].Size += idx.Size
+			} else {
+				mimeTypes[mimeType].Size += fileSize
+			}
+		}
+		if pronom != "" {
+			if _, ok := pronoms[pronom]; !ok {
+				pronoms[pronom] = &MimeCount{
+					SizeStr: "",
+					Size:    0,
+					Count:   0,
+				}
+			}
+			pronoms[pronom].Count++
+			if idx != nil {
+				pronoms[pronom].Size += idx.Size
+			} else {
+				pronoms[pronom].Size += fileSize
+			}
+		}
+
+		if len(areas) == 0 {
+			areas = []string{""}
+		}
+
+		for _, area := range areas {
+			stat, ok := areaStatsMap[area]
+			if !ok {
+				entry := subPaths[area]
+				desc := entry.Description
+				if desc == "" && area == "" {
+					desc = "Default Area"
+				}
+				stat = &AreaReportStats{
+					Name:        area,
+					Path:        entry.Path,
+					Description: desc,
+					MimeTypes:   make(map[string]*MimeCount),
+					Pronoms:     make(map[string]*MimeCount),
+				}
+				areaStatsMap[area] = stat
+			}
+			stat.NumFiles += len(v.InternalName)
+			stat.DifferentFiles++
+			if sizeDone {
+				stat.Size += fileSize
+			} else {
+				stat.NoSizeFiles++
+			}
+			stat.videoSecs += fileVideoSecs
+			if mimeType != "" {
+				if _, ok := stat.MimeTypes[mimeType]; !ok {
+					stat.MimeTypes[mimeType] = &MimeCount{}
+				}
+				stat.MimeTypes[mimeType].Count++
+				if idx != nil {
+					stat.MimeTypes[mimeType].Size += idx.Size
+				} else {
+					stat.MimeTypes[mimeType].Size += fileSize
+				}
+			}
+			if pronom != "" {
+				if _, ok := stat.Pronoms[pronom]; !ok {
+					stat.Pronoms[pronom] = &MimeCount{}
+				}
+				stat.Pronoms[pronom].Count++
+				if idx != nil {
+					stat.Pronoms[pronom].Size += idx.Size
+				} else {
+					stat.Pronoms[pronom].Size += fileSize
+				}
+			}
 		}
 	}
 
@@ -1264,69 +1431,96 @@ func (s *Server) report(c *gin.Context) {
 		mimeSize.SizeStr = humanize.Bytes(mimeSize.Size)
 	}
 
+	var areaStatsList = make([]*AreaReportStats, 0, len(areaStatsMap))
+	for _, stat := range areaStatsMap {
+		if stat.NumFiles == 0 {
+			continue
+		}
+		stat.SizeStr = humanize.Bytes(stat.Size)
+		stat.AVLength = fmtDuration(time.Duration(int64(stat.videoSecs) * int64(time.Second)))
+		for _, pronomSize := range stat.Pronoms {
+			pronomSize.SizeStr = humanize.Bytes(pronomSize.Size)
+		}
+		for _, mimeSize := range stat.MimeTypes {
+			mimeSize.SizeStr = humanize.Bytes(mimeSize.Size)
+		}
+		areaStatsList = append(areaStatsList, stat)
+	}
+	slices.SortFunc(areaStatsList, func(a, b *AreaReportStats) int {
+		if a.Name == "" && b.Name != "" {
+			return -1
+		}
+		if a.Name != "" && b.Name == "" {
+			return 1
+		}
+		return strings.Compare(a.Name, b.Name)
+	})
+
 	var objectpath string
 	if fsStringer, ok := s.objectFS.(fmt.Stringer); ok {
 		objectpath = fsStringer.String()
 	}
 
-	cfg, err := extManager.GetConfigName(ext_NNNN_metafile.MetaFileName)
-	if err != nil {
-		cfg = &ext_NNNN_metafile.MetaFileConfig{
-			ExtensionConfig: &extensiontypes.ExtensionConfig{ExtensionName: ext_NNNN_metafile.MetaFileName},
-			StorageType:     "area",
-			StorageName:     "metadata",
-			MetaName:        "info.json",
-			MetaSchema:      "none",
-		}
-	}
-
-	metafileCfg, ok := cfg.(*ext_NNNN_metafile.MetaFileConfig)
-	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": errors.Errorf("invalid config format %v", cfg)})
-		return
-	}
-
-	var infoBytes []byte
-	if metafileCfg.StorageType == "extension" {
-		fsys, err := writefs.Sub(s.objectFS, path.Join("extensions", ext_NNNN_metafile.MetaFileName))
+	var info = map[string]any{}
+	if extManager != nil && s.objectFS != nil {
+		cfg, err := extManager.GetConfigName(ext_NNNN_metafile.MetaFileName)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		infoname := strings.TrimLeft(filepath.ToSlash(filepath.Join(metafileCfg.StorageName, metafileCfg.MetaName)), "/")
-		infoBytes, err = fs.ReadFile(fsys, infoname)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": errors.Wrapf(err, "cannot open %v/%s", fsys, infoname).Error()})
-			return
-		}
-	} else {
-		area := "content"
-		path := metafileCfg.StorageName
-		if metafileCfg.StorageType == "area" {
-			area = metafileCfg.StorageName
-			path = ""
-		}
-		fname := filepath.ToSlash(filepath.Join(path, metafileCfg.MetaName))
-		mPath, err := extManager.BuildObjectManifestPath(fname, area)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": errors.Wrapf(err, "cannot map %s:%s", area, fname).Error()})
-			return
-		}
-
-		// search for info file
-		for ver, _ := range s.metadata.Versions {
-			fullpath := filepath.ToSlash(filepath.Join(ver, "content", mPath))
-			jsonData, err := fs.ReadFile(s.objectFS, fullpath)
-			if err == nil && len(jsonData) > 0 {
-				infoBytes = jsonData
+			cfg = &ext_NNNN_metafile.MetaFileConfig{
+				ExtensionConfig: &extensiontypes.ExtensionConfig{ExtensionName: ext_NNNN_metafile.MetaFileName},
+				StorageType:     "area",
+				StorageName:     "metadata",
+				MetaName:        "info.json",
+				MetaSchema:      "none",
 			}
 		}
-	}
-	var info = map[string]any{}
-	if len(infoBytes) > 0 {
-		if err := json.Unmarshal(infoBytes, &info); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": errors.Wrapf(err, "cannot unmarshal %s", metafileCfg.MetaName).Error()})
+
+		metafileCfg, ok := cfg.(*ext_NNNN_metafile.MetaFileConfig)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": errors.Errorf("invalid config format %v", cfg)})
 			return
+		}
+
+		var infoBytes []byte
+		if metafileCfg.StorageType == "extension" {
+			fsys, err := writefs.Sub(s.objectFS, path.Join("extensions", ext_NNNN_metafile.MetaFileName))
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			infoname := strings.TrimLeft(filepath.ToSlash(filepath.Join(metafileCfg.StorageName, metafileCfg.MetaName)), "/")
+			infoBytes, err = fs.ReadFile(fsys, infoname)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": errors.Wrapf(err, "cannot open %v/%s", fsys, infoname).Error()})
+				return
+			}
+		} else {
+			area := "content"
+			path := metafileCfg.StorageName
+			if metafileCfg.StorageType == "area" {
+				area = metafileCfg.StorageName
+				path = ""
+			}
+			fname := filepath.ToSlash(filepath.Join(path, metafileCfg.MetaName))
+			mPath, err := extManager.BuildObjectManifestPath(fname, area)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": errors.Wrapf(err, "cannot map %s:%s", area, fname).Error()})
+				return
+			}
+
+			// search for info file
+			for ver, _ := range s.metadata.Versions {
+				fullpath := filepath.ToSlash(filepath.Join(ver, "content", mPath))
+				jsonData, err := fs.ReadFile(s.objectFS, fullpath)
+				if err == nil && len(jsonData) > 0 {
+					infoBytes = jsonData
+				}
+			}
+		}
+		if len(infoBytes) > 0 {
+			if err := json.Unmarshal(infoBytes, &info); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": errors.Wrapf(err, "cannot unmarshal %s", metafileCfg.MetaName).Error()})
+				return
+			}
 		}
 	}
 
@@ -1371,7 +1565,34 @@ func (s *Server) report(c *gin.Context) {
 		addToTree(parts[1:], newEdge)
 	}
 
+	reportAreas := s.reportAreas
+	if qAreas, ok := c.GetQueryArray("area"); ok && len(qAreas) > 0 {
+		reportAreas = qAreas
+	} else if qAreas, ok := c.GetQueryArray("reportarea"); ok && len(qAreas) > 0 {
+		reportAreas = qAreas
+	} else if qAreas, ok := c.GetQueryArray("reportareas"); ok && len(qAreas) > 0 {
+		reportAreas = qAreas
+	} else if qArea := c.Query("area"); qArea != "" {
+		reportAreas = strings.Split(qArea, ",")
+	} else if qArea := c.Query("reportarea"); qArea != "" {
+		reportAreas = strings.Split(qArea, ",")
+	} else if qArea := c.Query("reportareas"); qArea != "" {
+		reportAreas = strings.Split(qArea, ",")
+	}
+
+	var cleanReportAreas []string
+	for _, ra := range reportAreas {
+		ra = strings.TrimSpace(ra)
+		if ra != "" {
+			cleanReportAreas = append(cleanReportAreas, ra)
+		}
+	}
+	reportAreas = cleanReportAreas
+
 	for _, file := range s.metadata.Files {
+		if !fileMatchesAreas(file, reportAreas) {
+			continue
+		}
 		for _, files := range file.VersionName {
 			for _, filename := range files {
 				filenames = append(filenames, filename)
@@ -1384,11 +1605,6 @@ func (s *Server) report(c *gin.Context) {
 		}
 	}
 
-	type flatEdge struct {
-		Left  int
-		Right int
-		Name  string
-	}
 	var flatTree = []*flatEdge{}
 	var flattenTree func(e *edge)
 	flattenTree = func(e *edge) {
@@ -1407,7 +1623,11 @@ func (s *Server) report(c *gin.Context) {
 
 	var files = map[string]*inventory.FileMetadata{}
 	if full {
-		files = s.metadata.Files
+		for cs, file := range s.metadata.Files {
+			if fileMatchesAreas(file, reportAreas) {
+				files[cs] = file
+			}
+		}
 	}
 	var filesNoData int64
 	for _, file := range s.metadata.Files {
@@ -1416,11 +1636,24 @@ func (s *Server) report(c *gin.Context) {
 		}
 	}
 
+	var head any
+	if inv != nil {
+		head = inv.GetHead()
+	} else if s.metadata != nil {
+		head = s.metadata.Head
+	}
+	var objID string
+	if s.object != nil {
+		objID = s.object.GetID()
+	} else if s.metadata != nil {
+		objID = s.metadata.ID
+	}
+
 	var params = map[string]any{
 		"objectpath":     objectpath,
 		"gocfl":          "gocfl",
-		"head":           inv.GetHead(),
-		"id":             s.object.GetID(),
+		"head":           head,
+		"id":             objID,
 		"versions":       s.metadata.Versions,
 		"differentFiles": len(s.metadata.Files),
 		"numFiles":       numFiles,
@@ -1429,6 +1662,8 @@ func (s *Server) report(c *gin.Context) {
 		"noSizeFiles":    noSizeFiles,
 		"mimeTypes":      mimeTypes,
 		"pronoms":        pronoms,
+		"areaStats":      areaStatsList,
+		"reportAreas":    reportAreas,
 		"files":          files,
 		"info":           info,
 		"avLength":       fmtDuration(time.Duration(int64(videoSecs) * int64(time.Second))),
