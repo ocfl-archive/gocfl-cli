@@ -25,6 +25,7 @@ import (
 	dcert "github.com/je4/utils/v2/pkg/cert"
 	"github.com/je4/utils/v2/pkg/checksum"
 	"github.com/ocfl-archive/filesystem/pkg/writefs"
+	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_content_subpath"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_filesystem"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_indexer"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_metafile"
@@ -62,9 +63,10 @@ type Server struct {
 	reportfile       string
 	id               string
 	HTTPAddr         string
+	reportAreas      []string
 }
 
-func NewServer(storageRoot storageroot.StorageRoot, extensionFactory extensiontypes.Factory[objecttypes.ExtensionManager], service, addr string, urlExt *url.URL, dataFS, templateFS fs.FS, report, id string, log ocfllogger.OCFLLogger, accessLog io.Writer) (*Server, error) {
+func NewServer(storageRoot storageroot.StorageRoot, extensionFactory extensiontypes.Factory[objecttypes.ExtensionManager], service, addr string, urlExt *url.URL, dataFS, templateFS fs.FS, report, id string, reportareas []string, log ocfllogger.OCFLLogger, accessLog io.Writer) (*Server, error) {
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot split address %s", addr)
@@ -94,6 +96,7 @@ func NewServer(storageRoot storageroot.StorageRoot, extensionFactory extensionty
 		reportfile:       report,
 		id:               id,
 		HTTPAddr:         httpAddr,
+		reportAreas:      reportareas,
 	}
 
 	return srv, nil
@@ -880,6 +883,16 @@ func (s *Server) displayObject(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "no metadata loaded"})
 		return
 	}
+	var subPaths = map[string]ext_NNNN_content_subpath.ContentSubPathEntry{"": {Path: "", Description: "Default Area"}}
+	if mExtensions, ok := s.metadata.Extension.(map[string]any); ok {
+		if _subpathMeta, ok := mExtensions[ext_NNNN_content_subpath.ContentSubPathName]; ok {
+			if subPathMeta, ok := _subpathMeta.(map[string]ext_NNNN_content_subpath.ContentSubPathEntry); ok {
+				for k, v := range subPathMeta {
+					subPaths[k] = v
+				}
+			}
+		}
+	}
 	var numFiles int
 	var size uint64
 	var noSizeFiles int
@@ -887,13 +900,12 @@ func (s *Server) displayObject(c *gin.Context) {
 	var pronoms = make(map[string]int)
 	for _, v := range s.metadata.Files {
 		numFiles += len(v.InternalName)
-		_fs, _ := v.Extension[ext_NNNN_filesystem.FilesystemName]
-		_idx, _ := v.Extension[ext_NNNN_indexer.IndexerName]
 		var fs map[string]any
 		var idx *indexer.ResultV2
-		var ok bool
 		var sizeDone bool
-		if _fs != nil {
+		var areas = []string{}
+		_ = areas
+		if _fs, ok := v.Extension[ext_NNNN_filesystem.FilesystemName]; ok {
 			if fs, ok = _fs.(map[string]any); ok {
 				if fs["size"] != nil {
 					size += fs["size"].(uint64)
@@ -901,7 +913,12 @@ func (s *Server) displayObject(c *gin.Context) {
 				}
 			}
 		}
-		if _idx != nil {
+		if _subpath, ok := v.Extension[ext_NNNN_content_subpath.ContentSubPathName]; ok {
+			if areas, ok = _subpath.([]string); !ok {
+				areas = []string{}
+			}
+		}
+		if _idx, ok := v.Extension[ext_NNNN_indexer.IndexerName]; ok {
 			if idx, ok = _idx.(*indexer.ResultV2); ok {
 				size += idx.Size
 				if idx.Size > 0 {
