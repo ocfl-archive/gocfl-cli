@@ -2,16 +2,16 @@ package tests
 
 import (
 	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
 	"testing"
 
-	"github.com/ocfl-archive/gocfl-cli/gocfl/cmd"
+	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/validation"
+	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/object"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/version"
-	"github.com/ocfl-archive/gocfl/v3/pkg/ocfllogger"
 	"github.com/rs/zerolog"
 )
 
@@ -48,56 +48,28 @@ func TestFixtures11(t *testing.T) {
 				path := filepath.Join(dirPath, entry.Name())
 
 				// Setup components
-				ctx := validation.NewContextValidation(context.Background())
-				logger := ocfllogger.NewOCFLLogger(ctx, new(zerolog.New(os.Stderr)), nil, version.Default)
+				ctx := context.Background()
+				zlog := zerolog.New(io.Discard)
+				logger := ocfl.NewOCFLLogger(ctx, &zlog, nil, version.Version1_1, nil)
 
-				err := cmd.RegisterComplexExtensions(
-					map[string]string{},
-					"",
-					false,
-					nil,
-					nil,
-					nil,
-					logger,
-				)
+				extManager, _, err := ocfl.SetupExtensionManager[object.ExtensionManager](nil, defaultextensions_object.DefaultObjectExtensionFS, logger)
 				if err != nil {
-					logger.Error().Err(err).Msg("cannot create extension factory")
-					return
+					t.Fatalf("cannot setup extension manager: %v", err)
 				}
-
-				/*
-					storageRootExtensionManager, objectExtensionManager, err := cmd.InitDefaultExtensions(version.Version1_1, extensionFactory, "extensions", "extensions", logger)
-					if err != nil {
-						logger.Error().Err(err).Msg("cannot initialize default extensions")
-						return
-					}
-					defer func() {
-						if err := objectExtensionManager.Terminate(); err != nil {
-							logger.Error().Err(err).Msg("cannot terminate object extension manager")
-						}
-						if err := storageRootExtensionManager.Terminate(); err != nil {
-							logger.Error().Err(err).Msg("cannot terminate storage root extension manager")
-						}
-					}()
-
-				*/
+				defer extManager.Terminate()
 
 				fsys := os.DirFS(path)
-
-				// Run validation
-				err = ocfl.ValidateObject(t.Context(), fsys, logger)
-				// We ignore the error from CheckObject as we are interested in the validation status
-				if err != nil {
-					t.Logf("CheckObject returned error (expected for bad-objects): %v", err)
+				obj, err := ocfl.LoadObject(ctx, fsys, nil, logger)
+				if err == nil {
+					defer obj.Close()
+					validator := obj.GetValidator()
+					defer validator.Close()
+					_ = validator.Validate()
 				}
 
-				status, err := validation.GetValidationStatus(ctx)
-				if err != nil {
-					t.Fatalf("cannot get validation status: %v", err)
-				}
-
+				validationErrors := logger.ValidationErrors()
 				foundCodes := make(map[string]bool)
-				for _, vErr := range status.Errors {
+				for _, vErr := range validationErrors {
 					foundCodes[string(vErr.Code)] = true
 				}
 
@@ -115,7 +87,7 @@ func TestFixtures11(t *testing.T) {
 				if subdir == "good-objects" {
 					hasError := false
 					var found []string
-					for _, vErr := range status.Errors {
+					for _, vErr := range validationErrors {
 						// Filter out W000 and E001 (which is noise due to missing extensions folder in these fixtures)
 						if vErr.Code != "W000" && vErr.Code != "E001" && (vErr.Code[0] == 'E' || vErr.Code[0] == 'W') {
 							hasError = true
