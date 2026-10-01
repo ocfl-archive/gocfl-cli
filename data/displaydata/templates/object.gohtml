@@ -151,7 +151,7 @@
                         </div>
                     </div>
 
-                    {{ if .pronoms }}
+                    {{ if or .pronoms .noPronomFiles }}
                     <div class="col">
                         <div class="card mb-4 rounded-3 shadow-sm">
                             <div class="card-header py-3">
@@ -165,6 +165,12 @@
                                         <a href="https://www.nationalarchives.gov.uk/PRONOM/{{ $pronom }}" target="_blank">{{ $pronom }}</a>
                                     </li>
                                     {{ end }}
+                                    {{ if .noPronomFiles }}
+                                    <li class="list-group-item d-flex align-items-start text-muted">
+                                        <span class="badge bg-secondary rounded-pill">{{ .noPronomFiles }}</span>&nbsp;
+                                        <em>Without PRONOM</em>
+                                    </li>
+                                    {{ end }}
                                 </ul>
                             </div>
                         </div>
@@ -172,7 +178,7 @@
                     {{ end }}
 
 
-                    {{ if .mimeTypes }}
+                    {{ if or .mimeTypes .noMimeTypeFiles }}
                     <div class="col">
                         <div class="card mb-4 rounded-3 shadow-sm">
                             <div class="card-header py-3">
@@ -185,6 +191,12 @@
                                             <span class="badge bg-primary rounded-pill">{{ $count }}</span>&nbsp;
                                             {{ $mime }}
                                         </li>
+                                    {{ end }}
+                                    {{ if .noMimeTypeFiles }}
+                                    <li class="list-group-item d-flex align-items-start text-muted">
+                                        <span class="badge bg-secondary rounded-pill">{{ .noMimeTypeFiles }}</span>&nbsp;
+                                        <em>Without MIME-Type</em>
+                                    </li>
                                     {{ end }}
                                 </ul>
                             </div>
@@ -218,7 +230,7 @@
                             </div>
                         </div>
 
-                        {{ if $area.Pronoms }}
+                        {{ if or $area.Pronoms $area.NoPronomFiles }}
                         <div class="col">
                             <div class="card mb-4 rounded-3 shadow-sm">
                                 <div class="card-header py-3">
@@ -232,13 +244,19 @@
                                             <a href="https://www.nationalarchives.gov.uk/PRONOM/{{ $pronom }}" target="_blank">{{ $pronom }}</a>
                                         </li>
                                         {{ end }}
+                                        {{ if $area.NoPronomFiles }}
+                                        <li class="list-group-item d-flex align-items-start text-muted">
+                                            <span class="badge bg-secondary rounded-pill">{{ $area.NoPronomFiles }}</span>&nbsp;
+                                            <em>Without PRONOM</em>
+                                        </li>
+                                        {{ end }}
                                     </ul>
                                 </div>
                             </div>
                         </div>
                         {{ end }}
 
-                        {{ if $area.MimeTypes }}
+                        {{ if or $area.MimeTypes $area.NoMimeTypeFiles }}
                         <div class="col">
                             <div class="card mb-4 rounded-3 shadow-sm">
                                 <div class="card-header py-3">
@@ -251,6 +269,12 @@
                                                 <span class="badge bg-primary rounded-pill">{{ $count }}</span>&nbsp;
                                                 {{ $mime }}
                                             </li>
+                                        {{ end }}
+                                        {{ if $area.NoMimeTypeFiles }}
+                                        <li class="list-group-item d-flex align-items-start text-muted">
+                                            <span class="badge bg-secondary rounded-pill">{{ $area.NoMimeTypeFiles }}</span>&nbsp;
+                                            <em>Without MIME-Type</em>
+                                        </li>
                                         {{ end }}
                                     </ul>
                                 </div>
@@ -275,7 +299,7 @@
                         </div>
                     </div>
 
-                    {{ if .pronoms }}
+                    {{ if or .pronoms .noPronomFiles }}
                     <div class="col">
                         <div class="card mb-4 rounded-3 shadow-sm">
                             <div class="card-header py-3">
@@ -289,6 +313,12 @@
                                         <a href="https://www.nationalarchives.gov.uk/PRONOM/{{ $pronom }}" target="_blank">{{ $pronom }}</a>
                                     </li>
                                     {{ end }}
+                                    {{ if .noPronomFiles }}
+                                    <li class="list-group-item d-flex align-items-start text-muted">
+                                        <span class="badge bg-secondary rounded-pill">{{ .noPronomFiles }}</span>&nbsp;
+                                        <em>Without PRONOM</em>
+                                    </li>
+                                    {{ end }}
                                 </ul>
                             </div>
                         </div>
@@ -296,7 +326,7 @@
                     {{ end }}
 
 
-                    {{ if .mimeTypes }}
+                    {{ if or .mimeTypes .noMimeTypeFiles }}
                     <div class="col">
                         <div class="card mb-4 rounded-3 shadow-sm">
                             <div class="card-header py-3">
@@ -309,6 +339,12 @@
                                             <span class="badge bg-primary rounded-pill">{{ $count }}</span>&nbsp;
                                             {{ $mime }}
                                         </li>
+                                    {{ end }}
+                                    {{ if .noMimeTypeFiles }}
+                                    <li class="list-group-item d-flex align-items-start text-muted">
+                                        <span class="badge bg-secondary rounded-pill">{{ .noMimeTypeFiles }}</span>&nbsp;
+                                        <em>Without MIME-Type</em>
+                                    </li>
                                     {{ end }}
                                 </ul>
                             </div>

@@ -879,16 +879,18 @@ func (s *Server) loadObjectPath(c *gin.Context) {
 }
 
 type AreaStats struct {
-	Name           string         `json:"name"`
-	Path           string         `json:"path"`
-	Description    string         `json:"description"`
-	NumFiles       int            `json:"numFiles"`
-	DifferentFiles int            `json:"differentFiles"`
-	Size           uint64         `json:"size"`
-	SizeStr        string         `json:"sizeStr"`
-	NoSizeFiles    int            `json:"noSizeFiles"`
-	MimeTypes      map[string]int `json:"mimeTypes"`
-	Pronoms        map[string]int `json:"pronoms"`
+	Name            string         `json:"name"`
+	Path            string         `json:"path"`
+	Description     string         `json:"description"`
+	NumFiles        int            `json:"numFiles"`
+	DifferentFiles  int            `json:"differentFiles"`
+	Size            uint64         `json:"size"`
+	SizeStr         string         `json:"sizeStr"`
+	NoSizeFiles     int            `json:"noSizeFiles"`
+	NoMimeTypeFiles int            `json:"noMimeTypeFiles"`
+	NoPronomFiles   int            `json:"noPronomFiles"`
+	MimeTypes       map[string]int `json:"mimeTypes"`
+	Pronoms         map[string]int `json:"pronoms"`
 }
 
 type MimeCount struct {
@@ -904,39 +906,84 @@ type flatEdge struct {
 }
 
 type AreaReportStats struct {
-	Name           string `json:"name"`
-	Path           string `json:"path"`
-	Description    string `json:"description"`
-	NumFiles       int    `json:"numFiles"`
-	DifferentFiles int    `json:"differentFiles"`
-	Size           uint64 `json:"size"`
-	SizeStr        string `json:"sizeStr"`
-	NoSizeFiles    int    `json:"noSizeFiles"`
-	AVLength       string `json:"avLength"`
-	videoSecs      uint
-	MimeTypes      map[string]*MimeCount `json:"mimeTypes"`
-	Pronoms        map[string]*MimeCount `json:"pronoms"`
+	Name            string `json:"name"`
+	Path            string `json:"path"`
+	Description     string `json:"description"`
+	NumFiles        int    `json:"numFiles"`
+	DifferentFiles  int    `json:"differentFiles"`
+	Size            uint64 `json:"size"`
+	SizeStr         string `json:"sizeStr"`
+	NoSizeFiles     int    `json:"noSizeFiles"`
+	NoMimeTypeFiles int    `json:"noMimeTypeFiles"`
+	NoPronomFiles   int    `json:"noPronomFiles"`
+	AVLength        string `json:"avLength"`
+	videoSecs       uint
+	MimeTypes       map[string]*MimeCount `json:"mimeTypes"`
+	Pronoms         map[string]*MimeCount `json:"pronoms"`
 }
 
-func fileMatchesAreas(file *inventory.FileMetadata, reportAreas []string) bool {
-	if len(reportAreas) == 0 {
-		return true
+func extractSubPaths(mExtension any) map[string]ext_NNNN_content_subpath.ContentSubPathEntry {
+	subPaths := make(map[string]ext_NNNN_content_subpath.ContentSubPathEntry)
+	mExtensions, ok := mExtension.(map[string]any)
+	if !ok {
+		return subPaths
 	}
+	_subpathMeta, ok := mExtensions[ext_NNNN_content_subpath.ContentSubPathName]
+	if !ok {
+		return subPaths
+	}
+	if subPathMeta, ok := _subpathMeta.(map[string]ext_NNNN_content_subpath.ContentSubPathEntry); ok {
+		for k, v := range subPathMeta {
+			subPaths[k] = v
+		}
+	} else if subPathMap, ok := _subpathMeta.(map[string]any); ok {
+		for k, v := range subPathMap {
+			if entry, ok := v.(ext_NNNN_content_subpath.ContentSubPathEntry); ok {
+				subPaths[k] = entry
+			} else if entryMap, ok := v.(map[string]any); ok {
+				var entry ext_NNNN_content_subpath.ContentSubPathEntry
+				if p, ok := entryMap["path"].(string); ok {
+					entry.Path = p
+				}
+				if d, ok := entryMap["description"].(string); ok {
+					entry.Description = d
+				}
+				subPaths[k] = entry
+			}
+		}
+	}
+	return subPaths
+}
+
+func extractFileAreas(extension map[string]any) []string {
 	var fileAreas []string
-	if _subpath, ok := file.Extension[ext_NNNN_content_subpath.ContentSubPathName]; ok {
+	if extension == nil {
+		return []string{""}
+	}
+	if _subpath, ok := extension[ext_NNNN_content_subpath.ContentSubPathName]; ok {
 		if fa, ok := _subpath.([]string); ok {
-			fileAreas = fa
+			fileAreas = append(fileAreas, fa...)
 		} else if anyAreas, ok := _subpath.([]any); ok {
 			for _, a := range anyAreas {
 				if s, ok := a.(string); ok {
 					fileAreas = append(fileAreas, s)
 				}
 			}
+		} else if s, ok := _subpath.(string); ok {
+			fileAreas = append(fileAreas, s)
 		}
 	}
 	if len(fileAreas) == 0 {
 		fileAreas = []string{""}
 	}
+	return fileAreas
+}
+
+func fileMatchesAreas(file *inventory.FileMetadata, reportAreas []string) bool {
+	if len(reportAreas) == 0 {
+		return true
+	}
+	fileAreas := extractFileAreas(file.Extension)
 	for _, fa := range fileAreas {
 		if slices.Contains(reportAreas, fa) {
 			return true
@@ -951,22 +998,7 @@ func (s *Server) displayObject(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "no metadata loaded"})
 		return
 	}
-	var subPaths = map[string]ext_NNNN_content_subpath.ContentSubPathEntry{}
-	if mExtensions, ok := s.metadata.Extension.(map[string]any); ok {
-		if _subpathMeta, ok := mExtensions[ext_NNNN_content_subpath.ContentSubPathName]; ok {
-			if subPathMeta, ok := _subpathMeta.(map[string]ext_NNNN_content_subpath.ContentSubPathEntry); ok {
-				for k, v := range subPathMeta {
-					subPaths[k] = v
-				}
-			} else if subPathMap, ok := _subpathMeta.(map[string]any); ok {
-				for k, v := range subPathMap {
-					if entry, ok := v.(ext_NNNN_content_subpath.ContentSubPathEntry); ok {
-						subPaths[k] = entry
-					}
-				}
-			}
-		}
-	}
+	var subPaths = extractSubPaths(s.metadata.Extension)
 
 	var areaStatsMap = make(map[string]*AreaStats)
 	for k, v := range subPaths {
@@ -982,6 +1014,8 @@ func (s *Server) displayObject(c *gin.Context) {
 	var numFiles int
 	var size uint64
 	var noSizeFiles int
+	var noMimeTypeFiles int
+	var noPronomFiles int
 	var mimeTypes = make(map[string]int)
 	var pronoms = make(map[string]int)
 	for _, v := range s.metadata.Files {
@@ -992,7 +1026,6 @@ func (s *Server) displayObject(c *gin.Context) {
 		var fileSize uint64
 		var mimeType string
 		var pronom string
-		var areas = []string{}
 
 		if _fs, ok := v.Extension[ext_NNNN_filesystem.FilesystemName]; ok {
 			if fs, ok = _fs.(map[string]any); ok {
@@ -1002,11 +1035,7 @@ func (s *Server) displayObject(c *gin.Context) {
 				}
 			}
 		}
-		if _subpath, ok := v.Extension[ext_NNNN_content_subpath.ContentSubPathName]; ok {
-			if areas, ok = _subpath.([]string); !ok {
-				areas = []string{}
-			}
-		}
+		var areas = extractFileAreas(v.Extension)
 		if _idx, ok := v.Extension[ext_NNNN_indexer.IndexerName]; ok {
 			if idx, ok = _idx.(*indexer.ResultV2); ok {
 				fileSize += idx.Size
@@ -1027,17 +1056,18 @@ func (s *Server) displayObject(c *gin.Context) {
 				mimeTypes[mimeType] = 0
 			}
 			mimeTypes[mimeType]++
+		} else {
+			noMimeTypeFiles++
 		}
 		if pronom != "" {
 			if _, ok := pronoms[pronom]; !ok {
 				pronoms[pronom] = 0
 			}
 			pronoms[pronom]++
+		} else {
+			noPronomFiles++
 		}
 
-		if len(areas) == 0 {
-			areas = []string{""}
-		}
 		for _, area := range areas {
 			stat, ok := areaStatsMap[area]
 			if !ok {
@@ -1064,9 +1094,13 @@ func (s *Server) displayObject(c *gin.Context) {
 			}
 			if mimeType != "" {
 				stat.MimeTypes[mimeType]++
+			} else {
+				stat.NoMimeTypeFiles++
 			}
 			if pronom != "" {
 				stat.Pronoms[pronom]++
+			} else {
+				stat.NoPronomFiles++
 			}
 		}
 	}
@@ -1097,16 +1131,18 @@ func (s *Server) displayObject(c *gin.Context) {
 	}
 
 	var params = map[string]any{
-		"title":          "gocfl",
-		"id":             id,
-		"versions":       s.metadata.Versions,
-		"differentFiles": len(s.metadata.Files),
-		"numFiles":       numFiles,
-		"size":           humanize.Bytes(size),
-		"noSizeFiles":    noSizeFiles,
-		"mimeTypes":      mimeTypes,
-		"pronoms":        pronoms,
-		"areaStats":      areaStatsList,
+		"title":           "gocfl",
+		"id":              id,
+		"versions":        s.metadata.Versions,
+		"differentFiles":  len(s.metadata.Files),
+		"numFiles":        numFiles,
+		"size":            humanize.Bytes(size),
+		"noSizeFiles":     noSizeFiles,
+		"noMimeTypeFiles": noMimeTypeFiles,
+		"noPronomFiles":   noPronomFiles,
+		"mimeTypes":       mimeTypes,
+		"pronoms":         pronoms,
+		"areaStats":       areaStatsList,
 	}
 
 	c.HTML(http.StatusOK, "object.gohtml", gin.H(params))
@@ -1253,22 +1289,7 @@ func (s *Server) report(c *gin.Context) {
 		inv = s.object.GetInventory()
 	}
 
-	var subPaths = map[string]ext_NNNN_content_subpath.ContentSubPathEntry{}
-	if mExtensions, ok := s.metadata.Extension.(map[string]any); ok {
-		if _subpathMeta, ok := mExtensions[ext_NNNN_content_subpath.ContentSubPathName]; ok {
-			if subPathMeta, ok := _subpathMeta.(map[string]ext_NNNN_content_subpath.ContentSubPathEntry); ok {
-				for k, v := range subPathMeta {
-					subPaths[k] = v
-				}
-			} else if subPathMap, ok := _subpathMeta.(map[string]any); ok {
-				for k, v := range subPathMap {
-					if entry, ok := v.(ext_NNNN_content_subpath.ContentSubPathEntry); ok {
-						subPaths[k] = entry
-					}
-				}
-			}
-		}
-	}
+	var subPaths = extractSubPaths(s.metadata.Extension)
 
 	var areaStatsMap = make(map[string]*AreaReportStats)
 	for k, v := range subPaths {
@@ -1284,6 +1305,8 @@ func (s *Server) report(c *gin.Context) {
 	var numFiles int
 	var size uint64
 	var noSizeFiles int
+	var noMimeTypeFiles int
+	var noPronomFiles int
 	var mimeTypes = make(map[string]*MimeCount)
 	var pronoms = make(map[string]*MimeCount)
 	var videoSecs uint
@@ -1299,7 +1322,6 @@ func (s *Server) report(c *gin.Context) {
 		var fileVideoSecs uint
 		var mimeType string
 		var pronom string
-		var areas = []string{}
 
 		if _fs != nil {
 			if fs, ok = _fs.(map[string]any); ok {
@@ -1309,19 +1331,7 @@ func (s *Server) report(c *gin.Context) {
 				}
 			}
 		}
-		if _subpath, ok := v.Extension[ext_NNNN_content_subpath.ContentSubPathName]; ok {
-			if areas, ok = _subpath.([]string); !ok {
-				if anyAreas, ok := _subpath.([]any); ok {
-					for _, a := range anyAreas {
-						if s, ok := a.(string); ok {
-							areas = append(areas, s)
-						}
-					}
-				} else {
-					areas = []string{}
-				}
-			}
-		}
+		var areas = extractFileAreas(v.Extension)
 		if _idx != nil {
 			if idx, ok = _idx.(*indexer.ResultV2); ok {
 				fileSize += idx.Size
@@ -1353,6 +1363,8 @@ func (s *Server) report(c *gin.Context) {
 			} else {
 				mimeTypes[mimeType].Size += fileSize
 			}
+		} else {
+			noMimeTypeFiles++
 		}
 		if pronom != "" {
 			if _, ok := pronoms[pronom]; !ok {
@@ -1368,10 +1380,8 @@ func (s *Server) report(c *gin.Context) {
 			} else {
 				pronoms[pronom].Size += fileSize
 			}
-		}
-
-		if len(areas) == 0 {
-			areas = []string{""}
+		} else {
+			noPronomFiles++
 		}
 
 		for _, area := range areas {
@@ -1409,6 +1419,8 @@ func (s *Server) report(c *gin.Context) {
 				} else {
 					stat.MimeTypes[mimeType].Size += fileSize
 				}
+			} else {
+				stat.NoMimeTypeFiles++
 			}
 			if pronom != "" {
 				if _, ok := stat.Pronoms[pronom]; !ok {
@@ -1420,6 +1432,8 @@ func (s *Server) report(c *gin.Context) {
 				} else {
 					stat.Pronoms[pronom].Size += fileSize
 				}
+			} else {
+				stat.NoPronomFiles++
 			}
 		}
 	}
@@ -1650,26 +1664,28 @@ func (s *Server) report(c *gin.Context) {
 	}
 
 	var params = map[string]any{
-		"objectpath":     objectpath,
-		"gocfl":          "gocfl",
-		"head":           head,
-		"id":             objID,
-		"versions":       s.metadata.Versions,
-		"differentFiles": len(s.metadata.Files),
-		"numFiles":       numFiles,
-		"filesNoData":    filesNoData,
-		"size":           size,
-		"noSizeFiles":    noSizeFiles,
-		"mimeTypes":      mimeTypes,
-		"pronoms":        pronoms,
-		"areaStats":      areaStatsList,
-		"reportAreas":    reportAreas,
-		"files":          files,
-		"info":           info,
-		"avLength":       fmtDuration(time.Duration(int64(videoSecs) * int64(time.Second))),
-		"tree":           flatTree,
-		"full":           full,
-		"polyfilled":     !not_polyfilled,
+		"objectpath":      objectpath,
+		"gocfl":           "gocfl",
+		"head":            head,
+		"id":              objID,
+		"versions":        s.metadata.Versions,
+		"differentFiles":  len(s.metadata.Files),
+		"numFiles":        numFiles,
+		"filesNoData":     filesNoData,
+		"size":            size,
+		"noSizeFiles":     noSizeFiles,
+		"noMimeTypeFiles": noMimeTypeFiles,
+		"noPronomFiles":   noPronomFiles,
+		"mimeTypes":       mimeTypes,
+		"pronoms":         pronoms,
+		"areaStats":       areaStatsList,
+		"reportAreas":     reportAreas,
+		"files":           files,
+		"info":            info,
+		"avLength":        fmtDuration(time.Duration(int64(videoSecs) * int64(time.Second))),
+		"tree":            flatTree,
+		"full":            full,
+		"polyfilled":      !not_polyfilled,
 	}
 
 	c.HTML(http.StatusOK, "report.gohtml", gin.H(params))

@@ -511,3 +511,146 @@ func TestServer_ReportRoute_EmptyReportAreas(t *testing.T) {
 	require.Contains(t, body, "image/tiff")
 	require.Contains(t, body, "image/jpeg")
 }
+
+func TestServer_MetadataAreaFilesAndStats_DisplayObject(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	mt := multitemplate.New()
+	funcMap := sprig.FuncMap()
+	funcMap["basename"] = func(str string) string { return filepath.Base(str) }
+	funcMap["PathEscape"] = func(str string) string { return url.PathEscape(str) }
+	funcMap["humanizeBytes"] = func(size uint64) string { return humanize.Bytes(size) }
+	funcMap["humanizeTime"] = func(t time.Time) string { return t.Format("2006-01-02 15:04:05") }
+
+	tpl, err := template.New("object.gohtml").Funcs(funcMap).ParseFS(displaydata.TemplateRoot, "templates/object.gohtml")
+	require.NoError(t, err)
+	mt.Add("object.gohtml", tpl)
+	r.HTMLRender = mt
+
+	srv := &Server{
+		templateFS: displaydata.TemplateRoot,
+		metadata: &inventory.Metadata{
+			ID: "test-metadata-area-obj",
+			Extension: map[string]any{
+				ext_NNNN_content_subpath.ContentSubPathName: map[string]any{
+					"content":  map[string]any{"path": "content", "description": "Content files"},
+					"metadata": map[string]any{"path": "metadata", "description": "Metadata files"},
+				},
+			},
+			Files: map[string]*inventory.FileMetadata{
+				"hash-content": {
+					InternalName: []string{"v1/content/document.pdf"},
+					Extension: map[string]any{
+						ext_NNNN_content_subpath.ContentSubPathName: []any{"content"},
+						ext_NNNN_indexer.IndexerName: &indexer.ResultV2{
+							Size:     5000,
+							Mimetype: "application/pdf",
+							Pronom:   "fmt/18",
+						},
+					},
+				},
+				"hash-thumb": {
+					InternalName: []string{"v1/content/metadata/thumbnails/v1/00001.png"},
+					Extension: map[string]any{
+						ext_NNNN_content_subpath.ContentSubPathName: []any{"metadata"},
+					},
+				},
+			},
+		},
+	}
+
+	r.GET("/object/test-metadata", srv.displayObject)
+
+	req := httptest.NewRequest(http.MethodGet, "/object/test-metadata", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	body := w.Body.String()
+
+	require.Contains(t, body, "Content files")
+	require.Contains(t, body, "Metadata files")
+	require.Contains(t, body, "Without PRONOM")
+	require.Contains(t, body, "Without MIME-Type")
+	require.Contains(t, body, "1 of 1 files counted")
+}
+
+func TestServer_MetadataAreaFilesAndStats_Report(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	mt := multitemplate.New()
+	funcMap := sprig.FuncMap()
+	funcMap["basename"] = func(str string) string { return filepath.Base(str) }
+	funcMap["PathEscape"] = func(str string) string { return url.PathEscape(str) }
+	funcMap["humanizeBytes"] = func(size uint64) string { return humanize.Bytes(size) }
+	funcMap["humanizeTime"] = func(t time.Time) string { return t.Format("2006-01-02 15:04:05") }
+
+	tpl, err := template.New("report.gohtml").Funcs(funcMap).ParseFS(displaydata.TemplateRoot, "templates/report.gohtml")
+	require.NoError(t, err)
+	mt.Add("report.gohtml", tpl)
+	r.HTMLRender = mt
+
+	srv := &Server{
+		templateFS:  displaydata.TemplateRoot,
+		reportAreas: []string{"content"},
+		metadata: &inventory.Metadata{
+			ID:   "test-metadata-report-obj",
+			Head: inventory.NewVersionNumber().WithString("v1"),
+			Extension: map[string]any{
+				ext_NNNN_content_subpath.ContentSubPathName: map[string]any{
+					"content":  map[string]any{"path": "content", "description": "Content files"},
+					"metadata": map[string]any{"path": "metadata", "description": "Metadata files"},
+				},
+			},
+			Files: map[string]*inventory.FileMetadata{
+				"hash-content": {
+					InternalName: []string{"v1/content/document.pdf"},
+					VersionName: map[string][]string{
+						"v1": {"document.pdf"},
+					},
+					Extension: map[string]any{
+						ext_NNNN_content_subpath.ContentSubPathName: []any{"content"},
+						ext_NNNN_indexer.IndexerName: &indexer.ResultV2{
+							Size:     5000,
+							Mimetype: "application/pdf",
+							Pronom:   "fmt/18",
+						},
+					},
+				},
+				"hash-thumb": {
+					InternalName: []string{"v1/content/metadata/thumbnails/v1/00001.png"},
+					VersionName: map[string][]string{
+						"v1": {"metadata/thumbnails/v1/00001.png"},
+					},
+					Extension: map[string]any{
+						ext_NNNN_content_subpath.ContentSubPathName: []any{"metadata"},
+					},
+				},
+			},
+		},
+	}
+
+	r.GET("/object/id/:id/report", srv.report)
+
+	req := httptest.NewRequest(http.MethodGet, "/object/id/test-metadata-report-obj/report?full=true", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	body := w.Body.String()
+
+	// Inhaltsübersicht has both Content and Metadata areas
+	require.Contains(t, body, "Content files")
+	require.Contains(t, body, "Metadata files")
+	require.Contains(t, body, "Ohne MIME-Type / Without MIME-Type")
+	require.Contains(t, body, "Ohne PRONOM / Without PRONOM")
+	require.Contains(t, body, "1 von 2 Dateien gezählt")
+
+	// Notice says reportAreas is content
+	require.Contains(t, body, "Gelistete Bereiche / Listed Areas")
+	require.Contains(t, body, "content")
+
+	// Filtered files contain only content file
+	require.Contains(t, body, "document.pdf")
+	require.NotContains(t, body, "metadata/thumbnails/v1/00001.png")
+}

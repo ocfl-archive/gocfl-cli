@@ -606,6 +606,7 @@
         <div class="metric-card">
             <div class="metric-value">{{ humanizeBytes .size }}</div>
             <div class="metric-label">Gesamtgröße / Total Size</div>
+            <div style="font-size: 7.5pt; color: var(--text-muted); margin-top: 2pt;">{{ sub .differentFiles .noSizeFiles }} von {{ .differentFiles }} Dateien gezählt</div>
         </div>
         <div class="metric-card">
             <div class="metric-value">{{ .avLength }}</div>
@@ -617,7 +618,7 @@
         </div>
     </div>
 
-    {{- if .mimeTypes }}
+    {{- if or .mimeTypes .noMimeTypeFiles }}
     <h4 style="margin-top: 10pt; margin-bottom: 4pt; font-size: 9pt; color: #374151;">MIME-Types (Gesamt / Total)</h4>
     <table class="data-table">
         <thead>
@@ -635,11 +636,18 @@
                 <td class="num">{{ $pSize.SizeStr }}</td>
             </tr>
         {{- end }}
+        {{- if .noMimeTypeFiles }}
+            <tr style="color: var(--text-muted); font-style: italic;">
+                <td>Ohne MIME-Type / Without MIME-Type</td>
+                <td class="num">{{ .noMimeTypeFiles }}</td>
+                <td class="num">-</td>
+            </tr>
+        {{- end }}
         </tbody>
     </table>
     {{- end }}
 
-    {{- if .pronoms }}
+    {{- if or .pronoms .noPronomFiles }}
     <h4 style="margin-top: 10pt; margin-bottom: 4pt; font-size: 9pt; color: #374151;">PRONOM Formate (Gesamt / Total)</h4>
     <table class="data-table">
         <thead>
@@ -655,6 +663,13 @@
                 <td><span class="badge badge-pronom">{{ $pronom }}</span></td>
                 <td class="num">{{ $pSize.Count }}</td>
                 <td class="num">{{ $pSize.SizeStr }}</td>
+            </tr>
+        {{- end }}
+        {{- if .noPronomFiles }}
+            <tr style="color: var(--text-muted); font-style: italic;">
+                <td><span class="badge" style="background: #9ca3af;">Ohne PRONOM / Without PRONOM</span></td>
+                <td class="num">{{ .noPronomFiles }}</td>
+                <td class="num">-</td>
             </tr>
         {{- end }}
         </tbody>
@@ -679,6 +694,9 @@
             <div class="metric-card">
                 <div class="metric-value">{{ $area.SizeStr }}</div>
                 <div class="metric-label">Gesamtgröße / Total Size</div>
+                {{- if and $area.DifferentFiles $area.NoSizeFiles }}
+                <div style="font-size: 7.5pt; color: var(--text-muted); margin-top: 2pt;">{{ sub $area.DifferentFiles $area.NoSizeFiles }} von {{ $area.DifferentFiles }} Dateien gezählt</div>
+                {{- end }}
             </div>
             <div class="metric-card">
                 <div class="metric-value">{{ $area.AVLength }}</div>
@@ -690,7 +708,7 @@
             </div>
         </div>
 
-        {{- if $area.MimeTypes }}
+        {{- if or $area.MimeTypes $area.NoMimeTypeFiles }}
         <h4 style="margin-top: 10pt; margin-bottom: 4pt; font-size: 9pt; color: #374151;">MIME-Types{{ if $area.Name }} ({{ $area.Name }}){{ end }}</h4>
         <table class="data-table">
             <thead>
@@ -708,11 +726,18 @@
                     <td class="num">{{ $pSize.SizeStr }}</td>
                 </tr>
             {{- end }}
+            {{- if $area.NoMimeTypeFiles }}
+                <tr style="color: var(--text-muted); font-style: italic;">
+                    <td>Ohne MIME-Type / Without MIME-Type</td>
+                    <td class="num">{{ $area.NoMimeTypeFiles }}</td>
+                    <td class="num">-</td>
+                </tr>
+            {{- end }}
             </tbody>
         </table>
         {{- end }}
 
-        {{- if $area.Pronoms }}
+        {{- if or $area.Pronoms $area.NoPronomFiles }}
         <h4 style="margin-top: 10pt; margin-bottom: 4pt; font-size: 9pt; color: #374151;">PRONOM Formate{{ if $area.Name }} ({{ $area.Name }}){{ end }}</h4>
         <table class="data-table">
             <thead>
@@ -730,6 +755,13 @@
                     <td class="num">{{ $pSize.SizeStr }}</td>
                 </tr>
             {{- end }}
+            {{- if $area.NoPronomFiles }}
+                <tr style="color: var(--text-muted); font-style: italic;">
+                    <td><span class="badge" style="background: #9ca3af;">Ohne PRONOM / Without PRONOM</span></td>
+                    <td class="num">{{ $area.NoPronomFiles }}</td>
+                    <td class="num">-</td>
+                </tr>
+            {{- end }}
             </tbody>
         </table>
         {{- end }}
@@ -745,6 +777,9 @@
         <div class="metric-card">
             <div class="metric-value">{{ humanizeBytes .size }}</div>
             <div class="metric-label">Gesamtgröße / Total Size</div>
+            {{- if and .differentFiles .noSizeFiles }}
+            <div style="font-size: 7.5pt; color: var(--text-muted); margin-top: 2pt;">{{ sub .differentFiles .noSizeFiles }} von {{ .differentFiles }} Dateien gezählt</div>
+            {{- end }}
         </div>
         <div class="metric-card">
             <div class="metric-value">{{ .avLength }}</div>
@@ -755,7 +790,7 @@
             <div class="metric-label">Eindeutige Dateien / Distinct Files</div>
         </div>
     </div>
-    {{- if .mimeTypes }}
+    {{- if or .mimeTypes .noMimeTypeFiles }}
     <h3 style="margin-top: 10pt; margin-bottom: 4pt;">MIME-Types</h3>
     <table class="data-table">
         <thead>
@@ -773,11 +808,18 @@
                 <td class="num">{{ $pSize.SizeStr }}</td>
             </tr>
         {{- end }}
+        {{- if .noMimeTypeFiles }}
+            <tr style="color: var(--text-muted); font-style: italic;">
+                <td>Ohne MIME-Type / Without MIME-Type</td>
+                <td class="num">{{ .noMimeTypeFiles }}</td>
+                <td class="num">-</td>
+            </tr>
+        {{- end }}
         </tbody>
     </table>
     {{- end }}
 
-    {{- if .pronoms }}
+    {{- if or .pronoms .noPronomFiles }}
     <h3 style="margin-top: 10pt; margin-bottom: 4pt;">PRONOM Formate</h3>
     <table class="data-table">
         <thead>
@@ -793,6 +835,13 @@
                 <td><span class="badge badge-pronom">{{ $pronom }}</span></td>
                 <td class="num">{{ $pSize.Count }}</td>
                 <td class="num">{{ $pSize.SizeStr }}</td>
+            </tr>
+        {{- end }}
+        {{- if .noPronomFiles }}
+            <tr style="color: var(--text-muted); font-style: italic;">
+                <td><span class="badge" style="background: #9ca3af;">Ohne PRONOM / Without PRONOM</span></td>
+                <td class="num">{{ .noPronomFiles }}</td>
+                <td class="num">-</td>
             </tr>
         {{- end }}
         </tbody>
