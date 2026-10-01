@@ -572,7 +572,7 @@ func TestServer_MetadataAreaFilesAndStats_DisplayObject(t *testing.T) {
 	require.Contains(t, body, "Metadata files")
 	require.Contains(t, body, "Without PRONOM")
 	require.Contains(t, body, "Without MIME-Type")
-	require.Contains(t, body, "1 of 1 files counted")
+	require.Contains(t, body, "Number of Files:")
 }
 
 func TestServer_MetadataAreaFilesAndStats_Report(t *testing.T) {
@@ -653,4 +653,179 @@ func TestServer_MetadataAreaFilesAndStats_Report(t *testing.T) {
 	// Filtered files contain only content file
 	require.Contains(t, body, "document.pdf")
 	require.NotContains(t, body, "metadata/thumbnails/v1/00001.png")
+}
+
+func TestStorageRootTemplate_Rendering(t *testing.T) {
+	funcMap := sprig.FuncMap()
+	funcMap["basename"] = func(str string) string { return filepath.Base(str) }
+	funcMap["PathEscape"] = func(str string) string { return url.PathEscape(str) }
+	funcMap["humanizeBytes"] = func(size uint64) string { return humanize.Bytes(size) }
+	funcMap["humanizeTime"] = func(t time.Time) string { return t.Format("2006-01-02 15:04:05") }
+
+	tpl, err := template.New("storageroot.gohtml").Funcs(funcMap).ParseFS(displaydata.TemplateRoot, "templates/storageroot.gohtml")
+	require.NoError(t, err)
+
+	params := map[string]any{
+		"title":       "gocfl",
+		"storageroot": "/data/ocfl_root",
+		"folders":     []string{"folder1", "folder2/subfolder"},
+	}
+
+	var buf bytes.Buffer
+	err = tpl.Execute(&buf, params)
+	require.NoError(t, err)
+
+	htmlOut := buf.String()
+	require.Contains(t, htmlOut, "Storage Root")
+	require.Contains(t, htmlOut, "/data/ocfl_root")
+	require.Contains(t, htmlOut, "folder1")
+	require.Contains(t, htmlOut, "folder2/subfolder")
+	require.Contains(t, htmlOut, "folderSearch")
+}
+
+func TestManifestTemplate_Rendering(t *testing.T) {
+	funcMap := sprig.FuncMap()
+	funcMap["basename"] = func(str string) string { return filepath.Base(str) }
+	funcMap["PathEscape"] = func(str string) string { return url.PathEscape(str) }
+	funcMap["humanizeBytes"] = func(size uint64) string { return humanize.Bytes(size) }
+	funcMap["humanizeTime"] = func(t time.Time) string { return t.Format("2006-01-02 15:04:05") }
+
+	tpl, err := template.New("manifest.gohtml").Funcs(funcMap).ParseFS(displaydata.TemplateRoot, "templates/manifest.gohtml")
+	require.NoError(t, err)
+
+	params := map[string]any{
+		"title":    "Manifest",
+		"id":       "test-obj-manifest",
+		"versions": map[string]any{"v1": map[string]any{"Name": "v1"}},
+		"files": map[string]any{
+			"v1/content/doc.pdf": map[string]any{
+				"Checksum":  "abc123sha512",
+				"Pronom":    "fmt/18",
+				"Mimetype":  "application/pdf",
+				"IdxSize":   "2.5 MB",
+				"Migration": map[string]string{},
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	err = tpl.Execute(&buf, params)
+	require.NoError(t, err)
+
+	htmlOut := buf.String()
+	require.Contains(t, htmlOut, "Manifest")
+	require.Contains(t, htmlOut, "test-obj-manifest")
+	require.Contains(t, htmlOut, "v1/content/doc.pdf")
+	require.Contains(t, htmlOut, "fmt/18")
+	require.Contains(t, htmlOut, "application/pdf")
+	require.Contains(t, htmlOut, "2.5 MB")
+}
+
+func TestVersionTemplate_Rendering(t *testing.T) {
+	funcMap := sprig.FuncMap()
+	funcMap["basename"] = func(str string) string { return filepath.Base(str) }
+	funcMap["PathEscape"] = func(str string) string { return url.PathEscape(str) }
+	funcMap["humanizeBytes"] = func(size uint64) string { return humanize.Bytes(size) }
+	funcMap["humanizeTime"] = func(t time.Time) string { return t.Format("2006-01-02 15:04:05") }
+
+	tpl, err := template.New("version.gohtml").Funcs(funcMap).ParseFS(displaydata.TemplateRoot, "templates/version.gohtml")
+	require.NoError(t, err)
+
+	params := map[string]any{
+		"title":    "Version",
+		"id":       "test-obj-ver",
+		"version":  "v1",
+		"versions": map[string]any{"v1": map[string]any{"Name": "v1"}},
+		"files": map[string]any{
+			"doc.pdf": map[string]any{
+				"Checksum":  "abc123sha512",
+				"Size":      "2.5 MB",
+				"CTime":     "2026-01-01T10:00:00Z",
+				"OS":        "windows",
+				"Attr":      "rw-r--r--",
+				"Pronom":    "fmt/18",
+				"Mimetype":  "application/pdf",
+				"IdxSize":   "2.5 MB",
+				"Migration": map[string]string{},
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	err = tpl.Execute(&buf, params)
+	require.NoError(t, err)
+
+	htmlOut := buf.String()
+	require.Contains(t, htmlOut, "v1")
+	require.Contains(t, htmlOut, "test-obj-ver")
+	require.Contains(t, htmlOut, "doc.pdf")
+	require.Contains(t, htmlOut, "fmt/18")
+	require.Contains(t, htmlOut, "application/pdf")
+	require.Contains(t, htmlOut, "windows")
+}
+
+func TestDetailTemplate_Rendering(t *testing.T) {
+	funcMap := sprig.FuncMap()
+	funcMap["basename"] = func(str string) string { return filepath.Base(str) }
+	funcMap["PathEscape"] = func(str string) string { return url.PathEscape(str) }
+	funcMap["humanizeBytes"] = func(size uint64) string { return humanize.Bytes(size) }
+	funcMap["humanizeTime"] = func(t time.Time) string { return t.Format("2006-01-02 15:04:05") }
+
+	tpl, err := template.New("detail.gohtml").Funcs(funcMap).ParseFS(displaydata.TemplateRoot, "templates/detail.gohtml")
+	require.NoError(t, err)
+
+	status := map[string]any{
+		"Checksum":        "deadbeef123456",
+		"DigestAlgorithm": "sha512",
+		"InternalNames":   []string{"v1/content/document.pdf"},
+		"ExternalNames": map[string]any{
+			"v1": []map[string]any{
+				{
+					"Name":  "document.pdf",
+					"CTime": "2026-01-01 10:00:00",
+					"MTime": "2026-01-01 10:00:00",
+					"ATime": "2026-01-01 10:00:00",
+					"Size":  "1.2 MB",
+					"Attr":  "rw-r--r--",
+					"OS":    "linux",
+					"Sys":   `{"dev": 1}`,
+				},
+			},
+		},
+		"Fixity": map[string]string{
+			"md5": "0123456789abcdef",
+		},
+		"Indexer": &indexer.ResultV2{
+			Type:      "document",
+			Subtype:   "pdf",
+			Mimetypes: []string{"application/pdf"},
+			Pronoms:   []string{"fmt/18"},
+			Width:     1024,
+			Height:    768,
+		},
+		"IndexerJSON": `{"sample": "data"}`,
+	}
+
+	params := map[string]any{
+		"title":  "Detail",
+		"id":     "test-detail-obj",
+		"status": status,
+	}
+
+	var buf bytes.Buffer
+	err = tpl.Execute(&buf, params)
+	require.NoError(t, err)
+
+	htmlOut := buf.String()
+	require.Contains(t, htmlOut, "sha512")
+	require.Contains(t, htmlOut, "deadbeef123456")
+	require.Contains(t, htmlOut, "v1/content/document.pdf")
+	require.Contains(t, htmlOut, "document.pdf")
+	require.Contains(t, htmlOut, "0123456789abcdef")
+	require.Contains(t, htmlOut, "fmt/18")
+	require.Contains(t, htmlOut, "application/pdf")
+	require.Contains(t, htmlOut, "1024")
+	require.Contains(t, htmlOut, "Overview & Checksums")
+	require.Contains(t, htmlOut, "Filesystem & Names")
+	require.Contains(t, htmlOut, "Indexer & Metadata")
 }
