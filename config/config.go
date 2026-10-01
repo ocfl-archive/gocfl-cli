@@ -57,14 +57,15 @@ type AESConfig struct {
 }
 
 type DisplayConfig struct {
-	Addr      string          `toml:"addr"`
-	AddrExt   string          `toml:"addrext"`
-	CertFile  configutil.Path `toml:"certfile"`
-	KeyFile   configutil.Path `toml:"keyfile"`
-	Templates configutil.Path `toml:"templates"`
-	Obfuscate bool            `toml:"obfuscate"`
-	Report    configutil.Path `toml:"report"`
-	Id        string          `toml:"id"`
+	Addr        string          `toml:"addr"`
+	AddrExt     string          `toml:"addrext"`
+	CertFile    configutil.Path `toml:"certfile"`
+	KeyFile     configutil.Path `toml:"keyfile"`
+	Templates   configutil.Path `toml:"templates"`
+	Obfuscate   bool            `toml:"obfuscate"`
+	Report      configutil.Path `toml:"report"`
+	Id          string          `toml:"id"`
+	ReportAreas []string        `toml:"reportareas"`
 }
 type ExtractConfig struct {
 	Manifest   bool            `toml:"manifest"`

@@ -203,6 +203,15 @@ func getFlagString(cmd *cobra.Command, flag string) string {
 	return str
 }
 
+func GetFlagStringArray(cmd *cobra.Command, flag string) []string {
+	strs, err := cmd.Flags().GetStringArray(flag)
+	if err != nil {
+		_ = cmd.Help()
+		cobra.CheckErr(errors.Errorf("canot get flag %s: %v", flag, err))
+	}
+	return strs
+}
+
 func getFlagBool(cmd *cobra.Command, flag string) (value bool, ok bool) {
 	f := cmd.Flags().Lookup(flag)
 	if f == nil || !f.Changed {
