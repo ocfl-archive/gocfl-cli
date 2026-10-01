@@ -147,6 +147,12 @@ func TestObjectTemplate_AreaStats(t *testing.T) {
 	require.Contains(t, htmlOut, "metadata")
 	require.Contains(t, htmlOut, "fmt/817")
 	require.Contains(t, htmlOut, "application/json")
+	require.Contains(t, htmlOut, `href="../../static/bootstrapdist/css/bootstrap.min.css"`)
+	require.Contains(t, htmlOut, `href="../../object/id/test-obj-1/manifest"`)
+	require.Contains(t, htmlOut, `src="../../static/bootstrapdist/js/bootstrap.bundle.min.js"`)
+	require.NotContains(t, htmlOut, `href="/static/`)
+	require.NotContains(t, htmlOut, `href="/object/`)
+	require.NotContains(t, htmlOut, `src="/static/`)
 }
 
 func TestServer_DisplayObjectRoute(t *testing.T) {
@@ -681,6 +687,10 @@ func TestStorageRootTemplate_Rendering(t *testing.T) {
 	require.Contains(t, htmlOut, "folder1")
 	require.Contains(t, htmlOut, "folder2/subfolder")
 	require.Contains(t, htmlOut, "folderSearch")
+	require.Contains(t, htmlOut, `href="object/folder/folder1"`)
+	require.Contains(t, htmlOut, `href="static/bootstrapdist/css/bootstrap.min.css"`)
+	require.NotContains(t, htmlOut, `href="/static/`)
+	require.NotContains(t, htmlOut, `href="/object/`)
 }
 
 func TestManifestTemplate_Rendering(t *testing.T) {
@@ -719,6 +729,12 @@ func TestManifestTemplate_Rendering(t *testing.T) {
 	require.Contains(t, htmlOut, "fmt/18")
 	require.Contains(t, htmlOut, "application/pdf")
 	require.Contains(t, htmlOut, "2.5 MB")
+	require.Contains(t, htmlOut, `href="../../../static/bootstrapdist/css/bootstrap.min.css"`)
+	require.Contains(t, htmlOut, `href="../../../object/id/test-obj-manifest/manifest"`)
+	require.Contains(t, htmlOut, `src="../../../static/bootstrapdist/js/bootstrap.bundle.min.js"`)
+	require.NotContains(t, htmlOut, `href="/static/`)
+	require.NotContains(t, htmlOut, `href="/object/`)
+	require.NotContains(t, htmlOut, `src="/static/`)
 }
 
 func TestVersionTemplate_Rendering(t *testing.T) {
@@ -762,6 +778,12 @@ func TestVersionTemplate_Rendering(t *testing.T) {
 	require.Contains(t, htmlOut, "fmt/18")
 	require.Contains(t, htmlOut, "application/pdf")
 	require.Contains(t, htmlOut, "windows")
+	require.Contains(t, htmlOut, `href="../../../../static/bootstrapdist/css/bootstrap.min.css"`)
+	require.Contains(t, htmlOut, `href="../../../../object/id/test-obj-ver/version/v1"`)
+	require.Contains(t, htmlOut, `src="../../../../static/bootstrapdist/js/bootstrap.bundle.min.js"`)
+	require.NotContains(t, htmlOut, `href="/static/`)
+	require.NotContains(t, htmlOut, `href="/object/`)
+	require.NotContains(t, htmlOut, `src="/static/`)
 }
 
 func TestDetailTemplate_Rendering(t *testing.T) {
@@ -828,4 +850,9 @@ func TestDetailTemplate_Rendering(t *testing.T) {
 	require.Contains(t, htmlOut, "Overview & Checksums")
 	require.Contains(t, htmlOut, "Filesystem & Names")
 	require.Contains(t, htmlOut, "Indexer & Metadata")
+	require.Contains(t, htmlOut, `href="../../../../static/bootstrapdist/css/bootstrap.min.css"`)
+	require.Contains(t, htmlOut, `src="../../../../static/bootstrapdist/js/bootstrap.bundle.min.js"`)
+	require.Contains(t, htmlOut, `src="../../../../static/js/json-viewer.bundle.js"`)
+	require.NotContains(t, htmlOut, `href="/static/`)
+	require.NotContains(t, htmlOut, `src="/static/`)
 }

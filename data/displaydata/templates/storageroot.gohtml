@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ .title }} - Storage Root</title>
-    <link rel="stylesheet" href="/static/bootstrapdist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="static/bootstrapdist/css/bootstrap.min.css">
     <style>
         body {
             background-color: #f8f9fa;
@@ -31,7 +31,7 @@
     <div class="container py-3">
         <!-- Header -->
         <header class="d-flex flex-wrap align-items-center justify-content-between pb-3 mb-4 border-bottom">
-            <a href="/" class="d-flex align-items-center text-dark text-decoration-none">
+            <a href="#" class="d-flex align-items-center text-dark text-decoration-none">
                 <svg class="bi me-2 text-primary" width="32" height="32" fill="currentColor" viewBox="0 0 16 16">
                     <path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zM2.5 2a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zm6.5.5A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zM1 10.5A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zm6.5.5A1.5 1.5 0 0 1 10.5 9h3a1.5 1.5 0 0 1 1.5 1.5v3a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 13.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3z"/>
                 </svg>
@@ -66,7 +66,7 @@
             <!-- Folders List -->
             <div class="list-group list-group-flush" id="folderList">
                 {{ range $folder := .folders }}
-                <a href="/object/folder/{{ $folder }}" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between py-3 px-4 folder-item" data-folder="{{ $folder }}">
+                <a href="object/folder/{{ $folder }}" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between py-3 px-4 folder-item" data-folder="{{ $folder }}">
                     <div class="d-flex align-items-center">
                         <svg class="bi me-3 text-secondary" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
                             <path d="M.54 3.87.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3h3.982a2 2 0 0 1 1.992 2.181l-.637 7A2 2 0 0 1 13.174 14H2.826a2 2 0 0 1-1.991-1.819l-.637-7a1.99 1.99 0 0 1 .342-1.31zM2.19 4a1 1 0 0 0-.996 1.09l.637 7a1 1 0 0 0 .995.91h10.348a1 1 0 0 0 .995-.91l.637-7A1 1 0 0 0 13.81 4H2.19zm4.69-1.707A1 1 0 0 0 6.172 2H2.5a1 1 0 0 0-1 .981l.006.139C1.72 3.042 1.95 3 2.19 3h5.396l-.707-.707z"/>
@@ -92,7 +92,7 @@
         </div>
     </div>
 
-    <script src="/static/bootstrapdist/js/bootstrap.bundle.min.js"></script>
+    <script src="static/bootstrapdist/js/bootstrap.bundle.min.js"></script>
     <script>
         const searchInput = document.getElementById('folderSearch');
         const folderItems = document.querySelectorAll('.folder-item');
