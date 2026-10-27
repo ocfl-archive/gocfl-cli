@@ -61,7 +61,6 @@ func doUpdateConf(cmd *cobra.Command) error {
 		conf.Update.Digest = checksum.DigestSHA512
 	}
 	if _, err := checksum.GetHash(conf.Update.Digest); err != nil {
-		_ = cmd.Help()
 		return errors.Errorf("invalid digest '%s' for flag 'digest' or 'Update.Digest' config file entry", conf.Update.Digest)
 	}
 	if b, ok := getFlagBool(cmd, "no-deduplicate"); ok {

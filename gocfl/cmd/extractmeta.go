@@ -80,16 +80,13 @@ func doExtractMeta(cmd *cobra.Command, args []string) error {
 	oPath := conf.ExtractMeta.ObjectPath.String()
 	oID := conf.ExtractMeta.ObjectID
 	if oPath != "" && oID != "" {
-		_ = cmd.Help()
 		return errors.New("do not use object-path AND object-id at the same time")
 	}
 	if oPath == "" && oID == "" {
-		_ = cmd.Help()
 		return errors.New("must specify either object-id or object-path")
 	}
 	format := strings.ToLower(conf.ExtractMeta.Format)
 	if format != "json" && format != "human" {
-		_ = cmd.Help()
 		return errors.Errorf("invalid format '%s' for flag 'format' or 'Format' config file entry", format)
 	}
 	output := conf.ExtractMeta.Output

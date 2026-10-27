@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"image"
 	"image/color"
 	"image/draw"
@@ -640,5 +641,24 @@ func TestAll(t *testing.T) {
 			"--digest", "invalid_digest_name",
 		})
 		require.Error(t, root.Execute(), "init with invalid digest should fail")
+	})
+
+	t.Run("no help output on error", func(t *testing.T) {
+		var outBuf bytes.Buffer
+		var errBuf bytes.Buffer
+		ResetForTest()
+		root := GetRootCmd()
+		root.SetOut(&outBuf)
+		root.SetErr(&errBuf)
+		root.SetArgs([]string{
+			"stat", ocflPath,
+			"--config", "internal",
+			"--stat-info", "invalid_info",
+		})
+		err := root.Execute()
+		require.Error(t, err)
+		combined := outBuf.String() + errBuf.String()
+		require.NotContains(t, combined, "Usage:")
+		require.NotContains(t, combined, "--stat-info comma separated list")
 	})
 }

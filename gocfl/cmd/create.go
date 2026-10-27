@@ -5,7 +5,6 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -15,7 +14,6 @@ import (
 	"github.com/je4/utils/v2/pkg/keepass2kms"
 	"github.com/ocfl-archive/filesystem/pkg/appendfs"
 	"github.com/ocfl-archive/filesystem/pkg/writefs"
-	"github.com/ocfl-archive/filesystem/pkg/zipfsw"
 	"github.com/ocfl-archive/filesystem/pkg/zipfswenc"
 	defaultextensions_object "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/object"
 	defaultextensions_storageroot "github.com/ocfl-archive/gocfl-cli/data/defaultextensions/storageroot"
@@ -175,98 +173,66 @@ func doCreate(cmd *cobra.Command, args []string) error {
 	}
 
 	// Prepare source and destination filesystems
-	var _destFS fs.FS
 	sourceFS, err := writefs.Sub(vfs, srcPath)
 	if err != nil {
 		return errors.Wrapf(err, "cannot get filesystem for '%s'", srcPath)
 	}
 
-	var zipWriter io.WriteCloser
-	if isZip {
-		if conf.AES.Enable {
-			var client registry.KMSClient
-			if conf.AES.Key != "" {
-				logger.Info().Msgf("using static KMS client")
-				client, err = statickms.NewClient(string(conf.AES.Key))
-				if err != nil {
-					return errors.Wrap(err, "cannot create static KMS client")
-				}
-
-			} else {
-				logger.Info().Msgf("using keepass2kms client with file '%s'", conf.AES.KeepassFile)
-				db, err := keepass2kms.LoadKeePassDBFromFile(string(conf.AES.KeepassFile), string(conf.AES.KeepassKey))
-				if err != nil {
-					return errors.Wrapf(err, "cannot load keepass2kms database from file '%s'", conf.AES.KeepassFile)
-				}
-
-				entryPath := conf.AES.KeepassEntry.String()
-				prefix := "keepass2://" + filepath.Base(string(conf.AES.KeepassFile)) + "/"
-				if strings.HasPrefix(entryPath, prefix) {
-					entryPath = entryPath[len(prefix):]
-				}
-
-				entry := keepass2kms.GetEntry(db.Content.Root, entryPath, false)
-				if entry == nil {
-					return errors.Errorf("key %s not found in keepass2kms database '%s'", conf.AES.KeepassEntry, conf.AES.KeepassFile)
-				}
-				key := entry.GetPassword()
-				if len(key) != 32 {
-					return errors.Errorf("key %s in keepass2kms database '%s' has wrong length (expected 32, got %d)", conf.AES.KeepassEntry, conf.AES.KeepassFile, len(key))
-				}
-				key = ""
-				_ = key
-
-				client, err = keepass2kms.NewClient(db, filepath.Base(string(conf.AES.KeepassFile)))
-				if err != nil {
-					return errors.Wrap(err, "cannot create keepass2kms client")
-				}
-			}
-			registry.RegisterKMSClient(client)
-			// create encrypted file
-			_destFS, err = zipfswenc.NewFSFileChecksumsEncrypted(
-				vfs,
-				ocflPath,
-				true,
-				[]checksum.DigestAlgorithm{conf.Init.Digest},
-				conf.AES.KeepassEntry.String(),
-				logger.Logger(),
-			)
+	var _destFS fs.FS
+	if isZip && conf.AES.Enable {
+		var keyURI string
+		var client registry.KMSClient
+		if conf.AES.Key != "" {
+			logger.Info().Msgf("using static KMS client")
+			client, err = statickms.NewClient(string(conf.AES.Key))
 			if err != nil {
-				return errors.Wrapf(err, "cannot create encrypted zip file '%s'", ocflPath)
+				return errors.Wrap(err, "cannot create static KMS client")
 			}
+			keyURI = "static://"
 		} else {
-			// Create a writer for the ZIP file
-			zipWriter, err = writefs.Create(vfs, ocflPath)
-			_destFS, err = zipfsw.NewFS(
-				zipWriter,
-				true, // closeWriter: zipfsw will close zipWriter when closed
-				true, // noCompression: as per requirements or config
-				path.Base(ocflPath),
-				[]checksum.DigestAlgorithm{conf.Init.Digest},
-				func(css map[checksum.DigestAlgorithm]string) error {
-					// Callback to write checksum files after ZIP is closed
-					if css == nil {
-						return errors.Errorf("checksum of '%s' cannot be nil", ocflPath)
-					}
-					for alg, digest := range css {
-						if _, err := writefs.WriteFile(vfs, ocflPath+"."+alg.String(), []byte(fmt.Sprintf("%s *%s", digest, path.Base(ocflPath)))); err != nil {
-							logger.Error().Err(err).Msgf("cannot write checksum file '%s.%s'", ocflPath, alg.String())
-						}
-					}
-					return nil
-				},
-				logger.Logger(),
-			)
+			logger.Info().Msgf("using keepass2kms client with file '%s'", conf.AES.KeepassFile)
+			db, err := keepass2kms.LoadKeePassDBFromFile(string(conf.AES.KeepassFile), string(conf.AES.KeepassKey))
 			if err != nil {
-				// If ZIP FS creation fails, try to close zipWriter if possible
-				if closer, ok := zipWriter.(io.Closer); ok {
-					_ = closer.Close()
-				}
-				return errors.Wrapf(err, "cannot create zip filesystem for '%s'", ocflPath)
+				return errors.Wrapf(err, "cannot load keepass2kms database from file '%s'", conf.AES.KeepassFile)
 			}
+
+			entryPath := conf.AES.KeepassEntry.String()
+			prefix := "keepass2://" + filepath.Base(string(conf.AES.KeepassFile)) + "/"
+			if strings.HasPrefix(entryPath, prefix) {
+				entryPath = entryPath[len(prefix):]
+			}
+
+			entry := keepass2kms.GetEntry(db.Content.Root, entryPath, false)
+			if entry == nil {
+				return errors.Errorf("key %s not found in keepass2kms database '%s'", conf.AES.KeepassEntry, conf.AES.KeepassFile)
+			}
+			key := entry.GetPassword()
+			if len(key) != 32 {
+				return errors.Errorf("key %s in keepass2kms database '%s' has wrong length (expected 32, got %d)", conf.AES.KeepassEntry, conf.AES.KeepassFile, len(key))
+			}
+			key = ""
+			_ = key
+
+			client, err = keepass2kms.NewClient(db, filepath.Base(string(conf.AES.KeepassFile)))
+			if err != nil {
+				return errors.Wrap(err, "cannot create keepass2kms client")
+			}
+			keyURI = conf.AES.KeepassEntry.String()
+		}
+		registry.RegisterKMSClient(client)
+		// create encrypted file
+		_destFS, err = zipfswenc.NewFSFileChecksumsEncrypted(
+			vfs,
+			ocflPath,
+			conf.Add.NoCompress,
+			[]checksum.DigestAlgorithm{conf.Init.Digest},
+			keyURI,
+			logger.Logger(),
+		)
+		if err != nil {
+			return errors.Wrapf(err, "cannot create encrypted zip file '%s'", ocflPath)
 		}
 	} else {
-		// Regular directory-based filesystem
 		_destFS, err = writefs.SubCreate(vfs, ocflPath)
 		if err != nil {
 			return errors.Wrapf(err, "cannot get filesystem for '%s'", ocflPath)

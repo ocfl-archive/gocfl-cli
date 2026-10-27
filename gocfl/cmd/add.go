@@ -57,7 +57,6 @@ func doAddConf(cmd *cobra.Command) error {
 			continue
 		}
 		if _, err := checksum.GetHash(checksum.DigestAlgorithm(alg)); err != nil {
-			_ = cmd.Help()
 			return errors.Errorf("invalid fixity '%s' for flag 'fixity' or 'Add.Fixity' config file entry", alg)
 		}
 	}
@@ -73,7 +72,6 @@ func doAddConf(cmd *cobra.Command) error {
 	}
 	if str := getFlagString(cmd, "default-object-extensions"); str != "" {
 		if err := conf.Add.ObjectExtensionFolder.UnmarshalText([]byte(str)); err != nil {
-			_ = cmd.Help()
 			return errors.Errorf("invalid default-object-extensions '%s' for flag 'default-object-extensions' or 'Add.ObjectExtensionFolder' config file entry", str)
 		}
 	}
@@ -91,7 +89,6 @@ func doAddConf(cmd *cobra.Command) error {
 		conf.Add.Digest = checksum.DigestSHA512
 	}
 	if _, err := checksum.GetHash(conf.Add.Digest); err != nil {
-		_ = cmd.Help()
 		return errors.Errorf("invalid digest '%s' for flag 'digest' or 'Init.DigestAlgorithm' config file entry", conf.Add.Digest)
 	}
 	return nil

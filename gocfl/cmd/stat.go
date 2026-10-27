@@ -69,7 +69,6 @@ func doStat(cmd *cobra.Command, args []string) error {
 	oPath := conf.Stat.ObjectPath.String()
 	oID := conf.Stat.ObjectID
 	if oPath != "" && oID != "" {
-		_ = cmd.Help()
 		return errors.New("do not use object-path AND object-id at the same time")
 	}
 
@@ -84,7 +83,6 @@ func doStat(cmd *cobra.Command, args []string) error {
 			}
 		}
 		if !found {
-			_ = cmd.Help()
 			return errors.Errorf("--stat-info invalid value '%s'", statInfoString)
 		}
 	}

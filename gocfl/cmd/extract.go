@@ -79,7 +79,6 @@ func doExtract(cmd *cobra.Command, args []string) error {
 	oPath := conf.Extract.ObjectPath.String()
 	oID := conf.Extract.ObjectID
 	if oPath != "" && oID != "" {
-		_ = cmd.Help()
 		return errors.New("do not use object-path AND object-id at the same time")
 	}
 

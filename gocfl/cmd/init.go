@@ -48,7 +48,6 @@ func doInitConf(cmd *cobra.Command) error {
 	}
 	if conf.Init.Digest != "" {
 		if _, err := checksum.GetHash(conf.Init.Digest); err != nil {
-			_ = cmd.Help()
 			return errors.Errorf("invalid digest '%s' for flag 'digest' or 'Init.DigestAlgorithm' config file entry", conf.Init.Digest)
 		}
 	}

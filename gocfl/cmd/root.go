@@ -168,7 +168,8 @@ var rootCmd = &cobra.Command{
 source code is available at: https://github.com/ocfl-archive/gocfl-cli
 
 by Jürgen Enge (University Library Basel, juergen@info-age.net)`,
-	Version: info.Version,
+	Version:      info.Version,
+	SilenceUsage: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		ctx = context.TODO()
 		var err error
@@ -197,7 +198,6 @@ by Jürgen Enge (University Library Basel, juergen@info-age.net)`,
 func getFlagString(cmd *cobra.Command, flag string) string {
 	str, err := cmd.Flags().GetString(flag)
 	if err != nil {
-		_ = cmd.Help()
 		cobra.CheckErr(errors.Errorf("canot get flag %s: %v", flag, err))
 	}
 	return str
@@ -206,7 +206,6 @@ func getFlagString(cmd *cobra.Command, flag string) string {
 func GetFlagStringArray(cmd *cobra.Command, flag string) []string {
 	strs, err := cmd.Flags().GetStringArray(flag)
 	if err != nil {
-		_ = cmd.Help()
 		cobra.CheckErr(errors.Errorf("canot get flag %s: %v", flag, err))
 	}
 	return strs
@@ -215,7 +214,6 @@ func GetFlagStringArray(cmd *cobra.Command, flag string) []string {
 func GetFlagStringSlice(cmd *cobra.Command, flag string) []string {
 	strs, err := cmd.Flags().GetStringSlice(flag)
 	if err != nil {
-		_ = cmd.Help()
 		cobra.CheckErr(errors.Errorf("canot get flag %s: %v", flag, err))
 	}
 	return strs
@@ -228,7 +226,6 @@ func getFlagBool(cmd *cobra.Command, flag string) (value bool, ok bool) {
 	}
 	b, err := cmd.Flags().GetBool(flag)
 	if err != nil {
-		_ = cmd.Help()
 		cobra.CheckErr(errors.Errorf("canot get flag %s: %v", flag, err))
 	}
 	return b, true
