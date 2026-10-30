@@ -332,6 +332,113 @@ func TestAll(t *testing.T) {
 		require.Equal(t, expectedContent, string(csData))
 	})
 
+	t.Run("validate zip with sha256 companion", func(t *testing.T) {
+		zipPath := path.Join(filepath.ToSlash(tempDir), "test_archive_sha256.zip")
+		ResetForTest()
+		root := GetRootCmd()
+		root.SetArgs([]string{
+			"validate", zipPath,
+			"--log-level", "DEBUG",
+			"--config", "internal",
+		})
+		require.NoError(t, root.Execute(), "validate zip sha256 Execute() failed")
+	})
+
+	t.Run("validate zip with both checksums", func(t *testing.T) {
+		zipPath := path.Join(filepath.ToSlash(tempDir), "test_archive_both.zip")
+		ResetForTest()
+		root := GetRootCmd()
+		root.SetArgs([]string{
+			"create", zipPath, sourceDir,
+			"--log-level", "DEBUG",
+			"--config", "internal",
+			"--object-id", "test-obj-zip-both",
+			"--digest", "sha512",
+			"--message", "initial zip both add",
+			"--user-name", "John Doe",
+			"--user-address", "john@doe.com",
+		})
+		require.NoError(t, root.Execute(), "create zip both Execute() failed")
+
+		// Add sha256 companion file alongside existing sha512 companion
+		zipData, err := os.ReadFile(zipPath)
+		require.NoError(t, err)
+		hasher256 := sha256.New()
+		hasher256.Write(zipData)
+		hash256 := hex.EncodeToString(hasher256.Sum(nil))
+		err = os.WriteFile(zipPath+".sha256", []byte(fmt.Sprintf("%s *%s", hash256, path.Base(zipPath))), 0644)
+		require.NoError(t, err)
+
+		ResetForTest()
+		root = GetRootCmd()
+		root.SetArgs([]string{
+			"validate", zipPath,
+			"--log-level", "DEBUG",
+			"--config", "internal",
+		})
+		require.NoError(t, root.Execute(), "validate zip with both checksums Execute() failed")
+	})
+
+	t.Run("validate zip without companion checksum", func(t *testing.T) {
+		zipPath := path.Join(filepath.ToSlash(tempDir), "test_archive_no_cs.zip")
+		ResetForTest()
+		root := GetRootCmd()
+		root.SetArgs([]string{
+			"create", zipPath, sourceDir,
+			"--log-level", "DEBUG",
+			"--config", "internal",
+			"--object-id", "test-obj-zip-no-cs",
+			"--digest", "sha512",
+			"--message", "initial zip no cs add",
+			"--user-name", "John Doe",
+			"--user-address", "john@doe.com",
+		})
+		require.NoError(t, root.Execute(), "create zip no cs Execute() failed")
+
+		// Delete generated companion checksum file
+		_ = os.Remove(zipPath + ".sha512")
+		_ = os.Remove(zipPath + ".sha256")
+
+		ResetForTest()
+		root = GetRootCmd()
+		root.SetArgs([]string{
+			"validate", zipPath,
+			"--log-level", "DEBUG",
+			"--config", "internal",
+		})
+		require.NoError(t, root.Execute(), "validate zip without companion checksum Execute() failed")
+	})
+
+	t.Run("validate zip with corrupt checksum", func(t *testing.T) {
+		zipPath := path.Join(filepath.ToSlash(tempDir), "test_archive_corrupt_cs.zip")
+		ResetForTest()
+		root := GetRootCmd()
+		root.SetArgs([]string{
+			"create", zipPath, sourceDir,
+			"--log-level", "DEBUG",
+			"--config", "internal",
+			"--object-id", "test-obj-zip-corrupt-cs",
+			"--digest", "sha512",
+			"--message", "initial zip corrupt cs add",
+			"--user-name", "John Doe",
+			"--user-address", "john@doe.com",
+		})
+		require.NoError(t, root.Execute(), "create zip corrupt cs Execute() failed")
+
+		// Overwrite companion checksum file with mismatched digest
+		err := os.WriteFile(zipPath+".sha512", []byte(fmt.Sprintf("%s *%s", "deadbeef0000111122223333444455556666777788889999aaaabbbbccccddddeeeeffff0000111122223333444455556666777788889999aaaabbbbccccddddeeeeffff", path.Base(zipPath))), 0644)
+		require.NoError(t, err)
+
+		ResetForTest()
+		root = GetRootCmd()
+		root.SetArgs([]string{
+			"validate", zipPath,
+			"--log-level", "DEBUG",
+			"--config", "internal",
+		})
+		require.Error(t, root.Execute(), "validate zip with corrupt checksum should fail")
+	})
+
 	t.Run("validate valid dir", func(t *testing.T) {
 		ResetForTest()
 		root := GetRootCmd()
