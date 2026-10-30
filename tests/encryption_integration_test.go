@@ -74,6 +74,7 @@ func TestEncryptionLifecycle(t *testing.T) {
 			"create",
 			zipPath,
 			contentDir,
+			"--config", "internal",
 			"--object-id", "id:test-static-aes",
 			"-m", "encrypted archive creation",
 			"-u", "Crypto Admin",
@@ -88,10 +89,14 @@ func TestEncryptionLifecycle(t *testing.T) {
 		// Verify files created
 		aesFile := zipPath + ".aes"
 		keyFile := zipPath + ".aes.key.json"
-		t.Logf("[Static AES] 2. Verifiziere erzeugte Artefakte (.zip, .aes, .aes.key.json): %s", zipPath)
+		plainCsFile := zipPath + ".sha512"
+		aesCsFile := zipPath + ".aes.sha512"
+		t.Logf("[Static AES] 2. Verifiziere erzeugte Artefakte (.zip, .aes, .aes.key.json, .sha512, .aes.sha512): %s", zipPath)
 		require.FileExists(t, zipPath)
 		require.FileExists(t, aesFile)
 		require.FileExists(t, keyFile)
+		require.FileExists(t, plainCsFile)
+		require.FileExists(t, aesCsFile)
 
 		// Decrypt archive using StaticKMS client
 		t.Log("[Static AES] 3. Lese Key-Struktur und initialisiere StaticKMS-Client...")
@@ -216,6 +221,7 @@ func TestEncryptionLifecycle(t *testing.T) {
 			"create",
 			zipPath,
 			contentDir,
+			"--config", "internal",
 			"--object-id", "id:test-keepass-aes",
 			"-m", "encrypted archive with keepass KMS",
 			"-u", "KeePass User",
@@ -231,9 +237,14 @@ func TestEncryptionLifecycle(t *testing.T) {
 
 		aesFile := zipPath + ".aes"
 		keyFile := zipPath + ".aes.key.json"
-		t.Logf("[KeePass2 KMS] 3. Verifiziere erzeugte Artefakte (.aes, .aes.key.json): %s", aesFile)
+		plainCsFile := zipPath + ".sha512"
+		aesCsFile := zipPath + ".aes.sha512"
+		t.Logf("[KeePass2 KMS] 3. Verifiziere erzeugte Artefakte (.zip, .aes, .aes.key.json, .sha512, .aes.sha512): %s", aesFile)
+		require.FileExists(t, zipPath)
 		require.FileExists(t, aesFile)
 		require.FileExists(t, keyFile)
+		require.FileExists(t, plainCsFile)
+		require.FileExists(t, aesCsFile)
 
 		// Decrypt archive using KeePass2 KMS client
 		t.Log("[KeePass2 KMS] 4. Lade KeePass2-Datenbank und initialisiere KeePass2-KMS-Client zur Schlüsselentschlüsselung...")

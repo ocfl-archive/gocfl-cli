@@ -2,6 +2,10 @@ package cmd
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"crypto/sha512"
+	"encoding/hex"
+	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
@@ -255,6 +259,18 @@ func TestAll(t *testing.T) {
 		})
 		require.NoError(t, root.Execute(), "create zip Execute() failed")
 
+		// Verify companion checksum file exists and matches computed sha512
+		csPath := zipPath + ".sha512"
+		csData, err := os.ReadFile(csPath)
+		require.NoError(t, err, "checksum file should exist")
+		zipData, err := os.ReadFile(zipPath)
+		require.NoError(t, err)
+		hasher := sha512.New()
+		hasher.Write(zipData)
+		expectedHash := hex.EncodeToString(hasher.Sum(nil))
+		expectedContent := fmt.Sprintf("%s *%s", expectedHash, path.Base(zipPath))
+		require.Equal(t, expectedContent, string(csData))
+
 		// Validate zip
 		ResetForTest()
 		root = GetRootCmd()
@@ -285,6 +301,35 @@ func TestAll(t *testing.T) {
 			"--object-id", "test-obj-zip",
 		})
 		require.NoError(t, root.Execute(), "stat zip object Execute() failed")
+	})
+
+	t.Run("create zip sha256", func(t *testing.T) {
+		zipPath := path.Join(filepath.ToSlash(tempDir), "test_archive_sha256.zip")
+		ResetForTest()
+		root := GetRootCmd()
+		root.SetArgs([]string{
+			"create", zipPath, sourceDir,
+			"--log-level", "DEBUG",
+			"--config", "internal",
+			"--object-id", "test-obj-zip-sha256",
+			"--digest", "sha256",
+			"--message", "initial zip sha256 add",
+			"--user-name", "John Doe",
+			"--user-address", "john@doe.com",
+		})
+		require.NoError(t, root.Execute(), "create zip sha256 Execute() failed")
+
+		// Verify companion checksum file exists and matches computed sha256
+		csPath := zipPath + ".sha256"
+		csData, err := os.ReadFile(csPath)
+		require.NoError(t, err, "checksum file should exist")
+		zipData, err := os.ReadFile(zipPath)
+		require.NoError(t, err)
+		hasher := sha256.New()
+		hasher.Write(zipData)
+		expectedHash := hex.EncodeToString(hasher.Sum(nil))
+		expectedContent := fmt.Sprintf("%s *%s", expectedHash, path.Base(zipPath))
+		require.Equal(t, expectedContent, string(csData))
 	})
 
 	t.Run("validate valid dir", func(t *testing.T) {
