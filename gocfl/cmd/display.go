@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"crypto/tls"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"io/fs"
@@ -17,6 +16,7 @@ import (
 	"time"
 
 	"emperror.dev/errors"
+	"github.com/chromedp/cdproto/cdp"
 	iop "github.com/chromedp/cdproto/io"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
@@ -251,57 +251,53 @@ func doDisplay(cmd *cobra.Command, args []string) error {
 	u += "?full&polyfilled=false"
 	logger.Info().Msgf("Navigiere zu %s - %s", baseURL, u)
 
-	if err := chromedp.Run(ctx,
-		chromedp.Navigate(u),
-		chromedp.ActionFunc(func(ctx context.Context) error {
-			p := page.PrintToPDF().
-				WithPrintBackground(true).
-				WithPaperWidth(8.27).
-				WithPaperHeight(11.69).
-				WithTransferMode(page.PrintToPDFTransferModeReturnAsStream)
+	err = func() error {
+		if _, err := chromedp.Run(ctx, chromedp.Navigate(u)); err != nil {
+			return err
+		}
 
-			_, streamID, err := p.Do(ctx)
+		target := chromedp.FromContext(ctx).Target
+		printBackground := true
+		pdf, err := cdp.Call(ctx, target, page.PrintToPDF, page.PrintToPDFParams{
+			PrintBackground: &printBackground,
+			PaperWidth:      8.27,
+			PaperHeight:     11.69,
+			TransferMode:    page.PrintToPDFTransferModeReturnAsStream,
+		})
+		if err != nil {
+			return err
+		}
+		defer func() {
+			_, _ = cdp.Call(context.Background(), target, iop.Close, iop.CloseParams{Handle: pdf.Stream})
+		}()
+
+		file, err := os.Create(conf.Display.Report.String())
+		if err != nil {
+			logger.Error().Err(err).Msgf("Fehler beim Erstellen der Ausgabedatei %s", conf.Display.Report.String())
+			return errors.Wrapf(err, "Fehler beim Erstellen der Ausgabedatei %s", conf.Display.Report.String())
+		}
+		defer file.Close()
+		for {
+			data, err := cdp.Call(ctx, target, iop.Read, iop.ReadParams{Handle: pdf.Stream})
 			if err != nil {
-				logger.Error().Err(err).Msgf("Fehler beim Erstellen des PDFs - %s", u)
-				return err
+				logger.Error().Err(err).Msg("Fehler beim Lesen des PDFs")
+				return errors.Wrap(err, "Fehler beim Lesen des PDFs")
 			}
-			defer iop.Close(streamID).Do(context.Background())
 
-			// 2. Ausgabedatei erstellen
-			file, err := os.Create(conf.Display.Report.String())
-			if err != nil {
-				logger.Error().Err(err).Msgf("Fehler beim Erstellen der Ausgabedatei %s", conf.Display.Report.String())
-				return errors.Wrapf(err, "Fehler beim Erstellen der Ausgabedatei %s", conf.Display.Report.String())
-			}
-			defer file.Close()
-			for {
-				data, eof, err := iop.Read(streamID).Do(ctx)
-				if err != nil {
-					logger.Error().Err(err).Msg("Fehler beim Lesen des PDFs")
-					return errors.Wrap(err, "Fehler beim Lesen des PDFs")
-				}
-
-				if len(data) > 0 {
-					// WICHTIG: DevTools liefert Stream-Daten base64-kodiert aus!
-					decoded := make([]byte, base64.StdEncoding.DecodedLen(len(data)))
-					n, err := base64.StdEncoding.Decode(decoded, []byte(data))
-					if err != nil {
-						logger.Error().Err(err).Msg("Fehler beim Decodieren der base64-Daten")
-						return errors.Wrap(err, "Fehler beim Decodieren der base64-Daten")
-					}
-					if _, err := file.Write(decoded[:n]); err != nil {
-						logger.Error().Err(err).Msg("Fehler beim Schreiben des PDFs")
-						return errors.Wrap(err, "Fehler beim Schreiben des PDFs")
-					}
-				}
-
-				if eof {
-					break
+			if len(data.Data) > 0 {
+				if _, err := file.Write(data.Data); err != nil {
+					logger.Error().Err(err).Msg("Fehler beim Schreiben des PDFs")
+					return errors.Wrap(err, "Fehler beim Schreiben des PDFs")
 				}
 			}
-			return file.Sync()
-		}),
-	); err != nil {
+
+			if data.EOF {
+				break
+			}
+		}
+		return file.Sync()
+	}()
+	if err != nil {
 		logger.Error().Err(err).Msgf("Fehler beim Erstellen des PDFs - %s", u)
 		return errors.Wrapf(err, "Fehler beim Erstellen des PDFs - %s", u)
 	}
