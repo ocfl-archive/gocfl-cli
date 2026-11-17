@@ -40,6 +40,19 @@ file, e.g. for an add command:
  --config custom-config.toml
 ```
 
+#### Extension Configuration Validation
+
+By default, extension configurations (`config.json` files within extension folders) are strictly validated against their respective schemas. Any unknown, missing, or malformed configuration properties will cause validation or execution to fail immediately.
+
+To disable strict validation and allow lazy mode (e.g. for backward compatibility with non-standard configurations), you can:
+- Pass the global command line flag `--lazy-extension-config`
+- Set `LazyExtensionConfig = true` in your configuration file:
+
+```toml
+# config.toml
+LazyExtensionConfig = true
+```
+
 ### Additional tools
 
 GOCFL is optimized next to the following Windows utilities and you will find
@@ -231,8 +244,10 @@ Available Commands:
   validate    validates an ocfl structure
 
 Flags:
+      --autoconfig                    enable automatic configuration
       --config string                 config file (default is embedded)
   -h, --help                          help for gocfl
+      --lazy-extension-config         disable strict extension config validation and allow lazy mode
       --log-file string               log output file (default is console)
       --log-level string              log level (CRITICAL|ERROR|WARNING|NOTICE|INFO|DEBUG)
       --s3-access-key-id string       Access Key ID for S3 Buckets

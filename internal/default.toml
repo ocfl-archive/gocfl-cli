@@ -1,4 +1,7 @@
 defaultarea = "content"
+# --lazy-extension-config
+# disable strict extension config validation and allow lazy mode (default false)
+#LazyExtensionConfig=false
 [log]
 # "trace"
 # "debug"

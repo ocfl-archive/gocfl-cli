@@ -138,7 +138,7 @@ func doExtractMeta(cmd *cobra.Command, args []string) error {
 	}()
 
 	// Load storage root in read-only mode
-	sr, err := ocfl.LoadStorageRoot(ctx, ocflFS, nil, nil, logger)
+	sr, err := ocfl.LoadStorageRoot(ctx, ocflFS, extensionParams, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storage root")
 		return errors.Wrap(err, "cannot load storage root")
@@ -159,7 +159,7 @@ func doExtractMeta(cmd *cobra.Command, args []string) error {
 		logger.Error().Err(err).Msgf("cannot get subfs for '%s'", oPath)
 		return errors.Wrapf(err, "cannot get subfs for '%s'", oPath)
 	}
-	obj, err := ocfl.LoadObject(ctx, objPathFS, nil, logger)
+	obj, err := ocfl.LoadObject(ctx, objPathFS, extensionParams, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load object")
 		return errors.Wrap(err, "cannot load object")

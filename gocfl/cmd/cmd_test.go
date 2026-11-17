@@ -17,6 +17,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/extension"
 	"github.com/stretchr/testify/require"
 )
 
@@ -812,5 +813,90 @@ func TestAll(t *testing.T) {
 		combined := outBuf.String() + errBuf.String()
 		require.NotContains(t, combined, "Usage:")
 		require.NotContains(t, combined, "--stat-info comma separated list")
+	})
+}
+
+func TestExtensionConfigValidation(t *testing.T) {
+	t.Run("getExtensionParams strict and lazy", func(t *testing.T) {
+		ResetForTest()
+		root := GetRootCmd()
+		root.SetArgs([]string{"--config", "internal"})
+		_ = root.ParseFlags([]string{})
+
+		params, err := getExtensionParams(root)
+		require.NoError(t, err)
+		require.Equal(t, "true", params[extension.ParamStrictExtensionConfig], "strict validation should be default (true)")
+
+		conf.LazyExtensionConfig = true
+		params, err = getExtensionParams(root)
+		require.NoError(t, err)
+		require.Equal(t, "false", params[extension.ParamStrictExtensionConfig], "lazy validation should be false when LazyExtensionConfig is true")
+	})
+
+	t.Run("strict validation by default fails and lazy flag passes", func(t *testing.T) {
+		tempDir, err := os.MkdirTemp("", "gocfl_test_lazy")
+		require.NoError(t, err)
+		defer os.RemoveAll(tempDir)
+
+		ocflPath := filepath.ToSlash(path.Join(tempDir, "ocfl_root"))
+		require.NoError(t, os.MkdirAll(ocflPath, 0755))
+
+		// 1. Initialize root
+		ResetForTest()
+		root := GetRootCmd()
+		root.SetArgs([]string{
+			"init", ocflPath,
+			"--config", "internal",
+		})
+		require.NoError(t, root.Execute())
+
+		// 2. Add an extension configuration with unknown/invalid properties
+		extDir := filepath.Join(ocflPath, "extensions", "NNNN-gocfl-extension-manager")
+		require.NoError(t, os.MkdirAll(extDir, 0755))
+		invalidConfig := []byte(`{"extensionName":"NNNN-gocfl-extension-manager","unknownProperty":"testValue"}`)
+		require.NoError(t, os.WriteFile(filepath.Join(extDir, "config.json"), invalidConfig, 0644))
+
+		// 3. Default validate should fail due to strict validation
+		ResetForTest()
+		root = GetRootCmd()
+		root.SetArgs([]string{
+			"validate", ocflPath,
+			"--config", "internal",
+		})
+		err = root.Execute()
+		require.Error(t, err, "default validate should fail with strict extension config validation")
+
+		// 4. Validate with --lazy-extension-config should succeed
+		ResetForTest()
+		root = GetRootCmd()
+		root.SetArgs([]string{
+			"validate", ocflPath,
+			"--config", "internal",
+			"--lazy-extension-config",
+		})
+		require.NoError(t, root.Execute(), "validate with --lazy-extension-config should succeed")
+
+		// 5. Validate with config file containing LazyExtensionConfig = true
+		configFile := filepath.Join(tempDir, "config.toml")
+		require.NoError(t, os.WriteFile(configFile, []byte("LazyExtensionConfig = true\n"), 0644))
+
+		ResetForTest()
+		root = GetRootCmd()
+		root.SetArgs([]string{
+			"validate", ocflPath,
+			"--config", filepath.ToSlash(configFile),
+		})
+		require.NoError(t, root.Execute(), "validate with config file LazyExtensionConfig = true should succeed")
+
+		// 6. Flag --lazy-extension-config=false overrides config file
+		ResetForTest()
+		root = GetRootCmd()
+		root.SetArgs([]string{
+			"validate", ocflPath,
+			"--config", filepath.ToSlash(configFile),
+			"--lazy-extension-config=false",
+		})
+		err = root.Execute()
+		require.Error(t, err, "validate with --lazy-extension-config=false should fail even if config file has LazyExtensionConfig = true")
 	})
 }

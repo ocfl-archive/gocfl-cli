@@ -231,7 +231,7 @@ func doValidate(cmd *cobra.Command, args []string) error {
 	}()
 
 	// Load storage root in read-only mode
-	sr, err := ocfl.LoadStorageRoot(ctx, destFS, nil, nil, logger)
+	sr, err := ocfl.LoadStorageRoot(ctx, destFS, extensionParams, nil, logger)
 	if err != nil {
 		logger.Error().Err(err).Msg("cannot load storageroot")
 		if checksumErrChan != nil {
@@ -275,7 +275,7 @@ func doValidate(cmd *cobra.Command, args []string) error {
 				validationErr = errors.Wrapf(err, "cannot open filesystem for '%s'", objectPath)
 			} else {
 				// Load object
-				obj, err := ocfl.LoadObject(ctx, objFsys, nil, logger)
+				obj, err := ocfl.LoadObject(ctx, objFsys, extensionParams, logger)
 				if err != nil {
 					logger.Error().Err(err).Msgf("cannot open object for '%s'", objectPath)
 					validationErr = errors.Wrapf(err, "cannot open object for '%s'", objectPath)

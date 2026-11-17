@@ -10,6 +10,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -166,6 +167,11 @@ func getExtensionParams(cmd *cobra.Command) (map[string]string, error) {
 	}); err != nil {
 		return nil, errors.Wrap(err, "cannot get extension params")
 	}
+	isStrict := true
+	if conf != nil && conf.LazyExtensionConfig {
+		isStrict = false
+	}
+	extensionParams[extension.ParamStrictExtensionConfig] = strconv.FormatBool(isStrict)
 	return extensionParams, nil
 }
 

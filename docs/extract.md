@@ -26,6 +26,7 @@ Flags:
 
 Global Flags:
       --config string                 config file (default is embedded)
+      --lazy-extension-config         disable strict extension config validation and allow lazy mode
       --log-file string               log output file (default is console)
       --log-level string              log level (CRITICAL|ERROR|WARNING|NOTICE|INFO|DEBUG)
       --s3-access-key-id string       Access Key ID for S3 Buckets

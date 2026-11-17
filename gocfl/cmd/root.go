@@ -105,6 +105,7 @@ var persistenFlagS3SecretAccessKey string
 var persistentFlagS3Region string
 
 var persistentFlagAutoconfig bool
+var persistentFlagLazyExtensionConfig bool
 
 var flagObjectID string
 var flagStatInfo = []string{}
@@ -281,6 +282,9 @@ func initConfig() {
 				conf.Indexer.Optimize = true
 			}
 		}
+		if f := rootCmd.PersistentFlags().Lookup("lazy-extension-config"); f != nil && f.Changed {
+			conf.LazyExtensionConfig = persistentFlagLazyExtensionConfig
+		}
 
 		if conf.Autoconfig {
 			thumbMiniConfig, err := ext_NNNN_thumbnail.Autoconfig(conf.Thumbnail, map[string]string{}, new(zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr})))
@@ -357,6 +361,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&persistenFlagS3SecretAccessKey, "s3-secret-access-key", "", "Secret Access Key for S3 Buckets")
 	rootCmd.PersistentFlags().StringVar(&persistentFlagS3Region, "s3-region", "", "Region for S3 Access")
 	rootCmd.PersistentFlags().BoolVar(&persistentFlagAutoconfig, "autoconfig", false, "enable automatic configuration")
+	rootCmd.PersistentFlags().BoolVar(&persistentFlagLazyExtensionConfig, "lazy-extension-config", false, "disable strict extension config validation and allow lazy mode")
 
 	initValidate()
 	initInit()

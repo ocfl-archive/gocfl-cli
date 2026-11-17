@@ -123,29 +123,30 @@ type InitConfigConfig struct {
 }
 
 type GOCFLConfig struct {
-	ErrorTemplate string                              `toml:"errortemplate"`
-	ErrorConfig   string                              `toml:"errorconfig"`
-	AccessLog     string                              `toml:"accesslog"`
-	Autoconfig    bool                                `toml:"autoconfig"`
-	Extension     map[string]map[string]string        `toml:"extension"`
-	Indexer       *indexer.IndexerConfig              `toml:"indexer"`
-	Thumbnail     *ext_NNNN_thumbnail.ConfigThumbnail `toml:"thumbnail"`
-	Migration     ext_NNNN_migration.ConfigMigration  `toml:"migration"`
-	AES           AESConfig                           `toml:"aes"`
-	Init          InitConfig                          `toml:"init"`
-	Add           AddConfig                           `toml:"add"`
-	Update        UpdateConfig                        `toml:"update"`
-	Display       DisplayConfig                       `toml:"display"`
-	Extract       ExtractConfig                       `toml:"extract"`
-	ExtractMeta   ExtractMetaConfig                   `toml:"extractmeta"`
-	Stat          StatConfig                          `toml:"stat"`
-	Test          TestConfig                          `toml:"test"`
-	Validate      ValidateConfig                      `toml:"validate"`
-	InitConfig    InitConfigConfig                    `toml:"initconfig"`
-	S3            S3Config                            `toml:"s3"`
-	DefaultArea   string                              `toml:"defaultarea"`
-	VFS           vfsrw.Config                        `toml:"vfs"`
-	Log           stashconfig.Config                  `toml:"log"`
+	LazyExtensionConfig bool                                `toml:"lazyextensionconfig" json:"lazyextensionconfig,omitempty"`
+	ErrorTemplate       string                              `toml:"errortemplate"`
+	ErrorConfig         string                              `toml:"errorconfig"`
+	AccessLog           string                              `toml:"accesslog"`
+	Autoconfig          bool                                `toml:"autoconfig"`
+	Extension           map[string]map[string]string        `toml:"extension"`
+	Indexer             *indexer.IndexerConfig              `toml:"indexer"`
+	Thumbnail           *ext_NNNN_thumbnail.ConfigThumbnail `toml:"thumbnail"`
+	Migration           ext_NNNN_migration.ConfigMigration  `toml:"migration"`
+	AES                 AESConfig                           `toml:"aes"`
+	Init                InitConfig                          `toml:"init"`
+	Add                 AddConfig                           `toml:"add"`
+	Update              UpdateConfig                        `toml:"update"`
+	Display             DisplayConfig                       `toml:"display"`
+	Extract             ExtractConfig                       `toml:"extract"`
+	ExtractMeta         ExtractMetaConfig                   `toml:"extractmeta"`
+	Stat                StatConfig                          `toml:"stat"`
+	Test                TestConfig                          `toml:"test"`
+	Validate            ValidateConfig                      `toml:"validate"`
+	InitConfig          InitConfigConfig                    `toml:"initconfig"`
+	S3                  S3Config                            `toml:"s3"`
+	DefaultArea         string                              `toml:"defaultarea"`
+	VFS                 vfsrw.Config                        `toml:"vfs"`
+	Log                 stashconfig.Config                  `toml:"log"`
 }
 
 func LoadGOCFLConfig(filename string) (*GOCFLConfig, error) {

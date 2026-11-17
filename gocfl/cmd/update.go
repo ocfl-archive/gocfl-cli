@@ -190,7 +190,7 @@ func doUpdate(cmd *cobra.Command, args []string) error {
 		ctx,
 		storageRoot,
 		nil,
-		nil,
+		extensionParams,
 		conf.Update.Deduplicate,
 		flagObjectID,
 		conf.Update.User.Name,
