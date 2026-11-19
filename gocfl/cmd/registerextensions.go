@@ -18,6 +18,7 @@ import (
 	_ "github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_mets"
 	_ "github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_migration"
 	_ "github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_pairtree_storage_layout"
+	_ "github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_ro_crate"
 	_ "github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_thumbnail"
 	_ "github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_timestamp"
 )
