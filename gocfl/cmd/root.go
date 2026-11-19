@@ -342,7 +342,9 @@ func setExtensionFlags(commands ...*cobra.Command) {
 	for _, cmd := range commands {
 		for _, param := range extensionParams {
 			param.SetParam(cmd.Name(), func(name string, defaultValue string, description string) {
-				cmd.Flags().String(name, defaultValue, description)
+				if cmd.Flags().Lookup(name) == nil {
+					cmd.Flags().String(name, defaultValue, description)
+				}
 			})
 		}
 	}

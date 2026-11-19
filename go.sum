@@ -171,8 +171,8 @@ github.com/ocfl-archive/error v1.0.5 h1:nPidx9HBSiViSDZHfVY8nIabBeOSO5vLFOcUMgt7
 github.com/ocfl-archive/error v1.0.5/go.mod h1:vOwIAdG34QlD9ExXUXu8QSywUKIIMN31ykQ2U0LvOMs=
 github.com/ocfl-archive/filesystem v1.0.20 h1:/a7kj7nYro/d+K0iQH6O/xaMod1I2Lqz1LhIwGMOVGk=
 github.com/ocfl-archive/filesystem v1.0.20/go.mod h1:iV3Q9PsC4GJAG6FTFnMr60BrzN9QXnKm5UnFbRAWE0Q=
-github.com/ocfl-archive/gocfl-extensions v0.0.0-20261001101233-bf65e8ae1bf9 h1:q1AccGyQAJqQj6W4ISLzSatyibVhKa4KGYIFNia2g8Q=
-github.com/ocfl-archive/gocfl-extensions v0.0.0-20261001101233-bf65e8ae1bf9/go.mod h1:UjjMz4XnHJiskj3OYJoRgcEpjmrZmenp24cJriToNXs=
+github.com/ocfl-archive/gocfl-extensions v0.0.0-20261119143209-57c3aab43735 h1:QLilfDM9yuJtoyOPKDNWk1AYo4QgFh/xYokIob+uJbY=
+github.com/ocfl-archive/gocfl-extensions v0.0.0-20261119143209-57c3aab43735/go.mod h1:UjjMz4XnHJiskj3OYJoRgcEpjmrZmenp24cJriToNXs=
 github.com/ocfl-archive/gocfl/v3 v3.0.14 h1:cI99Qf59DVQlF7pAZ4DT8vC9Q1EW9Y7tKZc56Q//PtM=
 github.com/ocfl-archive/gocfl/v3 v3.0.14/go.mod h1:WS1wP6Ho8XmqJAAXR0cBLJYjd+KZ+gtqtU3NUIFD39A=
 github.com/ocfl-archive/indexer/v3 v3.0.44 h1:JrSkHQ5xLnV7gq/0PKtDAXzyZaq1fMHzqlQ9yJ7UXVM=

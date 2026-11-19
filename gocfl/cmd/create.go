@@ -22,6 +22,7 @@ import (
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_indexer"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_metafile"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_migration"
+	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_ro_crate"
 	"github.com/ocfl-archive/gocfl-extensions/pkg/extension/ext_NNNN_thumbnail"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl"
 	"github.com/ocfl-archive/gocfl/v3/pkg/ocfl/version"
@@ -292,6 +293,7 @@ func doCreate(cmd *cobra.Command, args []string) error {
 	ext_NNNN_thumbnail.Init(conf.Thumbnail, sourceFS, logger)
 	ext_NNNN_indexer.Init(conf.Indexer, localCache, logger)
 	ext_NNNN_metafile.Init(vfs, logger)
+	ext_NNNN_ro_crate.Init(vfs, logger)
 
 	// Determine default area for objects
 	area := conf.DefaultArea

@@ -9,4 +9,5 @@ import "embed"
 //go:embed NNNN-thumbnail/config.json
 //go:embed initial/config.json
 //go:embed NNNN-gocfl-extension-manager/config.json
+//go:embed NNNN-ro-crate/config.json
 var DefaultObjectExtensionFS embed.FS
