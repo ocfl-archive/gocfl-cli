@@ -85,6 +85,18 @@ version = "latest"
 version = "latest"
 format = "json"
 
+[Extension.NNNN-ro-crate]
+# --ext-NNNN-ro-crate-enabled
+enabled="false"
+# --ext-NNNN-ro-crate-organisation
+organisation="FHNW"
+# --ext-NNNN-ro-crate-organisationID
+organisationID="1234DEMO"
+# --ext-NNNN-ro-crate-user
+user="tabeal"
+# --ext-NNNN-ro-crate-address
+address="1234 basel"
+
 [stat]
 info = ["ExtensionConfigs",
     "Objects",
